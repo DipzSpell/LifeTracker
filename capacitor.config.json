@@ -1,0 +1,5 @@
+{
+  "appId": "com.lifetracker.app",
+  "appName": "LifeTracker",
+  "webDir": "dist"
+}
