@@ -26,3 +26,7 @@ dist-ssr
 # Scratch scripts
 scratch/
 
+# Environment variables — NEVER commit these
+.env
+.env.local
+.env.production

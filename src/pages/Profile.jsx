@@ -674,23 +674,31 @@ export default function Profile() {
       ))}
 
       {/* ── Logout ── */}
-      <div className="glass-card p-4 border-red-500/15">
+      <div className="glass-card p-4 border border-red-500/15">
+        <p className="text-xs text-white/30 text-center mb-3">
+          Signed in as <span className="text-white/60 font-medium">{user?.email}</span>
+        </p>
         <button
           id="profile-logout"
-          onClick={() => {
-            if (confirm('Are you sure you want to log out?')) logout()
+          onClick={async () => {
+            try {
+              await logout()
+              addToast('Signed out successfully.', 'success')
+            } catch (err) {
+              addToast(err.message || 'Logout failed. Please try again.', 'error')
+            }
           }}
           className="w-full flex items-center justify-center gap-2 py-3 rounded-xl
                      border border-red-500/30 bg-red-500/10 text-red-400 text-sm font-semibold
                      hover:bg-red-500/20 transition-all active:scale-95"
         >
           <LogOut size={16} />
-          Log Out
+          Sign Out
         </button>
       </div>
 
       <p className="text-center text-[10px] text-white/15 pb-2">
-        LifeTracker v1.0 · All data on your device 🔐
+        LifeTracker v1.0 · Synced via Supabase 🔐
       </p>
     </div>
   )

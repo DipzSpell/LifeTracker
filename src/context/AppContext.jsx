@@ -2,6 +2,7 @@ import { createContext, useContext, useReducer, useEffect, useCallback } from 'r
 import { storage, todayKey, dateKey } from '../lib/storage'
 import { calculateDayPoints, sumPoints, checkBadges } from '../lib/points'
 import { useAuth } from './AuthContext'
+import { supabase } from '../lib/supabase'
 
 const AppContext = createContext(null)
 
@@ -160,33 +161,101 @@ export function AppProvider({ children }) {
   const uid = user?.uid || 'guest'
   const [state, dispatch] = useReducer(appReducer, getDefaultState())
 
-  // Load from storage on mount / user change
+  // Load from Supabase (or localStorage fallback) on mount / user change
   useEffect(() => {
-    if (!uid) return
-    const saved = storage.get('appState', uid)
-    if (saved) {
-      dispatch({ type: 'INIT', payload: saved })
-    } else {
-      // Seed default good habits for new users
-      const defaultHabits = {
-        'habit_gym': { id: 'habit_gym', name: 'Gym', type: 'good', icon: '🏋️', category: 'fitness', entries: {}, createdAt: new Date().toISOString() },
-        'habit_walk': { id: 'habit_walk', name: 'Walk / Run', type: 'good', icon: '🚶', category: 'fitness', entries: {}, createdAt: new Date().toISOString() },
-        'habit_read': { id: 'habit_read', name: 'Read', type: 'good', icon: '📚', category: 'mind', entries: {}, createdAt: new Date().toISOString() },
-        'habit_meditate': { id: 'habit_meditate', name: 'Meditate', type: 'good', icon: '🧘', category: 'mind', entries: {}, createdAt: new Date().toISOString() },
-        'habit_water': { id: 'habit_water', name: 'Drink Water Goal', type: 'good', icon: '💧', category: 'health', entries: {}, createdAt: new Date().toISOString() },
-        'habit_sleep': { id: 'habit_sleep', name: 'Sleep on Time', type: 'good', icon: '😴', category: 'health', entries: {}, createdAt: new Date().toISOString() },
+    if (!uid || uid === 'guest') return
+
+    let active = true
+
+    async function loadState() {
+      try {
+        // 1. Try to load from Supabase
+        const { data, error } = await supabase
+          .from('user_states')
+          .select('state')
+          .eq('user_id', uid)
+          .maybeSingle()
+
+        if (!active) return
+
+        if (error) {
+          console.error('Error loading state from Supabase:', error)
+          throw error
+        }
+
+        if (data?.state) {
+          // Load state from DB
+          dispatch({ type: 'INIT', payload: data.state })
+          // Keep localStorage in sync as backup
+          storage.set('appState', data.state, uid)
+        } else {
+          // No DB state found (new user). Check if they have local storage state
+          const localSaved = storage.get('appState', uid)
+          if (localSaved) {
+            dispatch({ type: 'INIT', payload: localSaved })
+            // Save to DB immediately
+            await supabase.from('user_states').upsert({ user_id: uid, state: localSaved })
+          } else {
+            // Seed defaults
+            const defaultHabits = {
+              'habit_gym': { id: 'habit_gym', name: 'Gym', type: 'good', icon: '🏋️', category: 'fitness', entries: {}, createdAt: new Date().toISOString() },
+              'habit_walk': { id: 'habit_walk', name: 'Walk / Run', type: 'good', icon: '🚶', category: 'fitness', entries: {}, createdAt: new Date().toISOString() },
+              'habit_read': { id: 'habit_read', name: 'Read', type: 'good', icon: '📚', category: 'mind', entries: {}, createdAt: new Date().toISOString() },
+              'habit_meditate': { id: 'habit_meditate', name: 'Meditate', type: 'good', icon: '🧘', category: 'mind', entries: {}, createdAt: new Date().toISOString() },
+              'habit_water': { id: 'habit_water', name: 'Drink Water Goal', type: 'good', icon: '💧', category: 'health', entries: {}, createdAt: new Date().toISOString() },
+              'habit_sleep': { id: 'habit_sleep', name: 'Sleep on Time', type: 'good', icon: '😴', category: 'health', entries: {}, createdAt: new Date().toISOString() },
+            }
+            const initialState = { habits: defaultHabits }
+            dispatch({ type: 'INIT', payload: initialState })
+            // Save to DB immediately
+            await supabase.from('user_states').upsert({ user_id: uid, state: initialState })
+          }
+        }
+      } catch (err) {
+        console.warn('Falling back to local storage due to error:', err)
+        // Offline fallback
+        const localSaved = storage.get('appState', uid)
+        if (localSaved) {
+          dispatch({ type: 'INIT', payload: localSaved })
+        } else {
+          dispatch({ type: 'INIT', payload: { habits: {} } })
+        }
       }
-      dispatch({ type: 'INIT', payload: { habits: defaultHabits } })
+    }
+
+    loadState()
+
+    return () => {
+      active = false
     }
   }, [uid])
 
-  // Save to storage on state change
+  // Save to storage locally and sync to Supabase with a debounce
   useEffect(() => {
-    if (!uid) return
-    // Only save if the state has been loaded and initialized from localStorage (avoids race condition on login)
-    if (state.initialized) {
-      storage.set('appState', state, uid)
-    }
+    if (!uid || uid === 'guest' || !state.initialized) return
+
+    // 1. Immediately save to localstorage for instant responsiveness and offline support
+    storage.set('appState', state, uid)
+
+    // 2. Debounce writing to Supabase to prevent spamming the database
+    const timer = setTimeout(async () => {
+      try {
+        const { error } = await supabase
+          .from('user_states')
+          .upsert({
+            user_id: uid,
+            state: state,
+            updated_at: new Date().toISOString()
+          })
+        if (error) {
+          console.error('Error syncing state to Supabase:', error)
+        }
+      } catch (err) {
+        console.error('Failed to sync to Supabase:', err)
+      }
+    }, 1500)
+
+    return () => clearTimeout(timer)
   }, [state, uid])
 
   // Recalculate points when logs change
