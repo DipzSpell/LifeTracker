@@ -54,8 +54,15 @@ function AddTaskModal({ isOpen, onClose }) {
     onClose()
   }
 
+  const footer = (
+    <div className="flex gap-3 w-full">
+      <button onClick={onClose} className="btn-ghost flex-1">Cancel</button>
+      <button id="todo-add-confirm" onClick={handleAdd} className="btn-primary flex-1">Add Task</button>
+    </div>
+  )
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Add New Task">
+    <Modal isOpen={isOpen} onClose={onClose} title="Add New Task" footer={footer}>
       <div className="space-y-4">
         <div>
           <label className="text-xs text-white/40 block mb-1">Task Title *</label>
@@ -118,10 +125,6 @@ function AddTaskModal({ isOpen, onClose }) {
               </button>
             ))}
           </div>
-        </div>
-        <div className="flex gap-3 pt-2">
-          <button onClick={onClose} className="btn-ghost flex-1">Cancel</button>
-          <button id="todo-add-confirm" onClick={handleAdd} className="btn-primary flex-1">Add Task</button>
         </div>
       </div>
     </Modal>

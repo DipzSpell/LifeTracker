@@ -7,8 +7,17 @@ import { Save, Dumbbell, Droplets, Scale, Map, Timer, Flame } from 'lucide-react
 
 const WORKOUT_TYPES = ['Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core', 'Cardio', 'Full Body', 'HIIT', 'Yoga', 'Swimming', 'Cycling']
 
+const Section = ({ icon: Icon, color, title, children }) => (
+  <div className="glass-card p-4">
+    <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-4">
+      <Icon size={16} className={color} />{title}
+    </h3>
+    {children}
+  </div>
+)
+
 export default function Fitness() {
-  const { dispatch, fitnessLogs, dailyLogs, settings } = useApp()
+  const { dispatch, fitnessLogs, dailyLogs, settings, recalcPoints } = useApp()
   const { toasts, addToast, removeToast } = useToast()
   const today = todayKey()
   const existing = fitnessLogs[today] || {}
@@ -62,6 +71,7 @@ export default function Fitness() {
         log: { steps: parseInt(form.steps) || 0, waterGlasses: parseInt(form.waterGlasses) || 0 },
       },
     })
+    setTimeout(recalcPoints, 100)
     addToast('Fitness data saved! 💪', 'success')
   }
 
@@ -74,15 +84,6 @@ export default function Fitness() {
   const stepGoal = settings.stepGoal || 8000
   const stepsToday = parseInt(form.steps) || 0
   const stepPct = Math.min(100, Math.round((stepsToday / stepGoal) * 100))
-
-  const Section = ({ icon: Icon, color, title, children }) => (
-    <div className="glass-card p-4">
-      <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-4">
-        <Icon size={16} className={color} />{title}
-      </h3>
-      {children}
-    </div>
-  )
 
   return (
     <div className="space-y-4 page-enter">

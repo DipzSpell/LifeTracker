@@ -31,19 +31,67 @@ export const POINTS_RULES = {
  * @param {object} habits - Habits data { [id]: { doneDates: [], type: 'good'|'bad' } }
  * @returns {Array} Array of { rule, pts, label, icon }
  */
-export function calculateDayPoints(log, habits = {}, todos = []) {
+export function calculateDayPoints(log, habits = {}, todos = [], fitnessLog = {}) {
   const earned = []
 
   if (!log) return earned
 
-  // Gym
-  if (log.gymStatus === 'done') earned.push(POINTS_RULES.GYM_DONE)
+  // Workout & Gym Points
+  const workoutType = fitnessLog.workoutType || log.workoutType
+  if (log.gymStatus === 'done' || workoutType) {
+    let workoutPts = 10
+    let label = 'Gym done'
+    let icon = '🏋️'
+    
+    if (workoutType) {
+      label = `Workout: ${workoutType}`
+      icon = '💪'
+      if (['HIIT', 'Cardio', 'Swimming', 'Cycling', 'Full Body'].includes(workoutType)) {
+        workoutPts = 15
+      } else if (['Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core'].includes(workoutType)) {
+        workoutPts = 12
+      } else if (workoutType === 'Yoga') {
+        workoutPts = 8
+        icon = '🧘'
+      } else {
+        workoutPts = 10
+      }
+    }
+    earned.push({ pts: workoutPts, label, icon })
+  }
   if (log.gymStatus === 'skipped') earned.push(POINTS_RULES.SKIPPED_GYM)
 
-  // Steps
-  const steps = log.steps || 0
-  if (steps >= 10000) earned.push(POINTS_RULES.STEPS_10K)
-  else if (steps >= 5000) earned.push(POINTS_RULES.STEPS_5K)
+  // Workout duration points
+  const duration = parseInt(fitnessLog.duration || log.duration) || 0
+  if (duration > 0) {
+    const durationPts = Math.min(20, Math.floor(duration / 5))
+    if (durationPts > 0) {
+      earned.push({ pts: durationPts, label: `Workout duration (${duration} mins)`, icon: '⏱️' })
+    }
+  }
+
+  // Workout calories points
+  const calories = parseInt(fitnessLog.calories || log.calories) || 0
+  if (calories > 0) {
+    const caloriePts = Math.min(15, Math.floor(calories / 50))
+    if (caloriePts > 0) {
+      earned.push({ pts: caloriePts, label: `Burned ${calories} kcal`, icon: '🔥' })
+    }
+  }
+
+  // Steps Points
+  const steps = parseInt(fitnessLog.steps || log.steps) || 0
+  if (steps > 0) {
+    const stepPts = Math.floor(steps / 1000)
+    if (stepPts > 0) {
+      earned.push({ pts: stepPts, label: `Walked ${steps.toLocaleString()} steps`, icon: '👟' })
+    }
+    if (steps >= 10000) {
+      earned.push({ pts: 10, label: '10k steps milestone bonus!', icon: '🚀' })
+    } else if (steps >= 8000) {
+      earned.push({ pts: 5, label: 'Daily step goal met (8k+ steps)', icon: '🎯' })
+    }
+  }
 
   // Sleep
   if (log.wokeEarly) earned.push(POINTS_RULES.WOKE_EARLY)
@@ -55,8 +103,37 @@ export function calculateDayPoints(log, habits = {}, todos = []) {
   if (log.bathed) earned.push(POINTS_RULES.BATHED)
   if (log.meditated) earned.push(POINTS_RULES.MEDITATED)
 
-  // Water
-  if (log.waterGoalMet) earned.push(POINTS_RULES.WATER_GOAL)
+  // Water Intake Points
+  const waterGlasses = parseInt(fitnessLog.waterGlasses || log.waterGlasses) || 0
+  if (waterGlasses > 0) {
+    earned.push({ pts: waterGlasses, label: `Drank ${waterGlasses} glasses of water`, icon: '💧' })
+    if (waterGlasses >= 8) {
+      earned.push({ pts: 5, label: 'Water goal reached (8+ glasses)', icon: '🥤' })
+    }
+  }
+
+  // Vitals Points
+  const activeMinutes = parseInt(fitnessLog.activeMinutes) || 0
+  if (activeMinutes > 0) {
+    const activePts = Math.min(15, Math.floor(activeMinutes / 2))
+    if (activePts > 0) {
+      earned.push({ pts: activePts, label: `Active for ${activeMinutes} minutes`, icon: '⚡' })
+    }
+  }
+
+  const heartRate = parseInt(fitnessLog.heartRate) || 0
+  if (heartRate > 0) {
+    earned.push({ pts: 3, label: 'Logged heart rate vitals', icon: '❤️' })
+  }
+
+  // Journaling Notes Points
+  const notesLength = (log.notes || '').trim().length
+  if (notesLength > 0) {
+    const notesPts = Math.min(10, Math.floor(notesLength / 15))
+    if (notesPts > 0) {
+      earned.push({ pts: notesPts, label: 'Daily journal entry logged', icon: '📓' })
+    }
+  }
 
   // Logged the day
   earned.push(POINTS_RULES.LOGGED_DAY)

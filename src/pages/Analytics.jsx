@@ -24,38 +24,380 @@ const CustomTooltip = ({ active, payload, label }) => {
 }
 
 function HabitHeatmap({ habits }) {
+  const { dispatch } = useApp()
   const last30 = getLast30Days()
-  const goodHabits = Object.values(habits).filter(h => h.type === 'good')
+  
+  const [selectedFilter, setSelectedFilter] = useState('all')
+  const [selectedDate, setSelectedDate] = useState(last30[last30.length - 1]) // Default to today
 
-  const getCellColor = (date) => {
-    if (!goodHabits.length) return 'bg-white/5'
-    const done = goodHabits.filter(h => h.entries?.[date]?.status === 'done').length
-    const pct = done / goodHabits.length
-    if (pct === 0) return 'bg-white/5'
-    if (pct < 0.33) return 'bg-emerald-900/60'
-    if (pct < 0.66) return 'bg-emerald-600/60'
-    if (pct < 1) return 'bg-emerald-500/80'
-    return 'bg-emerald-400'
+  // All habits list
+  const habitList = Object.values(habits)
+  const goodHabits = habitList.filter(h => h.type === 'good')
+
+  // Calculate Monday-based weekday offset of the oldest day (last30[0])
+  const oldestDate = new Date(last30[0])
+  const oldestDayOfWeek = oldestDate.getDay() // 0 = Sun, 1 = Mon, ..., 6 = Sat
+  // Mon = 0, Tue = 1, ..., Sun = 6
+  const offset = (oldestDayOfWeek + 6) % 7
+
+  // Helper to parse date without timezone shift
+  const parseLocalDate = (dateStr) => {
+    if (!dateStr) return new Date()
+    const [y, m, d] = dateStr.split('-').map(Number)
+    return new Date(y, m - 1, d)
   }
 
+  // Get color for a date cell based on filter
+  const getCellColor = (date) => {
+    if (selectedFilter === 'all') {
+      if (!goodHabits.length) return 'bg-white/5'
+      const done = goodHabits.filter(h => h.entries?.[date]?.status === 'done').length
+      const pct = done / goodHabits.length
+      if (pct === 0) return 'bg-white/5'
+      if (pct < 0.33) return 'bg-emerald-950/60 border border-emerald-500/20'
+      if (pct < 0.66) return 'bg-emerald-800/60 border border-emerald-500/30'
+      if (pct < 1) return 'bg-emerald-600/80 border border-emerald-500/40'
+      return 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]'
+    } else {
+      const habit = habits[selectedFilter]
+      if (!habit) return 'bg-white/5'
+      const status = habit.entries?.[date]?.status
+      if (habit.type === 'good') {
+        if (status === 'done') return 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]'
+        if (status === 'skipped') return 'bg-yellow-500/80 border border-yellow-500/30'
+        if (status === 'failed') return 'bg-red-500/80 border border-red-500/30'
+        return 'bg-white/5'
+      } else {
+        // Bad habit
+        if (status === 'clean') return 'bg-cyan-500 shadow-[0_0_10px_rgba(34,211,238,0.3)]'
+        if (status === 'done') return 'bg-red-500/80 border border-red-500/30'
+        return 'bg-white/5'
+      }
+    }
+  }
+
+  // Handle logging a habit directly from heatmap
+  const logHabit = (habitId, date, status) => {
+    dispatch({ type: 'LOG_HABIT', payload: { habitId, date, status } })
+  }
+
+  const selectedHabit = selectedFilter !== 'all' ? habits[selectedFilter] : null
+  const selectedDateObj = parseLocalDate(selectedDate)
+
   return (
-    <div>
-      <div className="flex flex-wrap gap-1">
-        {last30.map(d => (
-          <div key={d} title={format(new Date(d), 'MMM d')}
-            className={`heatmap-cell ${getCellColor(d)}`} />
-        ))}
+    <div className="space-y-4">
+      {/* Filter Selector */}
+      <div className="flex items-center justify-between">
+        <label className="text-xs text-white/40">Filter View:</label>
+        <select
+          id="heatmap-filter"
+          value={selectedFilter}
+          onChange={(e) => {
+            setSelectedFilter(e.target.value)
+          }}
+          className="bg-white/5 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs text-white/80 focus:border-cyber-400 focus:bg-navy-900 outline-none transition-all cursor-pointer"
+        >
+          <option value="all">All Good Habits</option>
+          {habitList.map((h) => (
+            <option key={h.id} value={h.id}>
+              {h.icon} {h.name}
+            </option>
+          ))}
+        </select>
       </div>
-      <div className="flex items-center gap-2 mt-2">
-        <span className="text-[10px] text-white/30">Less</span>
-        {['bg-white/5', 'bg-emerald-900/60', 'bg-emerald-600/60', 'bg-emerald-500/80', 'bg-emerald-400'].map((c, i) => (
-          <div key={i} className={`w-3 h-3 rounded-sm ${c}`} />
-        ))}
-        <span className="text-[10px] text-white/30">More</span>
+
+      {/* Heatmap Calendar Grid */}
+      <div className="bg-white/5 border border-white/5 rounded-2xl p-3">
+        {/* Day of week labels */}
+        <div className="grid grid-cols-7 gap-1 text-center mb-1">
+          {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((label, idx) => (
+            <span key={idx} className="text-[10px] font-bold text-white/20 uppercase">
+              {label}
+            </span>
+          ))}
+        </div>
+
+        {/* Heatmap cells */}
+        <div className="grid grid-cols-7 gap-1">
+          {/* Spacers */}
+          {Array.from({ length: offset }).map((_, i) => (
+            <div key={`spacer-${i}`} className="w-full aspect-square opacity-0 pointer-events-none" />
+          ))}
+
+          {/* Actual days */}
+          {last30.map((d) => {
+            const isSelected = selectedDate === d
+            const cellColorClass = getCellColor(d)
+            return (
+              <button
+                key={d}
+                id={`heatmap-cell-${d}`}
+                title={format(parseLocalDate(d), 'MMM d, yyyy')}
+                onClick={() => setSelectedDate(d)}
+                className={`w-full aspect-square rounded-lg transition-all duration-200 ${cellColorClass} ${
+                  isSelected
+                    ? 'ring-2 ring-cyber-400 ring-offset-2 ring-offset-navy-950 scale-105 z-10'
+                    : 'hover:scale-105'
+                }`}
+              />
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Heatmap Legend */}
+      <div className="flex items-center justify-between text-[10px] text-white/40 px-1">
+        {selectedFilter === 'all' ? (
+          <>
+            <span>Less Completed</span>
+            <div className="flex items-center gap-1">
+              {['bg-white/5', 'bg-emerald-950/60 border border-emerald-500/20', 'bg-emerald-800/60 border border-emerald-500/30', 'bg-emerald-600/80 border border-emerald-500/40', 'bg-emerald-500'].map((c, i) => (
+                <div key={i} className={`w-2.5 h-2.5 rounded-sm ${c}`} />
+              ))}
+            </div>
+            <span>More Completed</span>
+          </>
+        ) : selectedHabit?.type === 'good' ? (
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="flex items-center gap-1">
+              <span className="w-2.5 h-2.5 rounded-sm bg-white/5" /> Not Logged
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500" /> Done
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2.5 h-2.5 rounded-sm bg-yellow-500/80 border border-yellow-500/30" /> Skipped
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2.5 h-2.5 rounded-sm bg-red-500/80 border border-red-500/30" /> Failed
+            </span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="flex items-center gap-1">
+              <span className="w-2.5 h-2.5 rounded-sm bg-white/5" /> Not Logged
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2.5 h-2.5 rounded-sm bg-cyan-500" /> Resisted
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2.5 h-2.5 rounded-sm bg-red-500/80 border border-red-500/30" /> Did It
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Selected Day Detail Panel */}
+      <div className="glass-card p-4 border-white/5 mt-2 page-enter" key={selectedDate}>
+        <div className="flex items-center justify-between border-b border-white/5 pb-2 mb-3">
+          <div>
+            <h4 className="text-xs font-bold text-cyber-400">Selected Day Details</h4>
+            <p className="text-xs text-white/60 font-semibold mt-0.5">
+              {format(selectedDateObj, 'EEEE, MMM d, yyyy')}
+            </p>
+          </div>
+          {selectedFilter === 'all' && goodHabits.length > 0 && (
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              {goodHabits.filter(h => h.entries?.[selectedDate]?.status === 'done').length} / {goodHabits.length} Done
+            </span>
+          )}
+        </div>
+
+        {/* Selected Habit details */}
+        {selectedFilter !== 'all' && selectedHabit ? (
+          (() => {
+            const status = selectedHabit.entries?.[selectedDate]?.status
+            const isBad = selectedHabit.type === 'bad'
+            return (
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-3">
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg ${
+                    isBad ? 'bg-red-500/15 text-red-400' : 'bg-cyber-500/15 text-cyber-400'
+                  }`}>
+                    {selectedHabit.icon}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-white truncate">{selectedHabit.name}</p>
+                    <p className="text-[10px] capitalize text-white/40">{selectedHabit.category}</p>
+                  </div>
+                  <span className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full ${
+                    status === 'done' ? (isBad ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20') :
+                    status === 'clean' ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20' :
+                    status === 'skipped' ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20' :
+                    status === 'failed' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
+                    'bg-white/5 text-white/30 border border-white/5'
+                  }`}>
+                    {status ? (status === 'clean' ? 'Resisted' : status === 'done' ? (isBad ? 'Did it' : 'Done') : status) : 'Not Logged'}
+                  </span>
+                </div>
+
+                {/* Inline toggles */}
+                <div className="flex gap-1.5 mt-1">
+                  {isBad ? (
+                    <>
+                      <button
+                        id={`heatmap-action-clean`}
+                        onClick={() => logHabit(selectedHabit.id, selectedDate, status === 'clean' ? null : 'clean')}
+                        className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${
+                          status === 'clean'
+                            ? 'border-emerald-500/50 bg-emerald-500/15 text-emerald-300'
+                            : 'border-white/5 bg-white/5 text-white/40 hover:bg-white/10'
+                        }`}
+                      >
+                        ✅ Resisted
+                      </button>
+                      <button
+                        id={`heatmap-action-done`}
+                        onClick={() => logHabit(selectedHabit.id, selectedDate, status === 'done' ? null : 'done')}
+                        className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${
+                          status === 'done'
+                            ? 'border-red-500/50 bg-red-500/15 text-red-300'
+                            : 'border-white/5 bg-white/5 text-white/40 hover:bg-white/10'
+                        }`}
+                      >
+                        ⚠️ Did it
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        id={`heatmap-action-done`}
+                        onClick={() => logHabit(selectedHabit.id, selectedDate, status === 'done' ? null : 'done')}
+                        className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${
+                          status === 'done'
+                            ? 'border-emerald-500/50 bg-emerald-500/15 text-emerald-300'
+                            : 'border-white/5 bg-white/5 text-white/40 hover:bg-white/10'
+                        }`}
+                      >
+                        ✅ Done
+                      </button>
+                      <button
+                        id={`heatmap-action-skip`}
+                        onClick={() => logHabit(selectedHabit.id, selectedDate, status === 'skipped' ? null : 'skipped')}
+                        className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${
+                          status === 'skipped'
+                            ? 'border-yellow-500/50 bg-yellow-500/15 text-yellow-300'
+                            : 'border-white/5 bg-white/5 text-white/40 hover:bg-white/10'
+                        }`}
+                      >
+                        ⏭ Skip
+                      </button>
+                      <button
+                        id={`heatmap-action-fail`}
+                        onClick={() => logHabit(selectedHabit.id, selectedDate, status === 'failed' ? null : 'failed')}
+                        className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${
+                          status === 'failed'
+                            ? 'border-red-500/50 bg-red-500/15 text-red-300'
+                            : 'border-white/5 bg-white/5 text-white/40 hover:bg-white/10'
+                        }`}
+                      >
+                        ❌ Fail
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            )
+          })()
+        ) : (
+          /* All Habits view */
+          <div className="space-y-3 max-h-48 overflow-y-auto pr-1">
+            {habitList.length === 0 ? (
+              <p className="text-center text-xs text-white/30 py-2">No habits configured yet.</p>
+            ) : (
+              habitList.map((h) => {
+                const status = h.entries?.[selectedDate]?.status
+                const isBad = h.type === 'bad'
+                return (
+                  <div key={h.id} className="flex items-center justify-between gap-2 p-1.5 rounded-xl hover:bg-white/5 transition-all">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-base flex-shrink-0">{h.icon}</span>
+                      <span className="text-xs font-medium text-white/80 truncate">{h.name}</span>
+                    </div>
+                    
+                    <div className="flex items-center gap-1.5">
+                      {isBad ? (
+                        <>
+                          <button
+                            id={`heatmap-list-${h.id}-clean`}
+                            onClick={() => logHabit(h.id, selectedDate, status === 'clean' ? null : 'clean')}
+                            className={`px-2 py-1 rounded-lg text-[9px] font-semibold transition-all border ${
+                              status === 'clean'
+                                ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                                : 'bg-transparent text-white/30 border-transparent hover:bg-white/5'
+                            }`}
+                          >
+                            Resisted
+                          </button>
+                          <button
+                            id={`heatmap-list-${h.id}-done`}
+                            onClick={() => logHabit(h.id, selectedDate, status === 'done' ? null : 'done')}
+                            className={`px-2 py-1 rounded-lg text-[9px] font-semibold transition-all border ${
+                              status === 'done'
+                                ? 'bg-red-500/15 text-red-300 border-red-500/30'
+                                : 'bg-transparent text-white/30 border-transparent hover:bg-white/5'
+                            }`}
+                          >
+                            Did It
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            id={`heatmap-list-${h.id}-done`}
+                            onClick={() => logHabit(h.id, selectedDate, status === 'done' ? null : 'done')}
+                            className={`px-2 py-1 rounded-lg text-[9px] font-semibold transition-all border ${
+                              status === 'done'
+                                ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                                : 'bg-transparent text-white/30 border-transparent hover:bg-white/5'
+                            }`}
+                          >
+                            Done
+                          </button>
+                          <button
+                            id={`heatmap-list-${h.id}-skip`}
+                            onClick={() => logHabit(h.id, selectedDate, status === 'skipped' ? null : 'skipped')}
+                            className={`px-2 py-1 rounded-lg text-[9px] font-semibold transition-all border ${
+                              status === 'skipped'
+                                ? 'bg-yellow-500/15 text-yellow-300 border-yellow-500/30'
+                                : 'bg-transparent text-white/30 border-transparent hover:bg-white/5'
+                            }`}
+                          >
+                            Skip
+                          </button>
+                          <button
+                            id={`heatmap-list-${h.id}-fail`}
+                            onClick={() => logHabit(h.id, selectedDate, status === 'failed' ? null : 'failed')}
+                            className={`px-2 py-1 rounded-lg text-[9px] font-semibold transition-all border ${
+                              status === 'failed'
+                                ? 'bg-red-500/15 text-red-300 border-red-500/30'
+                                : 'bg-transparent text-white/30 border-transparent hover:bg-white/5'
+                            }`}
+                          >
+                            Fail
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
 }
+
+const ChartCard = ({ icon: Icon, color, title, children }) => (
+  <div className="glass-card p-4">
+    <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-4">
+      <Icon size={15} className={color} />{title}
+    </h3>
+    {children}
+  </div>
+)
 
 export default function Analytics() {
   const { dailyLogs, fitnessLogs, habits, pointsHistory, todos } = useApp()
@@ -140,15 +482,6 @@ export default function Analytics() {
     a.download = `life-tracker-${range}-${today}.csv`
     a.click()
   }
-
-  const ChartCard = ({ icon: Icon, color, title, children }) => (
-    <div className="glass-card p-4">
-      <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-4">
-        <Icon size={15} className={color} />{title}
-      </h3>
-      {children}
-    </div>
-  )
 
   const axisStyle = { fill: 'rgba(255,255,255,0.3)', fontSize: 10 }
   const gridStyle = { stroke: 'rgba(255,255,255,0.05)' }

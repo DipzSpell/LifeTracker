@@ -24,8 +24,15 @@ function AddHabitModal({ isOpen, onClose }) {
     onClose()
   }
 
+  const footer = (
+    <div className="flex gap-3 w-full">
+      <button onClick={onClose} className="btn-ghost flex-1">Cancel</button>
+      <button id="habit-add-confirm" onClick={handleAdd} className="btn-primary flex-1">Add Habit</button>
+    </div>
+  )
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Add New Habit">
+    <Modal isOpen={isOpen} onClose={onClose} title="Add New Habit" footer={footer}>
       <div className="space-y-4">
         <div>
           <label className="text-xs text-white/40 block mb-1">Habit Name</label>
@@ -74,11 +81,6 @@ function AddHabitModal({ isOpen, onClose }) {
               </button>
             ))}
           </div>
-        </div>
-
-        <div className="flex gap-3 pt-2">
-          <button onClick={onClose} className="btn-ghost flex-1">Cancel</button>
-          <button id="habit-add-confirm" onClick={handleAdd} className="btn-primary flex-1">Add Habit</button>
         </div>
       </div>
     </Modal>

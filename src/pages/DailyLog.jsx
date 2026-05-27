@@ -7,6 +7,15 @@ import EmojiMoodPicker from '../components/ui/EmojiMoodPicker'
 import { Save, Dumbbell, Clock, Droplets, BookOpen, Heart } from 'lucide-react'
 import Toast, { useToast } from '../components/ui/Toast'
 
+const Section = ({ icon: Icon, color, title, children }) => (
+  <div className="glass-card p-4">
+    <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-4">
+      <Icon size={16} className={color} />{title}
+    </h3>
+    {children}
+  </div>
+)
+
 export default function DailyLog() {
   const { dispatch, dailyLogs, recalcPoints } = useApp()
   const { toasts, addToast, removeToast } = useToast()
@@ -53,15 +62,6 @@ export default function DailyLog() {
     setTimeout(recalcPoints, 100)
     addToast('Day logged successfully! Points updated 🎯', 'success')
   }
-
-  const Section = ({ icon: Icon, color, title, children }) => (
-    <div className="glass-card p-4">
-      <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-4">
-        <Icon size={16} className={color} />{title}
-      </h3>
-      {children}
-    </div>
-  )
 
   return (
     <div className="space-y-4 page-enter">

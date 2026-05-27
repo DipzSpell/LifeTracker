@@ -33,13 +33,15 @@ const getDefaultState = () => ({
     darkMode: true,
     notificationsEnabled: false,
   },
+  initialized: false,
 })
 
+// ── Reducer ────────────────────────────────────────────────────────────────
 // ── Reducer ────────────────────────────────────────────────────────────────
 function appReducer(state, action) {
   switch (action.type) {
     case 'INIT':
-      return { ...state, ...action.payload }
+      return { ...state, ...action.payload, initialized: true }
 
     // Daily log
     case 'SAVE_DAILY_LOG': {
@@ -181,7 +183,10 @@ export function AppProvider({ children }) {
   // Save to storage on state change
   useEffect(() => {
     if (!uid) return
-    storage.set('appState', state, uid)
+    // Only save if the state has been loaded and initialized from localStorage (avoids race condition on login)
+    if (state.initialized) {
+      storage.set('appState', state, uid)
+    }
   }, [state, uid])
 
   // Recalculate points when logs change
@@ -189,10 +194,11 @@ export function AppProvider({ children }) {
     const today = todayKey()
     const log = state.dailyLogs[today]
     const todayTodos = state.todos.filter(t => dateKey(t.dueDate) === today)
-    const earned = calculateDayPoints(log, state.habits, todayTodos)
+    const fitnessLog = state.fitnessLogs[today] || {}
+    const earned = calculateDayPoints(log, state.habits, todayTodos, fitnessLog)
     const pts = sumPoints(earned)
     dispatch({ type: 'UPDATE_POINTS', payload: { date: today, pts } })
-  }, [state.dailyLogs, state.habits, state.todos])
+  }, [state.dailyLogs, state.habits, state.todos, state.fitnessLogs])
 
   // Computed values
   const totalPoints = Object.values(state.pointsHistory).reduce((s, p) => s + (p || 0), 0)

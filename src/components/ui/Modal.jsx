@@ -2,7 +2,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { X } from 'lucide-react'
 import { useEffect } from 'react'
 
-export default function Modal({ isOpen, onClose, title, children, size = 'md' }) {
+export default function Modal({ isOpen, onClose, title, children, footer, size = 'md' }) {
   useEffect(() => {
     if (isOpen) document.body.style.overflow = 'hidden'
     else document.body.style.overflow = ''
@@ -51,6 +51,12 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' })
             <div className="flex-1 overflow-y-auto px-4 py-4">
               {children}
             </div>
+            {/* Footer */}
+            {footer && (
+              <div className="flex-shrink-0 px-4 py-3 border-t border-white/5 bg-navy-900/60 backdrop-blur-md">
+                {footer}
+              </div>
+            )}
           </motion.div>
         </>
       )}

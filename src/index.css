@@ -46,6 +46,18 @@
   input, textarea, select {
     @apply outline-none;
   }
+
+  /* Disable spinner buttons for number inputs */
+  input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
 }
 
 @layer components {
@@ -92,6 +104,7 @@
     padding: 1px;
     background: linear-gradient(135deg, rgba(34,211,238,0.4), rgba(16,185,129,0.4));
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor;
     mask-composite: exclude;
     pointer-events: none;

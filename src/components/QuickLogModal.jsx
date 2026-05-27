@@ -74,8 +74,19 @@ export default function QuickLogModal({ isOpen, onClose }) {
     onClose()
   }
 
+  const footer = (
+    <button
+      id="quicklog-save"
+      onClick={handleSave}
+      className="btn-primary w-full flex items-center justify-center gap-2"
+    >
+      <Save size={16} />
+      Save Log & Earn Points
+    </button>
+  )
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="⚡ Quick Log — Today">
+    <Modal isOpen={isOpen} onClose={onClose} title="⚡ Quick Log — Today" footer={footer}>
       <div className="space-y-5 pb-4">
         {/* Gym */}
         <section>
@@ -131,7 +142,7 @@ export default function QuickLogModal({ isOpen, onClose }) {
           </div>
         </section>
 
-        {/* Times */}
+        {/* Sleep + Steps */}
         <section>
           <p className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">
             <Clock size={12} className="inline mr-1" />Sleep Schedule
@@ -206,16 +217,6 @@ export default function QuickLogModal({ isOpen, onClose }) {
             className="input-cyber resize-none text-sm"
           />
         </section>
-
-        {/* Save */}
-        <button
-          id="quicklog-save"
-          onClick={handleSave}
-          className="btn-primary w-full flex items-center justify-center gap-2"
-        >
-          <Save size={16} />
-          Save Log & Earn Points
-        </button>
       </div>
     </Modal>
   )

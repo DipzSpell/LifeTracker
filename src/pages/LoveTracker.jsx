@@ -85,8 +85,17 @@ function AddEntryModal({ isOpen, onClose }) {
     onClose()
   }
 
+  const footer = (
+    <div className="flex gap-3 w-full">
+      <button onClick={onClose} className="btn-ghost flex-1">Cancel</button>
+      <button onClick={handleSave} className="flex-1 py-3 rounded-xl bg-gradient-to-r from-pink-500 to-rose-600 text-white font-semibold text-sm active:scale-95 transition-all">
+        Save Entry
+      </button>
+    </div>
+  )
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="💕 New Journal Entry">
+    <Modal isOpen={isOpen} onClose={onClose} title="💕 New Journal Entry" footer={footer}>
       <div className="space-y-4">
         <div>
           <label className="text-xs text-white/40 block mb-1">Date</label>
@@ -109,12 +118,6 @@ function AddEntryModal({ isOpen, onClose }) {
           <label className="text-xs text-white/40 block mb-2">Relationship Mood</label>
           <EmojiMoodPicker value={form.mood} onChange={v => setForm(f => ({ ...f, mood: v }))} />
         </div>
-        <div className="flex gap-3">
-          <button onClick={onClose} className="btn-ghost flex-1">Cancel</button>
-          <button onClick={handleSave} className="flex-1 py-3 rounded-xl bg-gradient-to-r from-pink-500 to-rose-600 text-white font-semibold text-sm active:scale-95 transition-all">
-            Save Entry
-          </button>
-        </div>
       </div>
     </Modal>
   )
@@ -135,8 +138,17 @@ function AddSpecialDateModal({ isOpen, onClose }) {
     onClose()
   }
 
+  const footer = (
+    <div className="flex gap-3 w-full">
+      <button onClick={onClose} className="btn-ghost flex-1">Cancel</button>
+      <button onClick={handleSave} className="flex-1 py-3 rounded-xl bg-gradient-to-r from-pink-500 to-rose-600 text-white font-semibold text-sm active:scale-95">
+        Add Date
+      </button>
+    </div>
+  )
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Add Special Date">
+    <Modal isOpen={isOpen} onClose={onClose} title="Add Special Date" footer={footer}>
       <div className="space-y-4">
         <div>
           <label className="text-xs text-white/40 block mb-2">Pick an Emoji</label>
@@ -159,12 +171,6 @@ function AddSpecialDateModal({ isOpen, onClose }) {
           <label className="text-xs text-white/40 block mb-1">Date</label>
           <input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
             className="input-cyber text-sm" />
-        </div>
-        <div className="flex gap-3">
-          <button onClick={onClose} className="btn-ghost flex-1">Cancel</button>
-          <button onClick={handleSave} className="flex-1 py-3 rounded-xl bg-gradient-to-r from-pink-500 to-rose-600 text-white font-semibold text-sm active:scale-95">
-            Add Date
-          </button>
         </div>
       </div>
     </Modal>
