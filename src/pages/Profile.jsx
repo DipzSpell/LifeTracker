@@ -645,9 +645,9 @@ export default function Profile() {
                       </div>
                       <div className="space-y-1">
                         {[
-                          { label: 'Built with', val: 'React + Vite + Firebase' },
-                          { label: 'Storage', val: 'Local Device (Private)' },
-                          { label: 'Auth', val: 'LocalStorage (Demo Mode)' },
+                          { label: 'Built with', val: 'React + Vite + Supabase' },
+                          { label: 'Storage', val: 'Supabase (Cloud Synced)' },
+                          { label: 'Auth', val: 'Google OAuth + Email' },
                           { label: 'PWA', val: 'Installable on Mobile' },
                         ].map(({ label, val }) => (
                           <div key={label} className="flex justify-between py-2 border-b border-white/5 last:border-0">
