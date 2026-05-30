@@ -1,6 +1,6 @@
 import { createContext, useContext, useReducer, useEffect, useCallback } from 'react'
 import { storage, todayKey, dateKey } from '../lib/storage'
-import { calculateDayPoints, sumPoints, checkBadges } from '../lib/points'
+import { calculateDayPoints, sumPoints } from '../lib/points'
 import { useAuth } from './AuthContext'
 import { supabase } from '../lib/supabase'
 
@@ -63,7 +63,7 @@ function appReducer(state, action) {
       return { ...state, habits: { ...state.habits, [id]: { ...state.habits[id], ...updates } } }
     }
     case 'DELETE_HABIT': {
-      const { [action.payload]: _, ...rest } = state.habits
+      const { [action.payload]: _deleted, ...rest } = state.habits
       return { ...state, habits: rest }
     }
     case 'LOG_HABIT': {
@@ -277,12 +277,26 @@ export function AppProvider({ children }) {
   const getHabitStreak = useCallback((habitId) => {
     const habit = state.habits[habitId]
     if (!habit) return 0
+    const isGood = habit.type === 'good'
+
     let streak = 0
     const d = new Date()
+
+    // If today hasn't been logged yet, start checking from yesterday to preserve the active streak
+    const todayK = dateKey(d)
+    const todayEntry = habit.entries?.[todayK]
+    const todayLogged = todayEntry && todayEntry.status !== null && todayEntry.status !== undefined
+
+    if (!todayLogged) {
+      d.setDate(d.getDate() - 1)
+    }
+
     while (true) {
       const k = dateKey(d)
       const entry = habit.entries?.[k]
-      if (entry?.status === 'done') {
+      const isSuccess = isGood ? entry?.status === 'done' : entry?.status === 'clean'
+
+      if (isSuccess) {
         streak++
         d.setDate(d.getDate() - 1)
       } else {

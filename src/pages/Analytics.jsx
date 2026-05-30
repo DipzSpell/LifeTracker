@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { motion } from 'framer-motion'
 import { format } from 'date-fns'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -9,7 +8,6 @@ import { useApp } from '../context/AppContext'
 import { getLast30Days, getLast7Days } from '../lib/storage'
 import { BarChart2, TrendingUp, Moon, Activity, Award, Download } from 'lucide-react'
 
-const CHART_COLORS = ['#22d3ee', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444']
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null
@@ -400,7 +398,7 @@ const ChartCard = ({ icon: Icon, color, title, children }) => (
 )
 
 export default function Analytics() {
-  const { dailyLogs, fitnessLogs, habits, pointsHistory, todos } = useApp()
+  const { dailyLogs, fitnessLogs, habits, pointsHistory } = useApp()
   const [range, setRange] = useState('week') // 'week' | 'month'
 
   const days = range === 'week' ? getLast7Days() : getLast30Days()
@@ -484,7 +482,6 @@ export default function Analytics() {
   }
 
   const axisStyle = { fill: 'rgba(255,255,255,0.3)', fontSize: 10 }
-  const gridStyle = { stroke: 'rgba(255,255,255,0.05)' }
 
   return (
     <div className="space-y-4 page-enter">

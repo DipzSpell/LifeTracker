@@ -235,7 +235,7 @@ export const BADGES = {
 /**
  * Check which badges have been earned based on history
  */
-export function checkBadges(history = {}, habits = {}, todos = [], totalPoints = 0) {
+export function checkBadges(history = {}, _habits = {}, todos = [], totalPoints = 0) {
   const earned = new Set()
   const days = Object.keys(history).sort()
 

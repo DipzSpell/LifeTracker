@@ -31,7 +31,7 @@ export default function Modal({ isOpen, onClose, title, children, footer, size =
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
             className={`fixed bottom-0 left-0 right-0 z-50 mx-auto w-full ${sizeMap[size]}
                         bg-gradient-to-b from-navy-800 to-navy-900 border border-white/10
-                        rounded-t-3xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col`}
+                        rounded-t-3xl shadow-2xl max-h-[85vh] overflow-y-auto flex flex-col`}
           >
             {/* Handle + Header */}
             <div className="flex-shrink-0 px-4 pt-4 pb-3 border-b border-white/5">

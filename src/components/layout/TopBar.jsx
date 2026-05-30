@@ -11,12 +11,19 @@ export default function TopBar() {
   return (
     <header className="sticky top-0 z-30 bg-navy-950/80 backdrop-blur-xl border-b border-white/5">
       <div className="flex items-center justify-between px-4 py-3 max-w-lg mx-auto">
-        {/* User + Date */}
-        <div className="flex flex-col">
-          <span className="text-xs text-white/40 font-medium">{today}</span>
-          <span className="text-sm font-semibold text-white">
-            Hey, {user?.displayName || 'Champion'} 👋
-          </span>
+        {/* User + Date + Logo */}
+        <div className="flex items-center gap-2.5">
+          <img
+            src="/logo.png"
+            alt="LifeTracker Logo"
+            className="w-8 h-8 rounded-lg object-cover border border-white/10 shadow-[0_0_12px_rgba(34,211,238,0.2)]"
+          />
+          <div className="flex flex-col">
+            <span className="text-[10px] text-white/40 font-medium leading-none mb-1">{today}</span>
+            <span className="text-sm font-semibold text-white leading-none">
+              Hey, {user?.displayName || 'Champion'} 👋
+            </span>
+          </div>
         </div>
 
         {/* Points + Bell */}

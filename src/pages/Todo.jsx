@@ -3,8 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { format, isBefore, isToday } from 'date-fns'
 import { useApp } from '../context/AppContext'
 import Modal from '../components/ui/Modal'
-import Toast, { useToast } from '../components/ui/Toast'
-import { Plus, Trash2, CheckCircle2, Clock, AlertCircle, RefreshCw, Calendar } from 'lucide-react'
+import { Plus, Trash2, CheckCircle2, Clock, RefreshCw } from 'lucide-react'
 
 const PRIORITIES = [
   { val: 'high', label: 'High', color: 'text-red-400 bg-red-500/15 border-red-500/30' },
@@ -15,7 +14,7 @@ const PRIORITIES = [
 const CATEGORIES = ['Personal', 'Work', 'Health', 'Finance', 'Other']
 
 function AddTaskModal({ isOpen, onClose }) {
-  const { dispatch, recalcPoints } = useApp()
+  const { dispatch } = useApp()
   const [form, setForm] = useState({
     title: '', desc: '', dueDate: '', dueTime: '',
     priority: 'medium', category: 'Personal', recurring: 'none',
@@ -57,7 +56,14 @@ function AddTaskModal({ isOpen, onClose }) {
   const footer = (
     <div className="flex gap-3 w-full">
       <button onClick={onClose} className="btn-ghost flex-1">Cancel</button>
-      <button id="todo-add-confirm" onClick={handleAdd} className="btn-primary flex-1">Add Task</button>
+      <button
+        id="todo-add-confirm"
+        onClick={handleAdd}
+        disabled={!form.title.trim()}
+        className="btn-primary flex-1"
+      >
+        Save Task
+      </button>
     </div>
   )
 

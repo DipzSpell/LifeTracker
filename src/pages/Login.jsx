@@ -7,10 +7,10 @@
  *  - Smooth framer-motion transitions throughout
  *  - Accessible: all interactive elements have unique IDs, ARIA labels
  */
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../context/AuthContext'
-import { Eye, EyeOff, AlertTriangle, ChevronDown, Zap, Loader2 } from 'lucide-react'
+import { Eye, EyeOff, AlertTriangle, ChevronDown, Loader2 } from 'lucide-react'
 
 // ── Google SVG icon (official brand colors) ────────────────────────────────
 function GoogleIcon({ size = 20 }) {
@@ -25,19 +25,21 @@ function GoogleIcon({ size = 20 }) {
 }
 
 // ── Animated background dots / particles ──────────────────────────────────
+// Generated once at module level (not per render) to avoid impure calls during render
+const PARTICLES = Array.from({ length: 20 }, (_, i) => ({
+  id: i,
+  x: Math.random() * 100,
+  y: Math.random() * 100,
+  size: Math.random() * 3 + 1,
+  duration: Math.random() * 8 + 4,
+  delay: Math.random() * 4,
+}))
+
 function FloatingParticles() {
-  const particles = Array.from({ length: 20 }, (_, i) => ({
-    id: i,
-    x: Math.random() * 100,
-    y: Math.random() * 100,
-    size: Math.random() * 3 + 1,
-    duration: Math.random() * 8 + 4,
-    delay: Math.random() * 4,
-  }))
 
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden>
-      {particles.map(p => (
+      {PARTICLES.map(p => (
         <motion.div
           key={p.id}
           className="absolute rounded-full bg-cyan-400/20"
@@ -80,12 +82,12 @@ export default function Login() {
   const [form, setForm]               = useState({ name: '', email: '', password: '' })
   const [showPass, setShowPass]       = useState(false)
   const [emailLoading, setEmailLoading] = useState(false)
+  const [signupSuccess, setSignupSuccess] = useState(false)
 
   // Error
   const [error, setError] = useState('')
 
-  // Clear error when switching modes
-  useEffect(() => { setError('') }, [emailMode, showEmail])
+  // Clear error when switching modes (done inline on button clicks)
 
   // ── Google OAuth ─────────────────────────────────────────────────────────
   const handleGoogleLogin = async () => {
@@ -123,6 +125,7 @@ export default function Login() {
         await login(form.email, form.password)
       } else {
         await signup(form.email, form.password, form.name)
+        setSignupSuccess(true)
       }
     } catch (err) {
       console.error('[Login] Email auth error:', err)
@@ -169,15 +172,14 @@ export default function Login() {
           transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
           className="text-center mb-8"
         >
-          {/* Icon */}
           <motion.div
             whileHover={{ scale: 1.06, rotate: 3 }}
             transition={{ type: 'spring', stiffness: 400 }}
-            className="w-[76px] h-[76px] rounded-[24px] mx-auto mb-5 flex items-center justify-center
+            className="w-[76px] h-[76px] rounded-[24px] mx-auto mb-5 overflow-hidden flex items-center justify-center
                        bg-gradient-to-br from-cyan-400 via-cyan-500 to-emerald-500
                        shadow-[0_0_40px_rgba(34,211,238,0.35)] ring-1 ring-white/10"
           >
-            <Zap size={38} className="text-white drop-shadow-lg" fill="currentColor" />
+            <img src="/logo.png" alt="LifeTracker Logo" className="w-full h-full object-cover" />
           </motion.div>
 
           <h1 className="text-[2.1rem] font-black tracking-tight gradient-text leading-none mb-1.5">
@@ -215,190 +217,285 @@ export default function Login() {
 
             <p className="text-center text-white/40 text-[11px] font-semibold
                           uppercase tracking-[0.18em] mb-6">
-              Sign in to continue
+              {signupSuccess
+                ? 'Registration Complete'
+                : !showEmail
+                  ? 'Sign in to continue'
+                  : emailMode === 'login'
+                    ? 'Sign in with email'
+                    : 'Create your account'}
             </p>
 
-            {/* ── Google button ─────────────────────────────────────────── */}
-            <motion.button
-              id="google-login-btn"
-              type="button"
-              disabled={isLoading}
-              onClick={handleGoogleLogin}
-              whileHover={!isLoading ? { scale: 1.018, y: -1 } : {}}
-              whileTap={!isLoading ? { scale: 0.975 } : {}}
-              aria-label="Continue with Google"
-              className="w-full relative flex items-center justify-center gap-3 py-3.5 px-5
-                         rounded-xl bg-white text-gray-800 font-semibold text-[0.9rem]
-                         shadow-[0_4px_24px_rgba(0,0,0,0.25)]
-                         hover:bg-gray-50 disabled:opacity-75 disabled:cursor-not-allowed
-                         transition-colors duration-150
-                         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
-            >
-              {googleLoading ? (
-                <>
-                  <Loader2 size={20} className="animate-spin text-gray-500 flex-shrink-0" />
-                  <span>Redirecting to Google…</span>
-                </>
-              ) : (
-                <>
-                  <GoogleIcon size={20} />
-                  <span>Continue with Google</span>
-                </>
-              )}
-            </motion.button>
-
-            {/* ── Divider / email toggle ─────────────────────────────────── */}
-            <div className="flex items-center gap-3 my-5">
-              <div className="h-px flex-1 bg-white/8" />
-              <button
-                type="button"
-                onClick={() => { setShowEmail(v => !v); setError('') }}
-                className="flex items-center gap-1.5 text-[11px] text-white/30
-                           hover:text-white/55 uppercase tracking-wider font-medium
-                           transition-colors duration-150"
+            {signupSuccess ? (
+              <motion.div
+                key="signup-success-view"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.3 }}
+                className="text-center py-4 space-y-4"
               >
-                or use email
-                <motion.span
-                  animate={{ rotate: showEmail ? 180 : 0 }}
-                  transition={{ duration: 0.2 }}
+                <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/30 rounded-full mx-auto flex items-center justify-center text-emerald-400">
+                  <motion.div
+                    animate={{ scale: [1, 1.1, 1] }}
+                    transition={{ repeat: Infinity, duration: 2 }}
+                  >
+                    <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </motion.div>
+                </div>
+                <h3 className="text-lg font-bold text-white">Verify your email</h3>
+                <p className="text-xs text-white/60 leading-relaxed">
+                  We've sent a verification link to <span className="text-cyan-400 font-semibold">{form.email}</span>.
+                  Please check your inbox (and spam folder) to complete registration and confirm your account.
+                </p>
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSignupSuccess(false)
+                      setEmailMode('login')
+                      setForm({ name: '', email: '', password: '' })
+                    }}
+                    className="btn-cyber-primary btn-primary w-full py-2.5 text-xs font-semibold"
+                  >
+                    Back to Sign In
+                  </button>
+                </div>
+              </motion.div>
+            ) : (
+              <>
+                {/* ── Google button ─────────────────────────────────────────── */}
+                <motion.button
+                  id="google-login-btn"
+                  type="button"
+                  disabled={isLoading}
+                  onClick={handleGoogleLogin}
+                  whileHover={!isLoading ? { scale: 1.018, y: -1 } : {}}
+                  whileTap={!isLoading ? { scale: 0.975 } : {}}
+                  aria-label="Continue with Google"
+                  className="w-full relative flex items-center justify-center gap-3 py-3.5 px-5
+                             rounded-xl bg-white text-gray-800 font-semibold text-[0.9rem]
+                             shadow-[0_4px_24px_rgba(0,0,0,0.25)]
+                             hover:bg-gray-50 disabled:opacity-75 disabled:cursor-not-allowed
+                             transition-colors duration-150
+                             focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
                 >
-                  <ChevronDown size={12} />
-                </motion.span>
-              </button>
-              <div className="h-px flex-1 bg-white/8" />
-            </div>
+                  {googleLoading ? (
+                    <>
+                      <Loader2 size={20} className="animate-spin text-gray-500 flex-shrink-0" />
+                      <span>Redirecting to Google…</span>
+                    </>
+                  ) : (
+                    <>
+                      <GoogleIcon size={20} />
+                      <span>Continue with Google</span>
+                    </>
+                  )}
+                </motion.button>
 
-            {/* ── Email / Password form (collapsible) ───────────────────── */}
-            <AnimatePresence initial={false}>
-              {showEmail && (
-                <motion.div
-                  key="email-form"
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-                  className="overflow-hidden"
-                >
-                  {/* Mode tabs */}
-                  <div className="flex bg-white/5 rounded-xl p-1 mb-4">
-                    {[['login', 'Sign In'], ['signup', 'Sign Up']].map(([m, label]) => (
-                      <button
-                        key={m}
-                        id={`auth-${m}-tab`}
-                        type="button"
-                        onClick={() => setEmailMode(m)}
-                        className={`flex-1 py-2 rounded-lg text-[12px] font-semibold
-                                    transition-all duration-200 ${
-                          emailMode === m
-                            ? 'bg-cyan-500 text-white shadow-md shadow-cyan-500/20'
-                            : 'text-white/35 hover:text-white/60'
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-
-                  <form onSubmit={handleEmailSubmit} className="space-y-3">
-                    {/* Name — signup only */}
-                    <AnimatePresence initial={false}>
-                      {emailMode === 'signup' && (
-                        <motion.div
-                          key="name-field"
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          exit={{ opacity: 0, height: 0 }}
-                          transition={{ duration: 0.2 }}
-                          className="overflow-hidden"
-                        >
-                          <input
-                            id="signup-name"
-                            type="text"
-                            placeholder="Full name"
-                            value={form.name}
-                            onChange={setField('name')}
-                            autoComplete="name"
-                            className="input-cyber text-sm"
-                          />
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-
-                    <input
-                      id="auth-email"
-                      type="email"
-                      placeholder="Email address"
-                      value={form.email}
-                      onChange={setField('email')}
-                      required
-                      autoComplete={emailMode === 'login' ? 'username' : 'email'}
-                      className="input-cyber text-sm"
-                    />
-
-                    <div className="relative">
-                      <input
-                        id="auth-password"
-                        type={showPass ? 'text' : 'password'}
-                        placeholder={emailMode === 'signup' ? 'Create password (6+ chars)' : 'Password'}
-                        value={form.password}
-                        onChange={setField('password')}
-                        required
-                        autoComplete={emailMode === 'login' ? 'current-password' : 'new-password'}
-                        className="input-cyber text-sm pr-11"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPass(v => !v)}
-                        tabIndex={-1}
-                        aria-label={showPass ? 'Hide password' : 'Show password'}
-                        className="absolute right-3.5 top-1/2 -translate-y-1/2
-                                   text-white/30 hover:text-white/60 transition-colors"
-                      >
-                        {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
-                      </button>
-                    </div>
-
-                    <motion.button
-                      id="auth-submit"
-                      type="submit"
-                      disabled={isLoading}
-                      whileTap={{ scale: 0.97 }}
-                      className="btn-primary w-full flex items-center justify-center gap-2 py-3 text-sm"
+                {/* ── Divider / email toggle ─────────────────────────────────── */}
+                <div className="flex items-center gap-3 my-5">
+                  <div className="h-px flex-1 bg-white/8" />
+                  <button
+                    type="button"
+                    onClick={() => { setShowEmail(v => !v); setError('') }}
+                    className="flex items-center gap-1.5 text-[11px] text-white/30
+                               hover:text-white/55 uppercase tracking-wider font-medium
+                               transition-colors duration-150"
+                  >
+                    or use email
+                    <motion.span
+                      animate={{ rotate: showEmail ? 180 : 0 }}
+                      transition={{ duration: 0.2 }}
                     >
-                      {emailLoading
-                        ? <Loader2 size={16} className="animate-spin" />
-                        : emailMode === 'login' ? 'Sign In' : 'Create Account'
-                      }
-                    </motion.button>
-                  </form>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                      <ChevronDown size={12} />
+                    </motion.span>
+                  </button>
+                  <div className="h-px flex-1 bg-white/8" />
+                </div>
 
-            {/* ── Error banner ─────────────────────────────────────────── */}
-            <AnimatePresence>
-              {error && (
-                <motion.div
-                  key="error-banner"
-                  id="auth-error-banner"
-                  role="alert"
-                  initial={{ opacity: 0, y: -10, height: 0 }}
-                  animate={{ opacity: 1, y: 0, height: 'auto' }}
-                  exit={{ opacity: 0, y: -10, height: 0 }}
-                  transition={{ duration: 0.22 }}
-                  className="mt-4 overflow-hidden"
-                >
-                  <div className="flex gap-2.5 items-start text-red-400 text-xs
-                                  bg-red-500/10 border border-red-500/25 rounded-xl px-3.5 py-3">
-                    <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-semibold">Sign in failed</p>
-                      <p className="opacity-75 mt-0.5 leading-relaxed">{error}</p>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                {/* ── Email / Password form (collapsible) ───────────────────── */}
+                <AnimatePresence initial={false}>
+                  {showEmail && (
+                    <motion.div
+                      key="email-form"
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                      className="overflow-hidden"
+                    >
+                      {/* Mode tabs */}
+                      <div className="flex bg-white/5 rounded-xl p-1 mb-4">
+                        {[['login', 'Sign In'], ['signup', 'Sign Up']].map(([m, label]) => (
+                          <button
+                            key={m}
+                            id={`auth-${m}-tab`}
+                            type="button"
+                            onClick={() => { setEmailMode(m); setError('') }}
+                            className={`flex-1 py-2 rounded-lg text-[12px] font-semibold
+                                        transition-all duration-200 ${
+                              emailMode === m
+                                ? 'bg-cyan-500 text-white shadow-md shadow-cyan-500/20'
+                                : 'text-white/35 hover:text-white/60'
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+
+                      <form onSubmit={handleEmailSubmit} className="space-y-3">
+                        {/* Name — signup only */}
+                        <AnimatePresence initial={false}>
+                          {emailMode === 'signup' && (
+                            <motion.div
+                              key="name-field"
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: 'auto' }}
+                              exit={{ opacity: 0, height: 0 }}
+                              transition={{ duration: 0.2 }}
+                              className="overflow-hidden"
+                            >
+                              <input
+                                id="signup-name"
+                                type="text"
+                                placeholder="Full name"
+                                value={form.name}
+                                onChange={setField('name')}
+                                autoComplete="name"
+                                className="input-cyber text-sm"
+                              />
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+
+                        <input
+                          id="auth-email"
+                          type="email"
+                          placeholder="Email address"
+                          value={form.email}
+                          onChange={setField('email')}
+                          required
+                          autoComplete={emailMode === 'login' ? 'username' : 'email'}
+                          className="input-cyber text-sm"
+                        />
+
+                        <div className="relative">
+                          <input
+                            id="auth-password"
+                            type={showPass ? 'text' : 'password'}
+                            placeholder={emailMode === 'signup' ? 'Create password (6+ chars)' : 'Password'}
+                            value={form.password}
+                            onChange={setField('password')}
+                            required
+                            autoComplete={emailMode === 'login' ? 'current-password' : 'new-password'}
+                            className="input-cyber text-sm pr-11"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPass(v => !v)}
+                            tabIndex={-1}
+                            aria-label={showPass ? 'Hide password' : 'Show password'}
+                            className="absolute right-3.5 top-1/2 -translate-y-1/2
+                                       text-white/30 hover:text-white/60 transition-colors"
+                          >
+                            {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
+                          </button>
+                        </div>
+
+                        <motion.button
+                          id="auth-submit"
+                          type="submit"
+                          disabled={isLoading}
+                          whileTap={{ scale: 0.97 }}
+                          className="btn-primary w-full flex items-center justify-center gap-2 py-3 text-sm"
+                        >
+                          {emailLoading
+                            ? <Loader2 size={16} className="animate-spin" />
+                            : emailMode === 'login' ? 'Sign In' : 'Create Account'
+                          }
+                        </motion.button>
+                      </form>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* ── Error banner ─────────────────────────────────────────── */}
+                <AnimatePresence>
+                  {error && (
+                    <motion.div
+                      key="error-banner"
+                      id="auth-error-banner"
+                      role="alert"
+                      initial={{ opacity: 0, y: -10, height: 0 }}
+                      animate={{ opacity: 1, y: 0, height: 'auto' }}
+                      exit={{ opacity: 0, y: -10, height: 0 }}
+                      transition={{ duration: 0.22 }}
+                      className="mt-4 overflow-hidden"
+                    >
+                      <div className="flex gap-2.5 items-start text-red-400 text-xs
+                                      bg-red-500/10 border border-red-500/25 rounded-xl px-3.5 py-3">
+                        <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="font-semibold">{emailMode === 'login' ? 'Sign in failed' : 'Registration failed'}</p>
+                          <p className="opacity-75 mt-0.5 leading-relaxed">{error}</p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* ── Switcher link ── */}
+                <div className="mt-6 pt-4 border-t border-white/5 text-center text-xs text-white/40">
+                  {!showEmail ? (
+                    <p>
+                      New to LifeTracker?{' '}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowEmail(true)
+                          setEmailMode('signup')
+                          setError('')
+                        }}
+                        className="text-cyan-400 hover:text-cyan-300 font-semibold transition-colors focus:outline-none"
+                      >
+                        Create an account
+                      </button>
+                    </p>
+                  ) : emailMode === 'login' ? (
+                    <p>
+                      Don't have an account?{' '}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEmailMode('signup')
+                          setError('')
+                        }}
+                        className="text-cyan-400 hover:text-cyan-300 font-semibold transition-colors focus:outline-none"
+                      >
+                        Sign Up
+                      </button>
+                    </p>
+                  ) : (
+                    <p>
+                      Already have an account?{' '}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEmailMode('login')
+                          setError('')
+                        }}
+                        className="text-cyan-400 hover:text-cyan-300 font-semibold transition-colors focus:outline-none"
+                      >
+                        Sign In
+                      </button>
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
 
             {/* Card shimmer bottom border */}
             <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r

@@ -3,8 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useApp } from '../context/AppContext'
 import { todayKey } from '../lib/storage'
 import Modal from '../components/ui/Modal'
-import Toast, { useToast } from '../components/ui/Toast'
-import { Plus, Flame, CheckCircle2, X, Trash2, TrendingUp } from 'lucide-react'
+import { Plus, Flame, Trash2, TrendingUp } from 'lucide-react'
 
 const HABIT_ICONS = ['🏋️','🚶','📚','🧘','💧','😴','🎯','💪','🥗','✍️','🎵','🏃','🧹','💊','🛁','☀️','🌙','🤸','🎨','🎮']
 const HABIT_CATEGORIES = ['fitness', 'mind', 'health', 'productivity', 'social', 'other']
@@ -24,15 +23,8 @@ function AddHabitModal({ isOpen, onClose }) {
     onClose()
   }
 
-  const footer = (
-    <div className="flex gap-3 w-full">
-      <button onClick={onClose} className="btn-ghost flex-1">Cancel</button>
-      <button id="habit-add-confirm" onClick={handleAdd} className="btn-primary flex-1">Add Habit</button>
-    </div>
-  )
-
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Add New Habit" footer={footer}>
+    <Modal isOpen={isOpen} onClose={onClose} title="Add New Habit">
       <div className="space-y-4">
         <div>
           <label className="text-xs text-white/40 block mb-1">Habit Name</label>
@@ -72,7 +64,7 @@ function AddHabitModal({ isOpen, onClose }) {
 
         <div>
           <label className="text-xs text-white/40 block mb-2">Category</label>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 mb-4">
             {HABIT_CATEGORIES.map(c => (
               <button key={c} id={`habit-cat-${c}`}
                 onClick={() => setForm(f => ({ ...f, category: c }))}
@@ -81,6 +73,31 @@ function AddHabitModal({ isOpen, onClose }) {
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Action Buttons inside Form Body */}
+        <div className="flex flex-col gap-2 pt-4 border-t border-white/5">
+          <button
+            id="habit-add-confirm"
+            onClick={handleAdd}
+            disabled={!form.name.trim()}
+            className="w-full py-3 px-5 rounded-xl text-sm font-bold text-white
+                       bg-gradient-to-r from-cyber-500 to-emerald-500
+                       hover:from-cyber-400 hover:to-emerald-400
+                       active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed
+                       transition-all duration-200 shadow-[0_4px_20px_rgba(34,211,238,0.25)]"
+          >
+            Save Habit
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full py-2.5 px-5 rounded-xl text-xs font-semibold text-white/50
+                       bg-white/5 border border-white/10 hover:bg-white/8 hover:text-white/70
+                       active:scale-[0.98] transition-all duration-200"
+          >
+            Cancel
+          </button>
         </div>
       </div>
     </Modal>
@@ -180,7 +197,7 @@ export default function Habits() {
   const { habits } = useApp()
   const [addOpen, setAddOpen] = useState(false)
   const [tab, setTab] = useState('good')
-  const today = todayKey()
+
 
   const goodHabits = Object.values(habits).filter(h => h.type === 'good')
   const badHabits = Object.values(habits).filter(h => h.type === 'bad')
@@ -246,18 +263,43 @@ export default function Habits() {
       </div>
 
       {/* Habit list */}
-      <AnimatePresence mode="popLayout">
-        {shown.length === 0 ? (
-          <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            className="glass-card p-8 text-center">
-            <p className="text-3xl mb-2">{tab === 'good' ? '🌱' : '🎯'}</p>
-            <p className="text-white/60 text-sm">No {tab === 'bad' ? 'bad habits to track' : 'habits yet'}</p>
-            <p className="text-white/30 text-xs mt-1">Tap + to add a habit</p>
+      <div className="space-y-3">
+        <AnimatePresence mode="popLayout">
+          {shown.length === 0 ? (
+            <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+              className="glass-card p-8 text-center flex flex-col items-center justify-center">
+              <p className="text-3xl mb-2">{tab === 'good' ? '🌱' : '🎯'}</p>
+              <p className="text-white/60 text-sm">No {tab === 'bad' ? 'bad habits to track' : 'habits yet'}</p>
+              <p className="text-white/30 text-xs mt-1 mb-4">Create your custom {tab === 'good' ? 'good habit' : 'bad habit'} here</p>
+              <button
+                id="habit-add-empty-btn"
+                onClick={() => setAddOpen(true)}
+                className="btn-primary text-xs py-2.5 px-4 flex items-center gap-1.5"
+              >
+                <Plus size={14} /> Add Habit
+              </button>
+            </motion.div>
+          ) : (
+            shown.map(h => <HabitCard key={h.id} habit={h} />)
+          )}
+        </AnimatePresence>
+
+        {shown.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="pt-2"
+          >
+            <button
+              id="habit-add-bottom-btn"
+              onClick={() => setAddOpen(true)}
+              className="w-full btn-ghost py-3 text-xs font-semibold flex items-center justify-center gap-2 hover:border-cyber-500/30 hover:bg-cyber-500/5 transition-all"
+            >
+              <Plus size={16} className="text-cyber-400" /> Add Custom Habit
+            </button>
           </motion.div>
-        ) : (
-          shown.map(h => <HabitCard key={h.id} habit={h} />)
         )}
-      </AnimatePresence>
+      </div>
 
       <AddHabitModal isOpen={addOpen} onClose={() => setAddOpen(false)} />
     </div>

@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useState } from 'react'
+import { motion } from 'framer-motion'
 import { format, differenceInDays } from 'date-fns'
 import { useApp } from '../context/AppContext'
 import Modal from '../components/ui/Modal'
@@ -88,7 +88,11 @@ function AddEntryModal({ isOpen, onClose }) {
   const footer = (
     <div className="flex gap-3 w-full">
       <button onClick={onClose} className="btn-ghost flex-1">Cancel</button>
-      <button onClick={handleSave} className="flex-1 py-3 rounded-xl bg-gradient-to-r from-pink-500 to-rose-600 text-white font-semibold text-sm active:scale-95 transition-all">
+      <button
+        onClick={handleSave}
+        disabled={!form.body.trim() && !form.title.trim()}
+        className="flex-1 py-3 rounded-xl bg-gradient-to-r from-pink-500 to-rose-600 text-white font-semibold text-sm active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+      >
         Save Entry
       </button>
     </div>
@@ -141,8 +145,12 @@ function AddSpecialDateModal({ isOpen, onClose }) {
   const footer = (
     <div className="flex gap-3 w-full">
       <button onClick={onClose} className="btn-ghost flex-1">Cancel</button>
-      <button onClick={handleSave} className="flex-1 py-3 rounded-xl bg-gradient-to-r from-pink-500 to-rose-600 text-white font-semibold text-sm active:scale-95">
-        Add Date
+      <button
+        onClick={handleSave}
+        disabled={!form.label.trim() || !form.date}
+        className="flex-1 py-3 rounded-xl bg-gradient-to-r from-pink-500 to-rose-600 text-white font-semibold text-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        Save Date
       </button>
     </div>
   )

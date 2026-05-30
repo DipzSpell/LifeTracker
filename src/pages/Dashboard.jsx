@@ -1,9 +1,8 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { format, isToday } from 'date-fns'
-import { Flame, Zap, CheckCircle2, TrendingUp, Calendar, Plus } from 'lucide-react'
+import { format } from 'date-fns'
+import { Flame, CheckCircle2, TrendingUp, Calendar, Plus } from 'lucide-react'
 import { useApp } from '../context/AppContext'
-import { useAuth } from '../context/AuthContext'
 import { todayKey, getLast7Days } from '../lib/storage'
 import QuickLogModal from '../components/QuickLogModal'
 
@@ -15,9 +14,8 @@ const cardVariants = {
 }
 
 export default function Dashboard() {
-  const { user } = useAuth()
   const {
-    habits, dailyLogs, fitnessLogs, todos, pointsHistory,
+    habits, dailyLogs, fitnessLogs, pointsHistory,
     totalPoints, todayPoints, getHabitStreak, getUpcomingTodos, settings,
   } = useApp()
   const [quickLogOpen, setQuickLogOpen] = useState(false)

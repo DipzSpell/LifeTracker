@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { CheckCircle, AlertCircle, Info, X } from 'lucide-react'
-import { useEffect } from 'react'
+import { useState, useCallback, useRef } from 'react'
 
 const ICONS = {
   success: <CheckCircle size={18} className="text-emerald-400" />,
@@ -43,8 +43,6 @@ export default function Toast({ toasts, removeToast }) {
 }
 
 // Toast hook
-import { useState, useCallback, useRef } from 'react'
-
 export function useToast() {
   const [toasts, setToasts] = useState([])
   const timerRef = useRef({})

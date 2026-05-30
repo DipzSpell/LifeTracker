@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useApp } from '../context/AppContext'
-import { todayKey, getLast30Days, getLast7Days } from '../lib/storage'
+import { todayKey, getLast7Days } from '../lib/storage'
 import Toast, { useToast } from '../components/ui/Toast'
-import { Save, Dumbbell, Droplets, Scale, Map, Timer, Flame } from 'lucide-react'
+import { Save, Dumbbell, Droplets, Scale, Map, Flame } from 'lucide-react'
 
 const WORKOUT_TYPES = ['Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core', 'Cardio', 'Full Body', 'HIIT', 'Yoga', 'Swimming', 'Cycling']
 
@@ -38,7 +38,6 @@ export default function Fitness() {
   const estimateCalories = () => {
     if (form.distance && form.duration) {
       const km = parseFloat(form.distance)
-      const mins = parseFloat(form.duration)
       const cals = Math.round(km * 60 * 0.9) // ~60 cal/km for avg person
       setForm(f => ({ ...f, calories: cals }))
     }

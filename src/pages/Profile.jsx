@@ -6,11 +6,11 @@ import { useApp } from '../context/AppContext'
 import { BADGES, checkBadges } from '../lib/points'
 import Toast, { useToast } from '../components/ui/Toast'
 import {
-  User, Settings, Shield, Bell, Moon, Target, Trophy,
-  LogOut, ChevronRight, Heart, Zap, Award, Camera,
-  Download, Trash2, Lock, Eye, EyeOff, Star,
-  TrendingUp, Calendar, Activity, CheckCircle2,
-  Smartphone, Database, Info, ExternalLink, Sun
+  Shield, Bell, Moon, Target,
+  LogOut, ChevronRight, Heart, Zap, Award,
+  Download, Trash2, Lock, Star,
+  TrendingUp, Activity,
+  Database, Info, Sun
 } from 'lucide-react'
 
 function BadgeCard({ badge, earned }) {
@@ -129,13 +129,6 @@ export default function Profile() {
 
   const totalDaysLogged = Object.keys(dailyLogs).length
   const gymDaysTotal = Object.values(dailyLogs).filter(l => l.gymStatus === 'done').length
-  const totalHabits = Object.keys(habits).length
-
-  // Best streak across all habits
-  const allHabitNames = Object.values(habits)
-  let bestStreakHabit = null
-  let bestStreakVal = 0
-  // (simplified — actual streak calc needs getHabitStreak hook)
 
   // Export full data as JSON
   const exportData = () => {

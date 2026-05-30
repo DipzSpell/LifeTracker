@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
 import Modal from './ui/Modal'
 import EmojiMoodPicker from './ui/EmojiMoodPicker'
 import { useApp } from '../context/AppContext'
