@@ -2,7 +2,7 @@
 
 A modern, dark-themed Personal Life OS designed to help users track daily habits, manage tasks, and log sleep cycles with advanced gamification (Points System) and strict multi-user data isolation.
 
-🔗 **Live Deployment:** [https://life-tracker-ashy-chi.vercel.app](https://life-tracker-ashy-chi.vercel.app)
+🔗 **Live Deployment:** [https://lifenotebook.vercel.app/](https://lifenotebook.vercel.app/)
 
 ---
 
