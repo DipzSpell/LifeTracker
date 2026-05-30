@@ -1,7 +1,11 @@
+import { useLocation } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import TopBar from './TopBar'
 import BottomNav from './BottomNav'
 
 export default function PageLayout({ children }) {
+  const location = useLocation()
+
   return (
     <div className="min-h-screen bg-navy-950 flex flex-col">
       {/* Background gradient orbs */}
@@ -16,7 +20,17 @@ export default function PageLayout({ children }) {
       {/* Main content */}
       <main className="flex-1 relative z-10 pb-24">
         <div className="max-w-lg mx-auto px-4 py-4">
-          {children}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }}
+              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+            >
+              {children}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </main>
 

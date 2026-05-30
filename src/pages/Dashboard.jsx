@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { format } from 'date-fns'
+import { useNavigate } from 'react-router-dom'
 import { Flame, CheckCircle2, TrendingUp, Calendar, Plus, Moon } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { todayKey, getLast7Days } from '../lib/storage'
@@ -39,6 +40,7 @@ function calculateSleepDuration(sleepTime, wakeTime) {
 }
 
 export default function Dashboard() {
+  const navigate = useNavigate()
   const {
     habits, dailyLogs, fitnessLogs, pointsHistory,
     totalPoints, todayPoints, getHabitStreak, getUpcomingTodos, settings,
@@ -153,7 +155,11 @@ export default function Dashboard() {
       )}
 
       {/* Habits Progress Card */}
-      <motion.div custom={2} variants={cardVariants} initial="hidden" animate="visible">
+      <motion.div custom={2} variants={cardVariants} initial="hidden" animate="visible"
+                  whileHover={{ y: -4, scale: 1.01 }}
+                  whileTap={{ scale: 0.985 }}
+                  onClick={() => navigate('/habits')}
+                  className="cursor-pointer">
         <div className="glass-card p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-white flex items-center gap-2">
@@ -200,7 +206,11 @@ export default function Dashboard() {
 
       {/* Streaks Card */}
       {topStreaks.length > 0 && (
-        <motion.div custom={3} variants={cardVariants} initial="hidden" animate="visible">
+        <motion.div custom={3} variants={cardVariants} initial="hidden" animate="visible"
+                    whileHover={{ y: -4, scale: 1.01 }}
+                    whileTap={{ scale: 0.985 }}
+                    onClick={() => navigate('/habits')}
+                    className="cursor-pointer">
           <div className="glass-card p-4">
             <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-3">
               <Flame size={16} className="text-orange-400 streak-fire" />
@@ -223,7 +233,11 @@ export default function Dashboard() {
 
       {/* Upcoming Tasks */}
       {upcomingTasks.length > 0 && (
-        <motion.div custom={4} variants={cardVariants} initial="hidden" animate="visible">
+        <motion.div custom={4} variants={cardVariants} initial="hidden" animate="visible"
+                    whileHover={{ y: -4, scale: 1.01 }}
+                    whileTap={{ scale: 0.985 }}
+                    onClick={() => navigate('/todo')}
+                    className="cursor-pointer">
           <div className="glass-card p-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-white flex items-center gap-2">
@@ -253,7 +267,11 @@ export default function Dashboard() {
       )}
 
       {/* Weekly Points Mini Chart */}
-      <motion.div custom={5} variants={cardVariants} initial="hidden" animate="visible">
+      <motion.div custom={5} variants={cardVariants} initial="hidden" animate="visible"
+                  whileHover={{ y: -4, scale: 1.01 }}
+                  whileTap={{ scale: 0.985 }}
+                  onClick={() => navigate('/stats')}
+                  className="cursor-pointer">
         <div className="glass-card p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-white flex items-center gap-2">
@@ -286,7 +304,11 @@ export default function Dashboard() {
 
       {/* Sleep last night */}
       {(todayLog.wakeTime || todayLog.sleepTime) && (
-        <motion.div custom={6} variants={cardVariants} initial="hidden" animate="visible">
+        <motion.div custom={6} variants={cardVariants} initial="hidden" animate="visible"
+                    whileHover={{ y: -4, scale: 1.01 }}
+                    whileTap={{ scale: 0.985 }}
+                    onClick={() => navigate('/log')}
+                    className="cursor-pointer">
           <div className="glass-card p-4 flex items-center gap-4">
             <span className="text-3xl">😴</span>
             <div className="flex-1">

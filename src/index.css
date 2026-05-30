@@ -291,14 +291,8 @@
     @apply w-4 h-4 rounded-sm transition-all duration-200;
   }
 
-  /* Page transition wrapper */
+  /* Page transition wrapper (handled by Framer Motion) */
   .page-enter {
-    animation: pageEnter 0.3s ease-out;
-  }
-
-  @keyframes pageEnter {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
   }
 
   /* Quick action button */
