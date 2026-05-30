@@ -7,7 +7,7 @@
  *  - Smooth framer-motion transitions throughout
  *  - Accessible: all interactive elements have unique IDs, ARIA labels
  */
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../context/AuthContext'
 import { Eye, EyeOff, AlertTriangle, ChevronDown, Loader2 } from 'lucide-react'
@@ -86,6 +86,37 @@ export default function Login() {
 
   // Error
   const [error, setError] = useState('')
+
+  // Parse error parameters from URL (e.g. OAuth failures)
+  useEffect(() => {
+    try {
+      const url = new URL(window.location.href)
+      let oauthError = url.searchParams.get('error_description') || url.searchParams.get('error')
+
+      // Check hash parameters if using HashRouter (e.g. #/login?error=...)
+      if (!oauthError && window.location.hash) {
+        const hashQuery = window.location.hash.split('?')[1]
+        if (hashQuery) {
+          const params = new URLSearchParams(hashQuery)
+          oauthError = params.get('error_description') || params.get('error')
+        } else if (window.location.hash.startsWith('#error=')) {
+          const params = new URLSearchParams(window.location.hash.substring(1))
+          oauthError = params.get('error_description') || params.get('error')
+        }
+      }
+
+      if (oauthError) {
+        console.error('[Login] OAuth redirect error:', oauthError)
+        setError(decodeURIComponent(oauthError).replace(/\+/g, ' '))
+
+        // Clear query parameters from URL history to break redirect loops
+        const cleanUrl = window.location.origin + window.location.pathname + (window.location.hash ? window.location.hash.split('?')[0] : '')
+        window.history.replaceState({}, document.title, cleanUrl)
+      }
+    } catch (err) {
+      console.warn('[Login] Error parsing URL error params:', err)
+    }
+  }, [])
 
   // Clear error when switching modes (done inline on button clicks)
 

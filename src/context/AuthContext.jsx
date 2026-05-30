@@ -77,6 +77,37 @@ export function AuthProvider({ children }) {
 
         setUser(normalizeUser(session?.user ?? null))
 
+        // If a session is established, clear any error queries from the URL history
+        if (session) {
+          try {
+            const url = new URL(window.location.href)
+            if (
+              url.searchParams.has('error') ||
+              url.searchParams.has('error_description') ||
+              window.location.hash.includes('error=')
+            ) {
+              url.searchParams.delete('error')
+              url.searchParams.delete('error_code')
+              url.searchParams.delete('error_description')
+              
+              // Clean hash parameters too
+              let cleanHash = url.hash
+              if (cleanHash.includes('?')) {
+                const hashParts = cleanHash.split('?')
+                const hashParams = new URLSearchParams(hashParts[1])
+                hashParams.delete('error')
+                hashParams.delete('error_code')
+                hashParams.delete('error_description')
+                const searchStr = hashParams.toString()
+                cleanHash = hashParts[0] + (searchStr ? '?' + searchStr : '')
+              }
+              window.history.replaceState({}, document.title, url.pathname + cleanHash)
+            }
+          } catch (err) {
+            console.warn('[Auth] Error clearing URL parameters:', err)
+          }
+        }
+
         // Only set loading=false once the initial check is complete.
         // All subsequent events (SIGNED_IN, SIGNED_OUT, etc.) also set it false,
         // which is a no-op after the first time — safe and correct.

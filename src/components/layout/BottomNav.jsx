@@ -82,7 +82,9 @@ export default function BottomNav() {
       >
         <div className="flex items-center justify-around px-2 pt-2 pb-1 max-w-lg mx-auto">
           {NAV_ITEMS.map(({ path, icon: Icon, label }) => {
-            const active = location.pathname === path
+            const active = path === '/'
+              ? (location.pathname === '/' || location.pathname === '/dashboard')
+              : location.pathname === path
             return (
               <button
                 key={path}

@@ -88,7 +88,7 @@ function AppRoutes() {
       {/* Login route — only render Login once loading is done */}
       <Route
         path="/login"
-        element={user ? <Navigate to="/" replace /> : <Login />}
+        element={user ? <Navigate to="/dashboard" replace /> : <Login />}
       />
 
       {/* All authenticated routes go through ProtectedRoute */}
@@ -98,7 +98,8 @@ function AppRoutes() {
           <ProtectedRoute>
             <PageLayout>
               <Routes>
-                <Route path="/"        element={<Dashboard />} />
+                <Route path="/"        element={<Navigate to="/dashboard" replace />} />
+                <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/log"     element={<DailyLog />} />
                 <Route path="/fitness" element={<Fitness />} />
                 <Route path="/habits"  element={<Habits />} />
