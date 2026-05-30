@@ -2,7 +2,7 @@
 
 A modern, dark-themed Personal Life OS designed to help users track daily habits, manage tasks, and log sleep cycles with advanced gamification (Points System) and strict multi-user data isolation.
 
-🔗 **Live Deployment:** [https://lifenotebook.netlify.app/](https://lifenotebook.netlify.app/)
+🔗 **Live Deployment:** [https://life-tracker-ashy-chi.vercel.app](https://life-tracker-ashy-chi.vercel.app)
 
 ---
 
@@ -24,7 +24,7 @@ A modern, dark-themed Personal Life OS designed to help users track daily habits
 * **Frontend:** [React.js](https://react.dev/), [Vite](https://vite.dev/), [Tailwind CSS](https://tailwindcss.com/)
 * **Backend & Database:** [Supabase](https://supabase.com/) (PostgreSQL)
 * **Authentication:** Google Cloud Console OAuth 2.0
-* **Hosting & Deployment:** [Netlify](https://www.netlify.com/) & GitHub CI/CD pipeline
+* **Hosting & Deployment:** [Vercel](https://vercel.com/) & GitHub CI/CD pipeline
 
 ---
 
