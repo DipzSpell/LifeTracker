@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { format } from 'date-fns'
-import { Flame, CheckCircle2, TrendingUp, Calendar, Plus } from 'lucide-react'
+import { Flame, CheckCircle2, TrendingUp, Calendar, Plus, Moon } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { todayKey, getLast7Days } from '../lib/storage'
 import QuickLogModal from '../components/QuickLogModal'
@@ -11,6 +11,31 @@ import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from 'recharts'
 const cardVariants = {
   hidden: { opacity: 0, y: 20 },
   visible: i => ({ opacity: 1, y: 0, transition: { delay: i * 0.08, duration: 0.4, ease: 'easeOut' } }),
+}
+
+function calculateSleepDuration(sleepTime, wakeTime) {
+  if (!sleepTime || !wakeTime) return ''
+  try {
+    const [sleepH, sleepM] = sleepTime.split(':').map(Number)
+    const [wakeH, wakeM] = wakeTime.split(':').map(Number)
+    
+    if (isNaN(sleepH) || isNaN(sleepM) || isNaN(wakeH) || isNaN(wakeM)) return ''
+    
+    let sleepMinutes = sleepH * 60 + sleepM
+    let wakeMinutes = wakeH * 60 + wakeM
+    
+    let diff = wakeMinutes - sleepMinutes
+    if (diff < 0) {
+      diff += 24 * 60 // cross-midnight math
+    }
+    
+    const hours = Math.floor(diff / 60)
+    const mins = diff % 60
+    
+    return `${hours}h ${mins}m`
+  } catch {
+    return ''
+  }
 }
 
 export default function Dashboard() {
@@ -264,11 +289,19 @@ export default function Dashboard() {
         <motion.div custom={6} variants={cardVariants} initial="hidden" animate="visible">
           <div className="glass-card p-4 flex items-center gap-4">
             <span className="text-3xl">😴</span>
-            <div>
-              <p className="text-xs text-white/40 font-medium">Last Night's Sleep</p>
-              <p className="text-sm font-semibold text-white">
-                {todayLog.sleepTime || '—'} → {todayLog.wakeTime || '—'}
-              </p>
+            <div className="flex-1">
+              <p className="text-xs text-white/40 font-medium mb-0.5">Last Night's Sleep</p>
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <p className="text-sm font-semibold text-white">
+                  {todayLog.sleepTime || '—'} → {todayLog.wakeTime || '—'}
+                </p>
+                {todayLog.sleepTime && todayLog.wakeTime && (
+                  <span className="text-xs text-cyber-400 font-medium flex items-center gap-1 bg-cyber-500/10 border border-cyber-500/20 px-2.5 py-0.5 rounded-full">
+                    <Moon size={10} className="text-cyber-400" />
+                    {calculateSleepDuration(todayLog.sleepTime, todayLog.wakeTime)}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </motion.div>
