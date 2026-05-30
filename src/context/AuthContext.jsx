@@ -126,27 +126,15 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe()
   }, [])
 
-  // ── Google OAuth ──────────────────────────────────────────────────────────────
   const signInWithGoogle = async () => {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        /**
-         * redirectTo = root of the app with NO hash or path.
-         * Supabase appends #access_token=... to this URL after Google auth.
-         * detectSessionInUrl:true (in supabaseClient.js) parses that token.
-         */
-        redirectTo: window.location.origin,
-        queryParams: {
-          access_type: 'offline',
-          prompt: 'select_account',              // forces Google account picker every time
-        },
+        redirectTo: window.location.origin // This dynamically handles both localhost and Netlify
       },
     })
     if (error) throw error
     return data
-    // No user returned here — the OAuth redirect carries the token.
-    // onAuthStateChange(SIGNED_IN) fires after the redirect completes.
   }
 
   // ── Email / Password Login ────────────────────────────────────────────────────
