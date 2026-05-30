@@ -3,11 +3,12 @@ import Modal from './ui/Modal'
 import EmojiMoodPicker from './ui/EmojiMoodPicker'
 import { useApp } from '../context/AppContext'
 import { todayKey } from '../lib/storage'
+import { playVictorySound } from '../lib/sounds'
 import { CheckCircle2, Clock, Droplets, BookOpen, Save } from 'lucide-react'
 
 // This is a standalone modal for the Quick Log flow
 export default function QuickLogModal({ isOpen, onClose }) {
-  const { dispatch, dailyLogs, recalcPoints } = useApp()
+  const { dispatch, dailyLogs, settings, recalcPoints } = useApp()
   const today = todayKey()
   const existing = dailyLogs[today] || {}
 
@@ -70,6 +71,9 @@ export default function QuickLogModal({ isOpen, onClose }) {
     }
 
     setTimeout(recalcPoints, 100)
+    if (settings?.soundEffectsEnabled !== false) {
+      playVictorySound()
+    }
     onClose()
   }
 

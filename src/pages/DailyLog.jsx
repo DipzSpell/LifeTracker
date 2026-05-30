@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { format } from 'date-fns'
 import { useApp } from '../context/AppContext'
 import { todayKey } from '../lib/storage'
+import { playVictorySound } from '../lib/sounds'
 import EmojiMoodPicker from '../components/ui/EmojiMoodPicker'
 import { Save, Dumbbell, Clock, Droplets, BookOpen, Heart } from 'lucide-react'
 import Toast, { useToast } from '../components/ui/Toast'
@@ -63,6 +64,9 @@ export default function DailyLog() {
     if (form.meditated) dispatch({ type: 'LOG_HABIT', payload: { habitId: 'habit_meditate', date: today, status: 'done' } })
     if (form.waterGlasses >= 8) dispatch({ type: 'LOG_HABIT', payload: { habitId: 'habit_water', date: today, status: 'done' } })
     setTimeout(recalcPoints, 100)
+    if (settings?.soundEffectsEnabled !== false) {
+      playVictorySound()
+    }
     addToast('Day logged successfully! Points updated 🎯', 'success')
   }
 

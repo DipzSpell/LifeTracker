@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useApp } from '../context/AppContext'
 import { todayKey } from '../lib/storage'
+import { playVictorySound } from '../lib/sounds'
 import Modal from '../components/ui/Modal'
 import { Plus, Flame, Trash2, TrendingUp } from 'lucide-react'
 
@@ -105,7 +106,7 @@ function AddHabitModal({ isOpen, onClose }) {
 }
 
 function HabitCard({ habit }) {
-  const { dispatch, getHabitStreak } = useApp()
+  const { dispatch, getHabitStreak, settings } = useApp()
   const today = todayKey()
   const entry = habit.entries?.[today]
   const status = entry?.status
@@ -114,6 +115,10 @@ function HabitCard({ habit }) {
 
   const logHabit = (s) => {
     dispatch({ type: 'LOG_HABIT', payload: { habitId: habit.id, date: today, status: s } })
+    const isSuccess = habit.type === 'good' ? s === 'done' : s === 'clean'
+    if (isSuccess && settings?.soundEffectsEnabled !== false) {
+      playVictorySound()
+    }
   }
 
   const deleteHabit = () => {

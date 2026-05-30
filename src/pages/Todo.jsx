@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { format, isBefore, isToday } from 'date-fns'
 import { useApp } from '../context/AppContext'
+import { playVictorySound } from '../lib/sounds'
 import Modal from '../components/ui/Modal'
 import { Plus, Trash2, CheckCircle2, Clock, RefreshCw } from 'lucide-react'
 
@@ -149,7 +150,7 @@ function AddTaskModal({ isOpen, onClose }) {
 }
 
 function TaskCard({ task }) {
-  const { dispatch, recalcPoints } = useApp()
+  const { dispatch, settings, recalcPoints } = useApp()
   const today = format(new Date(), 'yyyy-MM-dd')
   const isOverdue = task.dueDate && isBefore(new Date(task.dueDate), new Date()) && task.status !== 'done'
   const isDueToday = task.dueDate && isToday(new Date(task.dueDate))
@@ -160,7 +161,12 @@ function TaskCard({ task }) {
       type: 'UPDATE_TODO',
       payload: { id: task.id, status: newStatus, completedDate: newStatus === 'done' ? today : null },
     })
-    if (newStatus === 'done') setTimeout(recalcPoints, 100)
+    if (newStatus === 'done') {
+      setTimeout(recalcPoints, 100)
+      if (settings?.soundEffectsEnabled !== false) {
+        playVictorySound()
+      }
+    }
   }
 
   const deleteTask = () => dispatch({ type: 'DELETE_TODO', payload: task.id })
