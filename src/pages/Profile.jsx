@@ -6,6 +6,7 @@ import { useApp } from '../context/AppContext'
 import { useTheme } from '../context/ThemeContext'
 import { BADGES, checkBadges } from '../lib/points'
 import Toast, { useToast } from '../components/ui/Toast'
+import { todayKey } from '../lib/storage'
 import {
   Shield, Bell, Moon, Target,
   LogOut, ChevronRight, Heart, Zap, Award,
@@ -14,31 +15,72 @@ import {
   Database, Info, Sun, Sliders, Volume2
 } from 'lucide-react'
 
-function BadgeCard({ badge, earned }) {
+function BadgeCard({ badge, earned, progress }) {
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
-      className={`p-3 rounded-xl border flex items-center gap-3 transition-all ${
+      className={`p-3.5 rounded-xl border flex flex-col gap-3 transition-all duration-300 ${
         earned
-          ? 'bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border-yellow-500/30'
-          : 'border-white/5 bg-white/3 opacity-35'
+          ? 'bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border-yellow-500/35 shadow-[0_0_20px_rgba(234,179,8,0.06)]'
+          : 'border-white/5 bg-white/3'
       }`}
     >
-      <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0 ${
-        earned ? 'bg-yellow-500/20' : 'bg-white/5'
-      }`}>
-        {badge.icon}
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-xs font-bold text-white truncate">{badge.name}</p>
-        <p className="text-[10px] text-white/40 leading-snug">{badge.desc}</p>
-      </div>
-      {earned && (
-        <div className="w-5 h-5 rounded-full bg-yellow-500/20 flex items-center justify-center flex-shrink-0">
-          <Star size={10} className="text-yellow-400" fill="currentColor" />
+      <div className="flex items-center gap-3">
+        {/* Badge Icon */}
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0 transition-colors ${
+          earned ? 'bg-yellow-500/20' : 'bg-white/5'
+        }`}>
+          {badge.icon}
         </div>
-      )}
+        
+        {/* Name and Description */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs font-bold text-white truncate">{badge.name}</p>
+            {progress?.today && !earned && (
+              <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-1.5 py-0.5 whitespace-nowrap animate-pulse">
+                {progress.today}
+              </span>
+            )}
+          </div>
+          <p className="text-[10px] text-white/45 leading-snug mt-0.5">{badge.desc}</p>
+        </div>
+        
+        {/* Earned Status Star / Target text */}
+        {earned ? (
+          <div className="w-5 h-5 rounded-full bg-yellow-500/20 flex items-center justify-center flex-shrink-0">
+            <Star size={10} className="text-yellow-400" fill="currentColor" />
+          </div>
+        ) : (
+          <span className="text-[9px] font-semibold text-white/30 whitespace-nowrap">
+            {progress?.text}
+          </span>
+        )}
+      </div>
+
+      {/* Dynamic Progress Line */}
+      <div className="w-full">
+        <div className="flex items-center justify-between text-[9px] text-white/35 mb-1.5">
+          <span>Completion Tracker</span>
+          <span className={earned ? 'text-yellow-400 font-medium' : 'text-white/60 font-medium'}>
+            {earned ? 'Completed' : progress?.text}
+          </span>
+        </div>
+        
+        <div className="w-full bg-slate-800/80 h-1.5 rounded-full overflow-hidden">
+          <motion.div
+            initial={{ width: 0 }}
+            animate={{ width: `${progress?.percentage || 0}%` }}
+            transition={{ duration: 0.8, ease: 'easeOut' }}
+            className={`h-full rounded-full bg-gradient-to-r ${
+              earned 
+                ? 'from-yellow-400 via-orange-400 to-yellow-500' 
+                : 'from-pink-500 via-purple-500 to-indigo-500'
+            }`}
+          />
+        </div>
+      </div>
     </motion.div>
   )
 }
@@ -103,7 +145,7 @@ function StatBox({ icon, value, label, color }) {
 export default function Profile() {
   const navigate = useNavigate()
   const { user, logout, updateProfile } = useAuth()
-  const { dispatch, settings, dailyLogs, habits, todos, totalPoints, pointsHistory, fitnessLogs, resetAppState } = useApp()
+  const { dispatch, settings, dailyLogs, habits, todos, totalPoints, pointsHistory, fitnessLogs, resetAppState, getHabitStreak } = useApp()
   const { toasts, addToast, removeToast } = useToast()
   const { theme, setTheme } = useTheme()
 
@@ -115,6 +157,192 @@ export default function Profile() {
   const [showClearConfirm, setShowClearConfirm] = useState(false)
 
   const earned = checkBadges(dailyLogs, habits, todos, totalPoints)
+
+  const getBadgeProgress = (badgeId) => {
+    const isEarned = earned.includes(badgeId)
+    const today = todayKey()
+    const todayLog = dailyLogs[today] || {}
+    const todayFitness = fitnessLogs[today] || {}
+    const todaySteps = parseInt(todayFitness.steps || todayLog.steps) || 0
+    const todayWater = parseInt(todayFitness.waterGlasses || todayLog.waterGlasses) || 0
+    const todayMeditate = !!todayLog.meditated
+    const todayGym = todayLog.gymStatus === 'done'
+    const todaySleepOnTime = !!todayLog.sleptOnTime
+
+    const sortedDays = Object.keys(dailyLogs).sort()
+
+    switch (badgeId) {
+      case 'WARRIOR_7': {
+        let currentStreak = 0
+        for (let i = sortedDays.length - 1; i >= 0; i--) {
+          const d = sortedDays[i]
+          if (dailyLogs[d]?.gymStatus === 'done') {
+            currentStreak++
+          } else if (dailyLogs[d]?.gymStatus !== 'rest') {
+            break
+          }
+        }
+        const current = isEarned ? 7 : currentStreak
+        const pct = isEarned ? 100 : Math.min(100, Math.round((currentStreak / 7) * 100))
+        return {
+          current,
+          target: 7,
+          percentage: pct,
+          text: `${current} / 7 days`,
+          today: todayGym ? '🏋️ Gym done! +1' : null
+        }
+      }
+      case 'CLEAN_WEEK': {
+        const goodHabits = Object.values(habits).filter(h => h.type === 'good')
+        let cleanDays = 0
+        for (let i = sortedDays.length - 1; i >= 0; i--) {
+          const d = sortedDays[i]
+          const allDone = goodHabits.length > 0 && goodHabits.every(h => h.entries?.[d]?.status === 'done')
+          if (allDone) {
+            cleanDays++
+          } else {
+            break
+          }
+        }
+        const current = isEarned ? 7 : cleanDays
+        const pct = isEarned ? 100 : Math.min(100, Math.round((cleanDays / 7) * 100))
+        const todayAllDone = goodHabits.length > 0 && goodHabits.every(h => h.entries?.[today]?.status === 'done')
+        return {
+          current,
+          target: 7,
+          percentage: pct,
+          text: `${current} / 7 days`,
+          today: todayAllDone ? '✨ All good habits done!' : null
+        }
+      }
+      case 'EARLY_BIRD': {
+        const wokeEarlyToday = !!todayLog.wokeEarly
+        const current = isEarned ? 1 : 0
+        return {
+          current,
+          target: 1,
+          percentage: current * 100,
+          text: `${current} / 1 times`,
+          today: wokeEarlyToday ? '🌅 Woke early today!' : null
+        }
+      }
+      case 'STEP_MASTER': {
+        const current = isEarned ? 10000 : Math.min(10000, todaySteps)
+        const pct = isEarned ? 100 : Math.min(100, Math.round((current / 10000) * 100))
+        return {
+          current,
+          target: 10000,
+          percentage: pct,
+          text: `${current.toLocaleString()} / 10,000 steps`,
+          today: todaySteps > 0 ? `👟 +${todaySteps.toLocaleString()} steps today` : null
+        }
+      }
+      case 'HYDRATION_HERO': {
+        let streak = 0
+        for (let i = sortedDays.length - 1; i >= 0; i--) {
+          const d = sortedDays[i]
+          const water = parseInt(dailyLogs[d]?.waterGlasses || fitnessLogs[d]?.waterGlasses) || 0
+          if (water >= 8) {
+            streak++
+          } else {
+            break
+          }
+        }
+        const current = isEarned ? 7 : streak
+        const pct = isEarned ? 100 : Math.min(100, Math.round((streak / 7) * 100))
+        return {
+          current: current,
+          target: 7,
+          percentage: pct,
+          text: `${current} / 7 days`,
+          today: todayWater > 0 ? `💧 +${todayWater} glasses today` : null
+        }
+      }
+      case 'ZEN_MASTER': {
+        let streak = 0
+        for (let i = sortedDays.length - 1; i >= 0; i--) {
+          const d = sortedDays[i]
+          if (dailyLogs[d]?.meditated) {
+            streak++
+          } else {
+            break
+          }
+        }
+        const current = isEarned ? 7 : streak
+        const pct = isEarned ? 100 : Math.min(100, Math.round((streak / 7) * 100))
+        return {
+          current: current,
+          target: 7,
+          percentage: pct,
+          text: `${current} / 7 days`,
+          today: todayMeditate ? '🧘 Meditated today!' : null
+        }
+      }
+      case 'CENTURION': {
+        const pct = Math.min(100, Math.round((totalPoints / 1000) * 100))
+        const todayPoints = pointsHistory[today] || 0
+        return {
+          current: totalPoints,
+          target: 1000,
+          percentage: pct,
+          text: `${totalPoints.toLocaleString()} / 1,000 pts`,
+          today: todayPoints > 0 ? `🔥 +${todayPoints} pts today` : null
+        }
+      }
+      case 'DIAMOND': {
+        const habitList = Object.values(habits)
+        let maxStreak = 0
+        habitList.forEach(h => {
+          const streak = getHabitStreak(h.id)
+          if (streak > maxStreak) maxStreak = streak
+        })
+        const current = isEarned ? 30 : maxStreak
+        const pct = isEarned ? 100 : Math.min(100, Math.round((maxStreak / 30) * 100))
+        const todayDoneAny = habitList.some(h => h.entries?.[today]?.status === 'done')
+        return {
+          current,
+          target: 30,
+          percentage: pct,
+          text: `${current} / 30 days`,
+          today: todayDoneAny ? '💎 Streak preserved' : null
+        }
+      }
+      case 'NIGHT_OWL_TAMED': {
+        let streak = 0
+        for (let i = sortedDays.length - 1; i >= 0; i--) {
+          const d = sortedDays[i]
+          if (dailyLogs[d]?.sleptOnTime) {
+            streak++
+          } else {
+            break
+          }
+        }
+        const current = isEarned ? 5 : streak
+        const pct = isEarned ? 100 : Math.min(100, Math.round((streak / 5) * 100))
+        return {
+          current: current,
+          target: 5,
+          percentage: pct,
+          text: `${current} / 5 days`,
+          today: todaySleepOnTime ? '🌙 Slept on time today!' : null
+        }
+      }
+      case 'TASK_KING': {
+        const completedCount = todos.filter(t => t.status === 'done').length
+        const pct = Math.min(100, Math.round((completedCount / 50) * 100))
+        const todayDoneCount = todos.filter(t => t.completedDate === today && t.status === 'done').length
+        return {
+          current: completedCount,
+          target: 50,
+          percentage: pct,
+          text: `${completedCount} / 50 tasks`,
+          today: todayDoneCount > 0 ? `👑 +${todayDoneCount} done today` : null
+        }
+      }
+      default:
+        return { current: 0, target: 100, percentage: 0, text: '0%', today: null }
+    }
+  }
 
   const updateSetting = (key, val) => {
     dispatch({ type: 'UPDATE_SETTINGS', payload: { [key]: val } })
@@ -330,7 +558,7 @@ export default function Profile() {
               className="mt-4 space-y-2 overflow-hidden"
             >
               {Object.values(BADGES).map(b => (
-                <BadgeCard key={b.id} badge={b} earned={earned.includes(b.id)} />
+                <BadgeCard key={b.id} badge={b} earned={earned.includes(b.id)} progress={getBadgeProgress(b.id)} />
               ))}
             </motion.div>
           )}

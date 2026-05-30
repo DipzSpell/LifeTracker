@@ -276,5 +276,57 @@ export function checkBadges(history = {}, _habits = {}, todos = [], totalPoints 
     }
   }
 
+  // Hydration Hero 7-day streak
+  let waterStreak = 0
+  for (const d of days) {
+    if ((history[d]?.waterGlasses || 0) >= 8) {
+      waterStreak++
+      if (waterStreak >= 7) { earned.add('HYDRATION_HERO'); break }
+    } else {
+      waterStreak = 0
+    }
+  }
+
+  // Zen Master 7-day streak
+  let meditateStreak = 0
+  for (const d of days) {
+    if (history[d]?.meditated) {
+      meditateStreak++
+      if (meditateStreak >= 7) { earned.add('ZEN_MASTER'); break }
+    } else {
+      meditateStreak = 0
+    }
+  }
+
+  // Clean Week (All good habits done for a week straight)
+  const goodHabits = Object.values(_habits).filter(h => h.type === 'good')
+  let cleanHabitStreak = 0
+  for (const d of days) {
+    const allDone = goodHabits.length > 0 && goodHabits.every(h => h.entries?.[d]?.status === 'done')
+    if (allDone) {
+      cleanHabitStreak++
+      if (cleanHabitStreak >= 7) { earned.add('CLEAN_WEEK'); break }
+    } else {
+      cleanHabitStreak = 0
+    }
+  }
+
+  // Diamond Streak (30-day habit streak for any habit)
+  const habitList = Object.values(_habits)
+  for (const h of habitList) {
+    let streak = 0
+    for (const d of days) {
+      const entry = h.entries?.[d]
+      const isSuccess = h.type === 'good' ? entry?.status === 'done' : entry?.status === 'clean'
+      if (isSuccess) {
+        streak++
+        if (streak >= 30) { earned.add('DIAMOND'); break }
+      } else {
+        streak = 0
+      }
+    }
+    if (earned.has('DIAMOND')) break
+  }
+
   return [...earned]
 }
