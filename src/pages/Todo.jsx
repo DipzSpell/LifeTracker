@@ -53,23 +53,9 @@ function AddTaskModal({ isOpen, onClose }) {
     onClose()
   }
 
-  const footer = (
-    <div className="flex gap-3 w-full">
-      <button onClick={onClose} className="btn-ghost flex-1">Cancel</button>
-      <button
-        id="todo-add-confirm"
-        onClick={handleAdd}
-        disabled={!form.title.trim()}
-        className="btn-primary flex-1"
-      >
-        Save Task
-      </button>
-    </div>
-  )
-
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Add New Task" footer={footer}>
-      <div className="space-y-4">
+    <Modal isOpen={isOpen} onClose={onClose} title="Add New Task">
+      <div className="max-h-[80vh] overflow-y-auto pb-8 pr-1 space-y-4">
         <div>
           <label className="text-xs text-white/40 block mb-1">Task Title *</label>
           <input id="todo-title" type="text" placeholder="What needs to be done?"
@@ -122,7 +108,7 @@ function AddTaskModal({ isOpen, onClose }) {
         </div>
         <div>
           <label className="text-xs text-white/40 block mb-2">Recurring</label>
-          <div className="flex gap-2">
+          <div className="flex gap-2 mb-4">
             {[{ val: 'none', label: 'Once' }, { val: 'daily', label: '📅 Daily' }, { val: 'weekly', label: '📆 Weekly' }].map(r => (
               <button key={r.val} id={`todo-recurring-${r.val}`}
                 onClick={() => setForm(f => ({ ...f, recurring: r.val }))}
@@ -131,6 +117,31 @@ function AddTaskModal({ isOpen, onClose }) {
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Action Buttons inside Form Body */}
+        <div className="flex flex-col gap-2 pt-4 border-t border-white/5">
+          <button
+            id="todo-add-confirm"
+            onClick={handleAdd}
+            disabled={!form.title.trim()}
+            className="w-full py-3.5 px-5 rounded-xl text-sm font-bold text-white
+                       bg-gradient-to-r from-cyber-500 to-blue-600
+                       hover:from-cyber-400 hover:to-blue-500
+                       active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed
+                       transition-all duration-200 shadow-[0_4px_20px_rgba(34,211,238,0.25)]"
+          >
+            Save Task
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full py-2.5 px-5 rounded-xl text-xs font-semibold text-white/50
+                       bg-white/5 border border-white/10 hover:bg-white/8 hover:text-white/70
+                       active:scale-[0.98] transition-all duration-200"
+          >
+            Cancel
+          </button>
         </div>
       </div>
     </Modal>
