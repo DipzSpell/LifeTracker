@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { format, differenceInDays } from 'date-fns'
+import { Navigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
 import Modal from '../components/ui/Modal'
 import EmojiMoodPicker from '../components/ui/EmojiMoodPicker'
@@ -210,11 +211,15 @@ function AddSpecialDateModal({ isOpen, onClose }) {
 }
 
 export default function LoveTracker() {
-  const { loveTracker, dispatch } = useApp()
+  const { loveTracker, settings, dispatch } = useApp()
   const [unlocked, setUnlocked] = useState(false)
   const [addEntry, setAddEntry] = useState(false)
   const [addDate, setAddDate] = useState(false)
   const [tab, setTab] = useState('journal')
+
+  if (settings?.loveTrackerEnabled === false) {
+    return <Navigate to="/dashboard" replace />
+  }
 
   if (!unlocked) return <PinLock onUnlock={() => setUnlocked(true)} />
 

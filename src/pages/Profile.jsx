@@ -11,7 +11,7 @@ import {
   LogOut, ChevronRight, Heart, Zap, Award,
   Download, Trash2, Lock, Star,
   TrendingUp, Activity,
-  Database, Info, Sun
+  Database, Info, Sun, Sliders, Volume2
 } from 'lucide-react'
 
 function BadgeCard({ badge, earned }) {
@@ -103,12 +103,13 @@ function StatBox({ icon, value, label, color }) {
 export default function Profile() {
   const navigate = useNavigate()
   const { user, logout, updateProfile } = useAuth()
-  const { dispatch, settings, dailyLogs, habits, todos, totalPoints, pointsHistory, fitnessLogs } = useApp()
+  const { dispatch, settings, dailyLogs, habits, todos, totalPoints, pointsHistory, fitnessLogs, resetAppState } = useApp()
   const { toasts, addToast, removeToast } = useToast()
   const { theme, setTheme } = useTheme()
 
-  const [editName, setEditName] = useState(false)
+  const [editProfile, setEditProfile] = useState(false)
   const [newName, setNewName] = useState(user?.displayName || '')
+  const [newAvatar, setNewAvatar] = useState(user?.avatar || '')
   const [showBadges, setShowBadges] = useState(false)
   const [activeSection, setActiveSection] = useState(null)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
@@ -179,6 +180,7 @@ export default function Profile() {
   const sections = [
     { id: 'goals', label: 'Personal Goals', icon: Target, color: 'text-cyber-400' },
     { id: 'appearance', label: 'Appearance & Theme', icon: Moon, color: 'text-pink-400' },
+    { id: 'control-center', label: 'Control Center & Toggles', icon: Sliders, color: 'text-cyan-400' },
     { id: 'notifications', label: 'Notifications', icon: Bell, color: 'text-yellow-400' },
     { id: 'privacy', label: 'Privacy & Security', icon: Shield, color: 'text-emerald-400' },
     { id: 'data', label: 'Data & Export', icon: Database, color: 'text-purple-400' },
@@ -193,11 +195,23 @@ export default function Profile() {
       <div className="gradient-border p-5">
         <div className="flex items-start gap-4 mb-4">
           {/* Avatar */}
-          <div className="relative">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-cyber-400 to-emerald-500
-                            flex items-center justify-center text-2xl font-bold text-white shadow-lg glow-cyan">
-              {user?.displayName?.[0]?.toUpperCase() || '?'}
-            </div>
+          <div className="relative flex-shrink-0">
+            {user?.avatar ? (
+              <img
+                src={user.avatar}
+                alt={user.displayName}
+                className="w-16 h-16 rounded-2xl object-cover border border-white/10 shadow-lg glow-cyan"
+                onError={(e) => {
+                  e.target.onerror = null
+                  e.target.style.display = 'none'
+                }}
+              />
+            ) : (
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-cyber-400 to-emerald-500
+                              flex items-center justify-center text-2xl font-bold text-white shadow-lg glow-cyan">
+                {user?.displayName?.[0]?.toUpperCase() || '?'}
+              </div>
+            )}
             <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500
                             border-2 border-navy-950 flex items-center justify-center">
               <div className="w-2 h-2 rounded-full bg-white" />
@@ -206,31 +220,52 @@ export default function Profile() {
 
           {/* Name + Email */}
           <div className="flex-1 min-w-0">
-            {editName ? (
-              <div className="flex gap-2">
-                <input
-                  value={newName}
-                  onChange={e => setNewName(e.target.value)}
-                  className="input-cyber text-sm flex-1"
-                  autoFocus
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') {
-                      updateProfile({ displayName: newName })
-                      setEditName(false)
-                      addToast('Name updated! ✅', 'success')
-                    }
-                  }}
-                />
-                <button
-                  onClick={() => {
-                    updateProfile({ displayName: newName })
-                    setEditName(false)
-                    addToast('Name updated! ✅', 'success')
-                  }}
-                  className="btn-primary text-xs px-3 py-2"
-                >
-                  Save
-                </button>
+            {editProfile ? (
+              <div className="space-y-2 mt-1">
+                <div>
+                  <label className="text-[10px] text-white/40 block mb-0.5 font-medium">Display Name</label>
+                  <input
+                    value={newName}
+                    onChange={e => setNewName(e.target.value)}
+                    className="input-cyber text-xs w-full py-1.5 px-2"
+                    placeholder="Display name"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-white/40 block mb-0.5 font-medium">Avatar URL</label>
+                  <input
+                    value={newAvatar}
+                    onChange={e => setNewAvatar(e.target.value)}
+                    className="input-cyber text-xs w-full py-1.5 px-2"
+                    placeholder="https://example.com/avatar.png"
+                  />
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <button
+                    onClick={async () => {
+                      try {
+                        await updateProfile({ displayName: newName, avatarUrl: newAvatar })
+                        setEditProfile(false)
+                        addToast('Profile updated! ✅', 'success')
+                      } catch (err) {
+                        addToast(err.message || 'Update failed', 'error')
+                      }
+                    }}
+                    className="btn-primary text-xs px-3 py-1.5 flex-1"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => {
+                      setNewName(user?.displayName || '')
+                      setNewAvatar(user?.avatar || '')
+                      setEditProfile(false)
+                    }}
+                    className="btn-secondary text-xs px-3 py-1.5 bg-white/5 text-white/60 hover:bg-white/10 flex-1 rounded-xl"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
             ) : (
               <>
@@ -239,10 +274,14 @@ export default function Profile() {
                 </h2>
                 <p className="text-xs text-white/40 truncate">{user?.email}</p>
                 <button
-                  onClick={() => setEditName(true)}
+                  onClick={() => {
+                    setNewName(user?.displayName || '')
+                    setNewAvatar(user?.avatar || '')
+                    setEditProfile(true)
+                  }}
                   className="text-[10px] text-cyber-400 hover:underline mt-0.5"
                 >
-                  ✏️ Edit name
+                  ✏️ Edit Profile
                 </button>
               </>
             )}
@@ -304,12 +343,12 @@ export default function Profile() {
         <div className="grid grid-cols-3 gap-2">
           {[
             { label: 'Daily Log', emoji: '📓', path: '/log' },
-            { label: 'Fitness', emoji: '💪', path: '/fitness' },
+            { label: 'Fitness', emoji: '💪', path: '/fitness', enabled: settings?.fitnessTrackerEnabled !== false },
             { label: 'Habits', emoji: '🎯', path: '/habits' },
             { label: 'Analytics', emoji: '📊', path: '/stats' },
             { label: 'Tasks', emoji: '✅', path: '/todo' },
-            { label: 'Love 🔐', emoji: '💕', path: '/love' },
-          ].map(({ label, emoji, path }) => (
+            { label: 'Love 🔐', emoji: '💕', path: '/love', enabled: settings?.loveTrackerEnabled !== false },
+          ].filter(item => item.enabled !== false).map(({ label, emoji, path }) => (
             <button
               key={path}
               onClick={() => navigate(path)}
@@ -497,6 +536,66 @@ export default function Profile() {
                     </div>
                   )}
 
+                  {/* ── CONTROL CENTER ── */}
+                  {id === 'control-center' && (
+                    <div className="space-y-1">
+                      <SettingRow
+                        icon={Moon}
+                        label="Sleep Tracker"
+                        sublabel="Track wake/sleep times and goals"
+                      >
+                        <Toggle
+                          value={settings.sleepTrackerEnabled !== false}
+                          onChange={v => {
+                            updateSetting('sleepTrackerEnabled', v)
+                            addToast(v ? 'Sleep Tracker enabled! 😴' : 'Sleep Tracker disabled', 'info')
+                          }}
+                        />
+                      </SettingRow>
+                      <SettingRow
+                        icon={Heart}
+                        label="Love Tracker"
+                        sublabel="PIN-protected private journal & dates"
+                      >
+                        <Toggle
+                          value={settings.loveTrackerEnabled !== false}
+                          onChange={v => {
+                            updateSetting('loveTrackerEnabled', v)
+                            addToast(v ? 'Love Tracker enabled! 💕' : 'Love Tracker disabled', 'info')
+                          }}
+                          color="bg-pink-500"
+                        />
+                      </SettingRow>
+                      <SettingRow
+                        icon={Activity}
+                        label="Fitness Tracker"
+                        sublabel="Track gym days, steps, and exercises"
+                      >
+                        <Toggle
+                          value={settings.fitnessTrackerEnabled !== false}
+                          onChange={v => {
+                            updateSetting('fitnessTrackerEnabled', v)
+                            addToast(v ? 'Fitness Tracker enabled! 💪' : 'Fitness Tracker disabled', 'info')
+                          }}
+                          color="bg-emerald-500"
+                        />
+                      </SettingRow>
+                      <SettingRow
+                        icon={Volume2}
+                        label="UI Sound Effects"
+                        sublabel="Play synthesized clicks on interactions"
+                      >
+                        <Toggle
+                          value={settings.soundEffectsEnabled !== false}
+                          onChange={v => {
+                            updateSetting('soundEffectsEnabled', v)
+                            addToast(v ? 'UI Sounds enabled! 🔊' : 'UI Sounds disabled', 'info')
+                          }}
+                        />
+                      </SettingRow>
+                    </div>
+                  )}
+
                   {/* ── NOTIFICATIONS ── */}
                   {id === 'notifications' && (
                     <div className="space-y-1">
@@ -648,43 +747,17 @@ export default function Profile() {
                         </div>
                       </div>
 
-                      {/* Clear data */}
-                      {showClearConfirm ? (
-                        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3">
-                          <p className="text-xs text-red-300 mb-3 font-medium">
-                            ⚠️ This will permanently delete ALL your data. This cannot be undone!
-                          </p>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => setShowClearConfirm(false)}
-                              className="flex-1 py-2 rounded-xl bg-white/10 text-white/70 text-xs font-semibold"
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              onClick={() => {
-                                localStorage.clear()
-                                window.location.reload()
-                              }}
-                              className="flex-1 py-2 rounded-xl bg-red-500/30 text-red-300 text-xs font-semibold border border-red-500/40"
-                            >
-                              Yes, Delete All
-                            </button>
-                          </div>
+                      <button
+                        onClick={() => setShowClearConfirm(true)}
+                        className="w-full flex items-center gap-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20
+                                   hover:bg-red-500/15 transition-all active:scale-95"
+                      >
+                        <Trash2 size={15} className="text-red-400" />
+                        <div className="text-left">
+                          <p className="text-sm font-medium text-red-300">Clear All Data</p>
+                          <p className="text-[10px] text-white/40">Permanently delete everything</p>
                         </div>
-                      ) : (
-                        <button
-                          onClick={() => setShowClearConfirm(true)}
-                          className="w-full flex items-center gap-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20
-                                     hover:bg-red-500/15 transition-all active:scale-95"
-                        >
-                          <Trash2 size={15} className="text-red-400" />
-                          <div className="text-left">
-                            <p className="text-sm font-medium text-red-300">Clear All Data</p>
-                            <p className="text-[10px] text-white/40">Permanently delete everything</p>
-                          </div>
-                        </button>
-                      )}
+                      </button>
                     </div>
                   )}
 
@@ -757,6 +830,58 @@ export default function Profile() {
       <p className="text-center text-[10px] text-white/15 pb-2">
         LifeTracker v1.0 · Synced via Supabase 🔐
       </p>
+
+      {/* Danger Zone Confirmation Modal */}
+      <AnimatePresence>
+        {showClearConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-950/80 backdrop-blur-md">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: 'spring', duration: 0.3 }}
+              className="w-full max-w-md bg-navy-900 border border-red-500/30 rounded-3xl p-6 shadow-[0_0_50px_rgba(239,68,68,0.15)] overflow-hidden relative"
+            >
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-red-500 to-pink-600 animate-pulse" />
+              
+              <div className="w-12 h-12 rounded-2xl bg-red-500/20 flex items-center justify-center mx-auto mb-4 border border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.2)]">
+                <Trash2 size={24} className="text-red-400" />
+              </div>
+              
+              <h3 className="text-lg font-display font-bold text-white text-center mb-2">
+                Are you absolutely sure?
+              </h3>
+              
+              <p className="text-xs text-white/60 text-center leading-relaxed mb-6">
+                This will wipe out all your logs, habits, tasks, points, and custom statistics from this device and Supabase. **This action is irreversible.**
+              </p>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowClearConfirm(false)}
+                  className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/80 text-xs font-semibold border border-white/10 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      await resetAppState()
+                      setShowClearConfirm(false)
+                      addToast('Application data has been reset! 🔄', 'success')
+                    } catch {
+                      addToast('Failed to reset application data.', 'error')
+                    }
+                  }}
+                  className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-semibold border border-red-500/30 transition-colors shadow-[0_0_15px_rgba(239,68,68,0.3)]"
+                >
+                  Yes, Reset All
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

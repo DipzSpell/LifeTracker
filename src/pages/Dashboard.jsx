@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { format } from 'date-fns'
 import { useNavigate } from 'react-router-dom'
 import { Flame, CheckCircle2, TrendingUp, Calendar, Plus, Moon } from 'lucide-react'
@@ -97,8 +97,9 @@ export default function Dashboard() {
           </div>
 
           {/* Quick stats row */}
-          <div className="grid grid-cols-3 gap-3">
-            {[
+          {(() => {
+            const fitnessEnabled = settings?.fitnessTrackerEnabled !== false
+            const statsItems = [
               {
                 label: 'Habits',
                 value: `${doneToday}/${goodHabits.length}`,
@@ -106,7 +107,7 @@ export default function Dashboard() {
                 color: habitPct >= 80 ? 'text-emerald-400' : habitPct >= 50 ? 'text-yellow-400' : 'text-red-400',
                 icon: '✨',
               },
-              {
+              fitnessEnabled && {
                 label: 'Steps',
                 value: (todayFitness.steps || todayLog.steps || 0).toLocaleString(),
                 sub: `Goal: ${(settings.stepGoal || 8000).toLocaleString()}`,
@@ -120,14 +121,20 @@ export default function Dashboard() {
                 color: 'text-purple-400',
                 icon: '💭',
               },
-            ].map((stat, i) => (
-              <div key={i} className="bg-white/5 rounded-xl p-3 text-center">
-                <p className="text-lg">{stat.icon}</p>
-                <p className={`text-lg font-bold ${stat.color}`}>{stat.value}</p>
-                <p className="text-[10px] text-white/40 mt-0.5">{stat.sub}</p>
+            ].filter(Boolean)
+
+            return (
+              <div className={`grid ${statsItems.length === 2 ? 'grid-cols-2' : 'grid-cols-3'} gap-3`}>
+                {statsItems.map((stat, i) => (
+                  <div key={i} className="bg-white/5 rounded-xl p-3 text-center">
+                    <p className="text-lg">{stat.icon}</p>
+                    <p className={`text-lg font-bold ${stat.color}`}>{stat.value}</p>
+                    <p className="text-[10px] text-white/40 mt-0.5">{stat.sub}</p>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            )
+          })()}
         </div>
       </motion.div>
 
@@ -303,31 +310,33 @@ export default function Dashboard() {
       </motion.div>
 
       {/* Sleep last night */}
-      {(todayLog.wakeTime || todayLog.sleepTime) && (
-        <motion.div custom={6} variants={cardVariants} initial="hidden" animate="visible"
-                    whileHover={{ y: -4, scale: 1.01 }}
-                    whileTap={{ scale: 0.985 }}
-                    onClick={() => navigate('/log')}
-                    className="cursor-pointer">
-          <div className="glass-card p-4 flex items-center gap-4">
-            <span className="text-3xl">😴</span>
-            <div className="flex-1">
-              <p className="text-xs text-white/40 font-medium mb-0.5">Last Night's Sleep</p>
-              <div className="flex items-center gap-2.5 flex-wrap">
-                <p className="text-sm font-semibold text-white">
-                  {todayLog.sleepTime || '—'} → {todayLog.wakeTime || '—'}
-                </p>
-                {todayLog.sleepTime && todayLog.wakeTime && (
-                  <span className="text-xs text-cyber-400 font-medium flex items-center gap-1 bg-cyber-500/10 border border-cyber-500/20 px-2.5 py-0.5 rounded-full">
-                    <Moon size={10} className="text-cyber-400" />
-                    {calculateSleepDuration(todayLog.sleepTime, todayLog.wakeTime)}
-                  </span>
-                )}
+      <AnimatePresence>
+        {settings?.sleepTrackerEnabled !== false && (todayLog.wakeTime || todayLog.sleepTime) && (
+          <motion.div custom={6} variants={cardVariants} initial="hidden" animate="visible" exit={{ opacity: 0, height: 0 }}
+                      whileHover={{ y: -4, scale: 1.01 }}
+                      whileTap={{ scale: 0.985 }}
+                      onClick={() => navigate('/log')}
+                      className="cursor-pointer overflow-hidden">
+            <div className="glass-card p-4 flex items-center gap-4">
+              <span className="text-3xl">😴</span>
+              <div className="flex-1">
+                <p className="text-xs text-white/40 font-medium mb-0.5">Last Night's Sleep</p>
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <p className="text-sm font-semibold text-white">
+                    {todayLog.sleepTime || '—'} → {todayLog.wakeTime || '—'}
+                  </p>
+                  {todayLog.sleepTime && todayLog.wakeTime && (
+                    <span className="text-xs text-cyber-400 font-medium flex items-center gap-1 bg-cyber-500/10 border border-cyber-500/20 px-2.5 py-0.5 rounded-full">
+                      <Moon size={10} className="text-cyber-400" />
+                      {calculateSleepDuration(todayLog.sleepTime, todayLog.wakeTime)}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        </motion.div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <QuickLogModal isOpen={quickLogOpen} onClose={() => setQuickLogOpen(false)} />
     </div>

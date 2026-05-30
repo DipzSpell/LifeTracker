@@ -3,6 +3,7 @@ import { storage, todayKey, dateKey } from '../lib/storage'
 import { calculateDayPoints, sumPoints } from '../lib/points'
 import { useAuth } from './AuthContext'
 import { supabase } from '../lib/supabase'
+import { playClickSound } from '../lib/sounds'
 
 const AppContext = createContext(null)
 
@@ -33,6 +34,10 @@ const getDefaultState = () => ({
     pin: null,
     darkMode: true,
     notificationsEnabled: false,
+    sleepTrackerEnabled: true,
+    loveTrackerEnabled: true,
+    fitnessTrackerEnabled: true,
+    soundEffectsEnabled: true,
   },
   initialized: false,
 })
@@ -149,6 +154,25 @@ function appReducer(state, action) {
     // Settings
     case 'UPDATE_SETTINGS':
       return { ...state, settings: { ...state.settings, ...action.payload } }
+
+    case 'RESET_STATE': {
+      const defaultHabits = {
+        'habit_gym': { id: 'habit_gym', name: 'Gym', type: 'good', icon: '🏋️', category: 'fitness', entries: {}, createdAt: new Date().toISOString() },
+        'habit_walk': { id: 'habit_walk', name: 'Walk / Run', type: 'good', icon: '🚶', category: 'fitness', entries: {}, createdAt: new Date().toISOString() },
+        'habit_read': { id: 'habit_read', name: 'Read', type: 'good', icon: '📚', category: 'mind', entries: {}, createdAt: new Date().toISOString() },
+        'habit_meditate': { id: 'habit_meditate', name: 'Meditate', type: 'good', icon: '🧘', category: 'mind', entries: {}, createdAt: new Date().toISOString() },
+        'habit_water': { id: 'habit_water', name: 'Drink Water Goal', type: 'good', icon: '💧', category: 'health', entries: {}, createdAt: new Date().toISOString() },
+        'habit_sleep': { id: 'habit_sleep', name: 'Sleep on Time', type: 'good', icon: '😴', category: 'health', entries: {}, createdAt: new Date().toISOString() },
+      }
+      return {
+        ...getDefaultState(),
+        habits: defaultHabits,
+        settings: {
+          ...state.settings,
+        },
+        initialized: true,
+      }
+    }
 
     default:
       return state
@@ -324,6 +348,40 @@ export function AppProvider({ children }) {
       .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
   }, [state.todos])
 
+  // Safe global sound effects listener
+  useEffect(() => {
+    const handleGlobalClick = (e) => {
+      try {
+        const target = e.target.closest('button, a, [role="button"]')
+        if (target && state.settings?.soundEffectsEnabled !== false) {
+          playClickSound()
+        }
+      } catch (err) {
+        console.debug('Failed to play click sound safely:', err)
+      }
+    }
+    document.addEventListener('click', handleGlobalClick, { capture: true })
+    return () => document.removeEventListener('click', handleGlobalClick, { capture: true })
+  }, [state.settings?.soundEffectsEnabled])
+
+  // Explicit Supabase and local data reset
+  const resetAppState = async () => {
+    if (!uid || uid === 'guest') return
+    
+    // Explicit Supabase deletes across user data tables
+    const tables = ['habits', 'tasks', 'logs', 'notebooks', 'user_states']
+    for (const table of tables) {
+      try {
+        await supabase.from(table).delete().eq('user_id', uid)
+      } catch (err) {
+        console.warn(`[Reset] Supabase delete failed for table "${table}":`, err)
+      }
+    }
+
+    // Reset local react-driven application state
+    dispatch({ type: 'RESET_STATE' })
+  }
+
   const value = {
     ...state,
     dispatch,
@@ -335,6 +393,7 @@ export function AppProvider({ children }) {
     getUpcomingTodos,
     recalcPoints,
     uid,
+    resetAppState,
   }
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

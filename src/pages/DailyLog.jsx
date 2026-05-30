@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { format } from 'date-fns'
 import { useApp } from '../context/AppContext'
 import { todayKey } from '../lib/storage'
@@ -17,10 +17,13 @@ const Section = ({ icon: Icon, color, title, children }) => (
 )
 
 export default function DailyLog() {
-  const { dispatch, dailyLogs, recalcPoints } = useApp()
+  const { dispatch, dailyLogs, settings, recalcPoints } = useApp()
   const { toasts, addToast, removeToast } = useToast()
   const today = todayKey()
   const existing = dailyLogs[today] || {}
+
+  const sleepEnabled = settings?.sleepTrackerEnabled !== false
+  const fitnessEnabled = settings?.fitnessTrackerEnabled !== false
 
   const [form, setForm] = useState({
     gymStatus: existing.gymStatus || '',
@@ -77,35 +80,47 @@ export default function DailyLog() {
       </div>
 
       {/* Gym & Workout */}
-      <Section icon={Dumbbell} color="text-orange-400" title="Gym & Workout">
-        <div className="flex gap-2 mb-3">
-          {[
-            { val: 'done', label: '💪 Done', color: 'border-emerald-500/50 bg-emerald-500/15 text-emerald-300' },
-            { val: 'skipped', label: '❌ Skipped', color: 'border-red-500/50 bg-red-500/15 text-red-300' },
-            { val: 'rest', label: '🛋️ Rest Day', color: 'border-yellow-500/50 bg-yellow-500/15 text-yellow-300' },
-          ].map(({ val, label, color }) => (
-            <button key={val} id={`log-gym-${val}`}
-              onClick={() => setForm(f => ({ ...f, gymStatus: val }))}
-              className={`flex-1 py-2.5 rounded-xl text-sm font-semibold border transition-all duration-200 ${form.gymStatus === val ? color : 'border-white/10 bg-white/5 text-white/40'}`}>
-              {label}
-            </button>
-          ))}
-        </div>
-        {form.gymStatus === 'done' && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
-            <label className="text-xs text-white/40 block mb-2">Workout Type</label>
-            <div className="flex flex-wrap gap-2">
-              {WORKOUT_TYPES.map(t => (
-                <button key={t} id={`log-workout-${t.toLowerCase()}`}
-                  onClick={() => setForm(f => ({ ...f, workoutType: t }))}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${form.workoutType === t ? 'border-cyber-500/50 bg-cyber-500/20 text-cyber-300' : 'border-white/10 bg-white/5 text-white/40'}`}>
-                  {t}
-                </button>
-              ))}
-            </div>
+      <AnimatePresence>
+        {fitnessEnabled && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.25 }}
+            className="overflow-hidden"
+          >
+            <Section icon={Dumbbell} color="text-orange-400" title="Gym & Workout">
+              <div className="flex gap-2 mb-3">
+                {[
+                  { val: 'done', label: '💪 Done', color: 'border-emerald-500/50 bg-emerald-500/15 text-emerald-300' },
+                  { val: 'skipped', label: '❌ Skipped', color: 'border-red-500/50 bg-red-500/15 text-red-300' },
+                  { val: 'rest', label: '🛋️ Rest Day', color: 'border-yellow-500/50 bg-yellow-500/15 text-yellow-300' },
+                ].map(({ val, label, color }) => (
+                  <button key={val} id={`log-gym-${val}`}
+                    onClick={() => setForm(f => ({ ...f, gymStatus: val }))}
+                    className={`flex-1 py-2.5 rounded-xl text-sm font-semibold border transition-all duration-200 ${form.gymStatus === val ? color : 'border-white/10 bg-white/5 text-white/40'}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {form.gymStatus === 'done' && (
+                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
+                  <label className="text-xs text-white/40 block mb-2">Workout Type</label>
+                  <div className="flex flex-wrap gap-2">
+                    {WORKOUT_TYPES.map(t => (
+                      <button key={t} id={`log-workout-${t.toLowerCase()}`}
+                        onClick={() => setForm(f => ({ ...f, workoutType: t }))}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${form.workoutType === t ? 'border-cyber-500/50 bg-cyber-500/20 text-cyber-300' : 'border-white/10 bg-white/5 text-white/40'}`}>
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </Section>
           </motion.div>
         )}
-      </Section>
+      </AnimatePresence>
 
       {/* Morning Routine */}
       <Section icon={Heart} color="text-pink-400" title="Morning Routine">
@@ -129,29 +144,62 @@ export default function DailyLog() {
       </Section>
 
       {/* Sleep + Steps */}
-      <Section icon={Clock} color="text-cyber-400" title="Sleep & Steps">
-        <div className="grid grid-cols-2 gap-3 mb-3">
-          <div>
-            <label className="text-xs text-white/40 mb-1 block">Wake Time</label>
-            <input id="log-wake" type="time" value={form.wakeTime}
-              onChange={e => setForm(f => ({ ...f, wakeTime: e.target.value }))}
-              className="input-cyber text-sm" />
-          </div>
-          <div>
-            <label className="text-xs text-white/40 mb-1 block">Sleep Time</label>
-            <input id="log-sleep" type="time" value={form.sleepTime}
-              onChange={e => setForm(f => ({ ...f, sleepTime: e.target.value }))}
-              className="input-cyber text-sm" />
-          </div>
-        </div>
-        <div>
-          <label className="text-xs text-white/40 mb-1 block">Steps Today</label>
-          <input id="log-steps" type="number" placeholder="e.g. 8000"
-            value={form.steps}
-            onChange={e => setForm(f => ({ ...f, steps: e.target.value }))}
-            className="input-cyber text-sm" />
-        </div>
-      </Section>
+      <AnimatePresence>
+        {(sleepEnabled || fitnessEnabled) && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.25 }}
+            className="overflow-hidden"
+          >
+            <Section icon={Clock} color="text-cyber-400" title="Sleep & Steps">
+              <AnimatePresence initial={false}>
+                {sleepEnabled && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="grid grid-cols-2 gap-3 mb-3 overflow-hidden"
+                  >
+                    <div>
+                      <label className="text-xs text-white/40 mb-1 block">Wake Time</label>
+                      <input id="log-wake" type="time" value={form.wakeTime}
+                        onChange={e => setForm(f => ({ ...f, wakeTime: e.target.value }))}
+                        className="input-cyber text-sm" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-white/40 mb-1 block">Sleep Time</label>
+                      <input id="log-sleep" type="time" value={form.sleepTime}
+                        onChange={e => setForm(f => ({ ...f, sleepTime: e.target.value }))}
+                        className="input-cyber text-sm" />
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              
+              <AnimatePresence initial={false}>
+                {fitnessEnabled && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden"
+                  >
+                    <label className="text-xs text-white/40 mb-1 block">Steps Today</label>
+                    <input id="log-steps" type="number" placeholder="e.g. 8000"
+                      value={form.steps}
+                      onChange={e => setForm(f => ({ ...f, steps: e.target.value }))}
+                      className="input-cyber text-sm" />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </Section>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Water */}
       <Section icon={Droplets} color="text-cyan-400" title="Water Intake">

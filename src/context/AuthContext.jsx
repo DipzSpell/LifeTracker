@@ -164,7 +164,10 @@ export function AuthProvider({ children }) {
   // ── Update profile display name ───────────────────────────────────────────────
   const updateProfile = async (updates) => {
     const { data, error } = await supabase.auth.updateUser({
-      data: { display_name: updates.displayName },
+      data: { 
+        display_name: updates.displayName,
+        avatar_url: updates.avatarUrl
+      },
     })
     if (error) throw error
     const updatedUser = normalizeUser(data.user)

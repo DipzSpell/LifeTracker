@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
+import { Navigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
 import { todayKey, getLast7Days } from '../lib/storage'
 import Toast, { useToast } from '../components/ui/Toast'
@@ -33,6 +34,10 @@ export default function Fitness() {
     heartRate: existing.heartRate || '',
     activeMinutes: existing.activeMinutes || '',
   })
+
+  if (settings?.fitnessTrackerEnabled === false) {
+    return <Navigate to="/dashboard" replace />
+  }
 
   // Estimated calories for running (MET formula approximation)
   const estimateCalories = () => {

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Home, BookOpen, BarChart2, CheckSquare, User, Dumbbell } from 'lucide-react'
+import { useApp } from '../../context/AppContext'
 
 const NAV_ITEMS = [
   { path: '/', icon: Home, label: 'Home' },
@@ -13,6 +14,13 @@ const NAV_ITEMS = [
 ]
 
 export default function BottomNav() {
+  const { settings } = useApp()
+  const fitnessTrackerEnabled = settings?.fitnessTrackerEnabled !== false
+  const visibleNavItems = NAV_ITEMS.filter(item => {
+    if (item.path === '/fitness' && !fitnessTrackerEnabled) return false
+    return true
+  })
+
   const location = useLocation()
   const navigate = useNavigate()
   const [isVisible, setIsVisible] = useState(true)
@@ -81,7 +89,7 @@ export default function BottomNav() {
         className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-navy-950/90 backdrop-blur-xl pb-safe"
       >
         <div className="flex items-center justify-around px-2 pt-2 pb-1 max-w-lg mx-auto">
-          {NAV_ITEMS.map(({ path, icon: Icon, label }) => {
+          {visibleNavItems.map(({ path, icon: Icon, label }) => {
             const active = path === '/'
               ? (location.pathname === '/' || location.pathname === '/dashboard')
               : location.pathname === path
