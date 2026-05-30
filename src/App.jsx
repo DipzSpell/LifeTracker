@@ -24,6 +24,7 @@
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { AppProvider } from './context/AppContext'
+import { ThemeProvider } from './context/ThemeContext'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import DailyLog from './pages/DailyLog'
@@ -34,6 +35,7 @@ import Analytics from './pages/Analytics'
 import Profile from './pages/Profile'
 import LoveTracker from './pages/LoveTracker'
 import PageLayout from './components/layout/PageLayout'
+
 
 // ── Global loading screen ─────────────────────────────────────────────────────
 // Shown while Supabase resolves the initial session / OAuth token.
@@ -120,9 +122,11 @@ function AppRoutes() {
 export default function App() {
   return (
     <HashRouter>
-      <AuthProvider>
-        <AppRoutes />
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
+      </ThemeProvider>
     </HashRouter>
   )
 }

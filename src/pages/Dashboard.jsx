@@ -268,17 +268,17 @@ export default function Dashboard() {
             <AreaChart data={weekChartData}>
               <defs>
                 <linearGradient id="ptsGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#22d3ee" stopOpacity={0} />
+                  <stop offset="5%" stopColor="rgb(var(--color-cyber-500))" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="rgb(var(--color-cyber-500))" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <XAxis dataKey="day" tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10 }} axisLine={false} tickLine={false} />
+              <XAxis dataKey="day" tick={{ fill: 'rgb(var(--color-white) / 0.3)', fontSize: 10 }} axisLine={false} tickLine={false} />
               <Tooltip
-                contentStyle={{ background: '#0f0e2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8 }}
-                labelStyle={{ color: 'rgba(255,255,255,0.6)', fontSize: 11 }}
-                itemStyle={{ color: '#22d3ee', fontSize: 11 }}
+                contentStyle={{ background: 'rgb(var(--color-navy-900))', border: '1px solid rgb(var(--color-white) / 0.1)', borderRadius: 8 }}
+                labelStyle={{ color: 'rgb(var(--color-white) / 0.6)', fontSize: 11 }}
+                itemStyle={{ color: 'rgb(var(--color-cyber-500))', fontSize: 11 }}
               />
-              <Area type="monotone" dataKey="pts" stroke="#22d3ee" fill="url(#ptsGrad)" strokeWidth={2} />
+              <Area type="monotone" dataKey="pts" stroke="rgb(var(--color-cyber-500))" fill="url(#ptsGrad)" strokeWidth={2} />
             </AreaChart>
           </ResponsiveContainer>
         </div>

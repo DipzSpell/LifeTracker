@@ -481,7 +481,7 @@ export default function Analytics() {
     a.click()
   }
 
-  const axisStyle = { fill: 'rgba(255,255,255,0.3)', fontSize: 10 }
+  const axisStyle = { fill: 'rgb(var(--color-white) / 0.3)', fontSize: 10 }
 
   return (
     <div className="space-y-4 page-enter">
@@ -554,14 +554,14 @@ export default function Analytics() {
           <AreaChart data={stepsData}>
             <defs>
               <linearGradient id="stepsGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="#22d3ee" stopOpacity={0} />
+                <stop offset="5%" stopColor="rgb(var(--color-cyber-500))" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="rgb(var(--color-cyber-500))" stopOpacity={0} />
               </linearGradient>
             </defs>
             <XAxis dataKey="day" tick={axisStyle} axisLine={false} tickLine={false} />
             <Tooltip content={<CustomTooltip />} />
-            <Area type="monotone" dataKey="steps" name="Steps" stroke="#22d3ee" fill="url(#stepsGrad)" strokeWidth={2} />
-            <Line type="monotone" dataKey="goal" name="Goal" stroke="rgba(255,255,255,0.2)" strokeDasharray="3 3" dot={false} />
+            <Area type="monotone" dataKey="steps" name="Steps" stroke="rgb(var(--color-cyber-500))" fill="url(#stepsGrad)" strokeWidth={2} />
+            <Line type="monotone" dataKey="goal" name="Goal" stroke="rgb(var(--color-white) / 0.2)" strokeDasharray="3 3" dot={false} />
           </AreaChart>
         </ResponsiveContainer>
       </ChartCard>
@@ -629,7 +629,7 @@ export default function Analytics() {
               <YAxis domain={[0, 24]} tick={axisStyle} axisLine={false} tickLine={false} width={25}
                 tickFormatter={v => `${v}h`} />
               <Tooltip content={<CustomTooltip />} />
-              <Area type="monotone" dataKey="wake" name="Wake (hr)" stroke="#22d3ee" fill="rgba(34,211,238,0.1)" strokeWidth={2} />
+              <Area type="monotone" dataKey="wake" name="Wake (hr)" stroke="rgb(var(--color-cyber-500))" fill="rgb(var(--color-cyber-500) / 0.1)" strokeWidth={2} />
               <Area type="monotone" dataKey="sleep" name="Sleep (hr)" stroke="#8b5cf6" fill="rgba(139,92,246,0.1)" strokeWidth={2} />
             </AreaChart>
           </ResponsiveContainer>

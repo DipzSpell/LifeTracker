@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useApp } from '../context/AppContext'
+import { useTheme } from '../context/ThemeContext'
 import { BADGES, checkBadges } from '../lib/points'
 import Toast, { useToast } from '../components/ui/Toast'
 import {
@@ -104,6 +105,7 @@ export default function Profile() {
   const { user, logout, updateProfile } = useAuth()
   const { dispatch, settings, dailyLogs, habits, todos, totalPoints, pointsHistory, fitnessLogs } = useApp()
   const { toasts, addToast, removeToast } = useToast()
+  const { theme, setTheme } = useTheme()
 
   const [editName, setEditName] = useState(false)
   const [newName, setNewName] = useState(user?.displayName || '')
@@ -176,6 +178,7 @@ export default function Profile() {
 
   const sections = [
     { id: 'goals', label: 'Personal Goals', icon: Target, color: 'text-cyber-400' },
+    { id: 'appearance', label: 'Appearance & Theme', icon: Moon, color: 'text-pink-400' },
     { id: 'notifications', label: 'Notifications', icon: Bell, color: 'text-yellow-400' },
     { id: 'privacy', label: 'Privacy & Security', icon: Shield, color: 'text-emerald-400' },
     { id: 'data', label: 'Data & Export', icon: Database, color: 'text-purple-400' },
@@ -429,6 +432,67 @@ export default function Profile() {
                             )
                           })}
                         </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── APPEARANCE & THEME ── */}
+                  {id === 'appearance' && (
+                    <div className="space-y-3">
+                      <p className="text-xs text-white/40 mb-3">
+                        Choose your preferred layout color theme.
+                      </p>
+                      <div className="grid grid-cols-2 gap-3">
+                        {[
+                          { val: 'dark', label: '🌌 Dark Mode' },
+                          { val: 'light', label: '☀️ Light Mode' },
+                          { val: 'synthwave', label: '📟 Synthwave' },
+                          { val: 'system', label: '💻 System Auto' },
+                        ].map(t => {
+                          const isSelected = theme === t.val
+                          return (
+                            <button
+                              key={t.val}
+                              onClick={() => {
+                                setTheme(t.val)
+                                addToast(`Theme updated successfully!`, 'success')
+                              }}
+                              className={`p-3 rounded-xl border-2 text-left flex flex-col justify-between h-20 transition-all active:scale-[0.98] ${
+                                isSelected
+                                  ? 'border-cyber-400 bg-cyber-500/10'
+                                  : 'border-white/5 bg-white/3 hover:border-white/10'
+                              }`}
+                            >
+                              <span className={`text-xs font-semibold ${isSelected ? 'text-cyber-300' : 'text-white/80'}`}>{t.label}</span>
+                              <div className="flex gap-1.5 mt-2">
+                                {t.val === 'dark' && (
+                                  <>
+                                    <div className="w-3.5 h-3.5 rounded-full bg-[#06b6d4]" />
+                                    <div className="w-3.5 h-3.5 rounded-full bg-[#0f0e2e]" />
+                                  </>
+                                )}
+                                {t.val === 'light' && (
+                                  <>
+                                    <div className="w-3.5 h-3.5 rounded-full bg-[#0284c7]" />
+                                    <div className="w-3.5 h-3.5 rounded-full bg-[#f8fafc] border border-slate-400/30" />
+                                  </>
+                                )}
+                                {t.val === 'synthwave' && (
+                                  <>
+                                    <div className="w-3.5 h-3.5 rounded-full bg-[#ec4899]" />
+                                    <div className="w-3.5 h-3.5 rounded-full bg-[#251445]" />
+                                  </>
+                                )}
+                                {t.val === 'system' && (
+                                  <>
+                                    <div className="w-3.5 h-3.5 rounded-full bg-slate-400" />
+                                    <div className="w-3.5 h-3.5 rounded-full bg-slate-600" />
+                                  </>
+                                )}
+                              </div>
+                            </button>
+                          )
+                        })}
                       </div>
                     </div>
                   )}
