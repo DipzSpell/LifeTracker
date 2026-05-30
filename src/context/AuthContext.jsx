@@ -130,7 +130,7 @@ export function AuthProvider({ children }) {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin // This dynamically handles both localhost and Netlify
+        redirectTo: typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173'
       },
     })
     if (error) throw error
