@@ -88,7 +88,7 @@ export default function BottomNav() {
         style={{ pointerEvents: isVisible ? 'auto' : 'none' }}
         className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-navy-950/90 backdrop-blur-xl pb-safe"
       >
-        <div className="flex items-center justify-around px-2 pt-2 pb-1 max-w-lg mx-auto">
+        <div className="flex items-center justify-around px-2 pt-2 pb-2 max-w-lg mx-auto">
           {visibleNavItems.map(({ path, icon: Icon, label }) => {
             const active = path === '/'
               ? (location.pathname === '/' || location.pathname === '/dashboard')
