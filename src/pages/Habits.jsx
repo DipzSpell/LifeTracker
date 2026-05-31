@@ -24,81 +24,74 @@ function AddHabitModal({ isOpen, onClose }) {
     onClose()
   }
 
+  const footer = (
+    <>
+      <button
+        type="button"
+        onClick={onClose}
+        className="w-1/2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium py-2.5 px-4 rounded-xl transition-all"
+      >
+        Cancel
+      </button>
+      <button
+        id="habit-add-confirm"
+        onClick={handleAdd}
+        disabled={!form.name.trim()}
+        className="w-1/2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold py-2.5 px-4 rounded-xl transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        Save Habit
+      </button>
+    </>
+  )
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Add New Habit">
-      <div className="space-y-4">
-        <div>
-          <label className="text-xs text-white/40 block mb-1">Habit Name</label>
-          <input id="habit-name" type="text" placeholder="e.g. Read 20 mins"
-            value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-            className="input-cyber" />
-        </div>
+    <Modal isOpen={isOpen} onClose={onClose} title="Add New Habit" footer={footer}>
+      <div>
+        <label className="text-xs text-white/40 block mb-1">Habit Name</label>
+        <input id="habit-name" type="text" placeholder="e.g. Read 20 mins"
+          value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+          className="input-cyber" />
+      </div>
 
-        <div>
-          <label className="text-xs text-white/40 block mb-2">Pick an Icon</label>
-          <div className="flex flex-wrap gap-2">
-            {HABIT_ICONS.map(icon => (
-              <button key={icon} id={`habit-icon-${icon}`}
-                onClick={() => setForm(f => ({ ...f, icon }))}
-                className={`w-10 h-10 rounded-xl text-xl transition-all ${form.icon === icon ? 'bg-cyber-500/30 border border-cyber-400' : 'bg-white/5 border border-white/10'}`}>
-                {icon}
-              </button>
-            ))}
-          </div>
+      <div>
+        <label className="text-xs text-white/40 block mb-2">Pick an Icon</label>
+        <div className="flex flex-wrap gap-2">
+          {HABIT_ICONS.map(icon => (
+            <button key={icon} id={`habit-icon-${icon}`}
+              onClick={() => setForm(f => ({ ...f, icon }))}
+              className={`w-10 h-10 rounded-xl text-xl transition-all ${form.icon === icon ? 'bg-cyber-500/30 border border-cyber-400' : 'bg-white/5 border border-white/10'}`}>
+              {icon}
+            </button>
+          ))}
         </div>
+      </div>
 
-        <div>
-          <label className="text-xs text-white/40 block mb-2">Type</label>
-          <div className="flex gap-2">
-            {[
-              { val: 'good', label: '✅ Good Habit', color: 'border-emerald-500/50 bg-emerald-500/15 text-emerald-300' },
-              { val: 'bad', label: '⚠️ Bad Habit to Reduce', color: 'border-red-500/50 bg-red-500/15 text-red-300' },
-            ].map(({ val, label, color }) => (
-              <button key={val} id={`habit-type-${val}`}
-                onClick={() => setForm(f => ({ ...f, type: val }))}
-                className={`flex-1 py-2.5 rounded-xl text-xs font-semibold border transition-all ${form.type === val ? color : 'border-white/10 bg-white/5 text-white/40'}`}>
-                {label}
-              </button>
-            ))}
-          </div>
+      <div>
+        <label className="text-xs text-white/40 block mb-2">Type</label>
+        <div className="flex gap-2">
+          {[
+            { val: 'good', label: '✅ Good Habit', color: 'border-emerald-500/50 bg-emerald-500/15 text-emerald-300' },
+            { val: 'bad', label: '⚠️ Bad Habit to Reduce', color: 'border-red-500/50 bg-red-500/15 text-red-300' },
+          ].map(({ val, label, color }) => (
+            <button key={val} id={`habit-type-${val}`}
+              onClick={() => setForm(f => ({ ...f, type: val }))}
+              className={`flex-1 py-2.5 rounded-xl text-xs font-semibold border transition-all ${form.type === val ? color : 'border-white/10 bg-white/5 text-white/40'}`}>
+              {label}
+            </button>
+          ))}
         </div>
+      </div>
 
-        <div>
-          <label className="text-xs text-white/40 block mb-2">Category</label>
-          <div className="flex flex-wrap gap-2 mb-4">
-            {HABIT_CATEGORIES.map(c => (
-              <button key={c} id={`habit-cat-${c}`}
-                onClick={() => setForm(f => ({ ...f, category: c }))}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium border capitalize transition-all ${form.category === c ? 'border-cyber-400/50 bg-cyber-500/20 text-cyber-300' : 'border-white/10 bg-white/5 text-white/40'}`}>
-                {c}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Action Buttons inside Form Body */}
-        <div className="flex flex-col gap-2 pt-4 border-t border-white/5">
-          <button
-            id="habit-add-confirm"
-            onClick={handleAdd}
-            disabled={!form.name.trim()}
-            className="w-full py-3 px-5 rounded-xl text-sm font-bold text-white
-                       bg-gradient-to-r from-cyber-500 to-emerald-500
-                       hover:from-cyber-400 hover:to-emerald-400
-                       active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed
-                       transition-all duration-200 shadow-[0_4px_20px_rgba(34,211,238,0.25)]"
-          >
-            Save Habit
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-full py-2.5 px-5 rounded-xl text-xs font-semibold text-white/50
-                       bg-white/5 border border-white/10 hover:bg-white/8 hover:text-white/70
-                       active:scale-[0.98] transition-all duration-200"
-          >
-            Cancel
-          </button>
+      <div>
+        <label className="text-xs text-white/40 block mb-2">Category</label>
+        <div className="flex flex-wrap gap-2">
+          {HABIT_CATEGORIES.map(c => (
+            <button key={c} id={`habit-cat-${c}`}
+              onClick={() => setForm(f => ({ ...f, category: c }))}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium border capitalize transition-all ${form.category === c ? 'border-cyber-400/50 bg-cyber-500/20 text-cyber-300' : 'border-white/10 bg-white/5 text-white/40'}`}>
+              {c}
+            </button>
+          ))}
         </div>
       </div>
     </Modal>

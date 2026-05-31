@@ -39,6 +39,13 @@ const getDefaultState = () => ({
     fitnessTrackerEnabled: true,
     soundEffectsEnabled: true,
   },
+  profile: {
+    dob: null,
+    height: null,
+    weight: null,
+    onboarding_completed: false,
+    bonusPoints: 0,
+  },
   initialized: false,
 })
 
@@ -154,6 +161,29 @@ function appReducer(state, action) {
     // Settings
     case 'UPDATE_SETTINGS':
       return { ...state, settings: { ...state.settings, ...action.payload } }
+
+    case 'ADD_BONUS_POINTS':
+      return {
+        ...state,
+        profile: {
+          ...state.profile,
+          bonusPoints: (state.profile?.bonusPoints || 0) + action.payload,
+        },
+      }
+
+    case 'COMPLETE_PROFILE': {
+      const { dob, height, weight } = action.payload
+      return {
+        ...state,
+        profile: {
+          ...state.profile,
+          dob,
+          height,
+          weight,
+          onboarding_completed: true,
+        },
+      }
+    }
 
     case 'RESET_STATE': {
       const defaultHabits = {
@@ -294,7 +324,7 @@ export function AppProvider({ children }) {
   }, [state.dailyLogs, state.habits, state.todos, state.fitnessLogs])
 
   // Computed values
-  const totalPoints = Object.values(state.pointsHistory).reduce((s, p) => s + (p || 0), 0)
+  const totalPoints = Object.values(state.pointsHistory).reduce((s, p) => s + (p || 0), 0) + (state.profile?.bonusPoints || 0)
 
   const todayPoints = state.pointsHistory[todayKey()] || 0
 
@@ -382,6 +412,51 @@ export function AppProvider({ children }) {
     dispatch({ type: 'RESET_STATE' })
   }
 
+  const completeProfileOnboarding = async (displayName, dob, height, weight) => {
+    if (!uid || uid === 'guest') return
+
+    // 1. Update user metadata in Supabase Auth
+    const { error: authError } = await supabase.auth.updateUser({
+      data: {
+        display_name: displayName,
+        dob,
+        height,
+        weight,
+        onboarding_completed: true,
+      },
+    })
+    if (authError) throw authError
+
+    // 2. Dispatch context actions to update local state immediately
+    dispatch({ type: 'ADD_BONUS_POINTS', payload: 15 })
+    dispatch({ type: 'COMPLETE_PROFILE', payload: { dob, height, weight } })
+
+    // 3. Immediately save the updated state to the user_states database and localStorage so it's not lost on refresh
+    const updatedProfile = {
+      ...state.profile,
+      dob,
+      height,
+      weight,
+      onboarding_completed: true,
+      bonusPoints: (state.profile?.bonusPoints || 0) + 15,
+    }
+    const updatedState = {
+      ...state,
+      profile: updatedProfile,
+    }
+
+    storage.set('appState', updatedState, uid)
+
+    const { error: dbError } = await supabase
+      .from('user_states')
+      .upsert({
+        user_id: uid,
+        state: updatedState,
+        updated_at: new Date().toISOString(),
+      })
+    if (dbError) throw dbError
+  }
+
   const value = {
     ...state,
     dispatch,
@@ -394,6 +469,7 @@ export function AppProvider({ children }) {
     recalcPoints,
     uid,
     resetAppState,
+    completeProfileOnboarding,
   }
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

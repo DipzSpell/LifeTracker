@@ -4,6 +4,7 @@ import EmojiMoodPicker from './ui/EmojiMoodPicker'
 import { useApp } from '../context/AppContext'
 import { todayKey } from '../lib/storage'
 import { playVictorySound } from '../lib/sounds'
+import Toast, { useToast } from './ui/Toast'
 import { CheckCircle2, Clock, Droplets, BookOpen, Save } from 'lucide-react'
 
 // This is a standalone modal for the Quick Log flow
@@ -11,6 +12,9 @@ export default function QuickLogModal({ isOpen, onClose }) {
   const { dispatch, dailyLogs, settings, recalcPoints } = useApp()
   const today = todayKey()
   const existing = dailyLogs[today] || {}
+
+  // Toast notifications
+  const { toasts, addToast, removeToast } = useToast()
 
   const [form, setForm] = useState({
     gymStatus: '',
@@ -41,55 +45,74 @@ export default function QuickLogModal({ isOpen, onClose }) {
   }, [isOpen])
 
   const handleSave = () => {
-    const wakeHour = form.wakeTime ? parseInt(form.wakeTime.split(':')[0]) : null
-    const sleepHour = form.sleepTime ? parseInt(form.sleepTime.split(':')[0]) : null
+    try {
+      const wakeHour = form.wakeTime ? parseInt(form.wakeTime.split(':')[0]) : null
+      const sleepHour = form.sleepTime ? parseInt(form.sleepTime.split(':')[0]) : null
 
-    dispatch({
-      type: 'SAVE_DAILY_LOG',
-      payload: {
-        date: today,
-        log: {
-          ...form,
-          wokeEarly: wakeHour !== null && wakeHour < 6,
-          sleptOnTime: sleepHour !== null && sleepHour <= 23,
-          sleptLate: sleepHour !== null && sleepHour >= 2,
-          waterGoalMet: form.waterGlasses >= 8,
-          loggedAt: new Date().toISOString(),
+      dispatch({
+        type: 'SAVE_DAILY_LOG',
+        payload: {
+          date: today,
+          log: {
+            ...form,
+            wokeEarly: wakeHour !== null && wakeHour < 6,
+            sleptOnTime: sleepHour !== null && sleepHour <= 23,
+            sleptLate: sleepHour !== null && sleepHour >= 2,
+            waterGoalMet: form.waterGlasses >= 8,
+            loggedAt: new Date().toISOString(),
+          },
         },
-      },
-    })
+      })
 
-    // Also update habit entries
-    if (form.gymStatus === 'done') {
-      dispatch({ type: 'LOG_HABIT', payload: { habitId: 'habit_gym', date: today, status: 'done' } })
-    }
-    if (form.meditated) {
-      dispatch({ type: 'LOG_HABIT', payload: { habitId: 'habit_meditate', date: today, status: 'done' } })
-    }
-    if (form.waterGlasses >= 8) {
-      dispatch({ type: 'LOG_HABIT', payload: { habitId: 'habit_water', date: today, status: 'done' } })
-    }
+      // Also update habit entries
+      if (form.gymStatus === 'done') {
+        dispatch({ type: 'LOG_HABIT', payload: { habitId: 'habit_gym', date: today, status: 'done' } })
+      }
+      if (form.meditated) {
+        dispatch({ type: 'LOG_HABIT', payload: { habitId: 'habit_meditate', date: today, status: 'done' } })
+      }
+      if (form.waterGlasses >= 8) {
+        dispatch({ type: 'LOG_HABIT', payload: { habitId: 'habit_water', date: today, status: 'done' } })
+      }
 
-    setTimeout(recalcPoints, 100)
-    if (settings?.soundEffectsEnabled !== false) {
-      playVictorySound()
+      setTimeout(recalcPoints, 100)
+      if (settings?.soundEffectsEnabled !== false) {
+        playVictorySound()
+      }
+
+      addToast("Log saved successfully! ⚡", "success")
+
+      setTimeout(() => {
+        onClose()
+      }, 800)
+    } catch (err) {
+      console.error(err)
+      addToast(err.message || "Failed to save log", "error")
     }
-    onClose()
   }
 
   const footer = (
-    <button
-      id="quicklog-save"
-      onClick={handleSave}
-      className="btn-primary w-full flex items-center justify-center gap-2"
-    >
-      <Save size={16} />
-      Save Log & Earn Points
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={onClose}
+        className="w-1/2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium py-2.5 px-4 rounded-xl transition-all"
+      >
+        Cancel
+      </button>
+      <button
+        id="quicklog-save-button"
+        onClick={handleSave}
+        className="w-1/2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold py-2.5 px-4 rounded-xl transition-all active:scale-[0.98] text-center flex items-center justify-center gap-2"
+      >
+        Log Today's Vibe ⚡
+      </button>
+    </>
   )
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="⚡ Quick Log — Today" footer={footer}>
+      <Toast toasts={toasts} removeToast={removeToast} />
       <div className="space-y-5 pb-4">
         {/* Gym */}
         <section>

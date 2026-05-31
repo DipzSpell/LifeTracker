@@ -1,11 +1,15 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { format } from 'date-fns'
 import { useNavigate } from 'react-router-dom'
 import { Flame, CheckCircle2, TrendingUp, Calendar, Plus, Moon } from 'lucide-react'
 import { useApp } from '../context/AppContext'
+import { useAuth } from '../context/AuthContext'
 import { todayKey, getLast7Days } from '../lib/storage'
 import QuickLogModal from '../components/QuickLogModal'
+import Modal from '../components/ui/Modal'
+import Toast, { useToast } from '../components/ui/Toast'
+import { playVictorySound } from '../lib/sounds'
 
 import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from 'recharts'
 
@@ -41,11 +45,67 @@ function calculateSleepDuration(sleepTime, wakeTime) {
 
 export default function Dashboard() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const {
     habits, dailyLogs, fitnessLogs, pointsHistory,
     totalPoints, todayPoints, getHabitStreak, getUpcomingTodos, settings,
+    profile, completeProfileOnboarding,
   } = useApp()
   const [quickLogOpen, setQuickLogOpen] = useState(false)
+  const [profileModalOpen, setProfileModalOpen] = useState(false)
+
+  // Toast notifications
+  const { toasts, addToast, removeToast } = useToast()
+
+  // Form state for profile completion
+  const [displayName, setDisplayName] = useState('')
+  const [dob, setDob] = useState('')
+  const [height, setHeight] = useState('')
+  const [weight, setWeight] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  const userProfile = profile || {}
+  const showBanner = !userProfile.onboarding_completed && (!userProfile.dob || !userProfile.height || !userProfile.weight)
+
+  useEffect(() => {
+    if (user?.displayName && !displayName) {
+      setDisplayName(user.displayName)
+    }
+  }, [user])
+
+  useEffect(() => {
+    if (userProfile.dob && !dob) setDob(userProfile.dob)
+    if (userProfile.height && !height) setHeight(userProfile.height)
+    if (userProfile.weight && !weight) setWeight(userProfile.weight)
+  }, [userProfile])
+
+  const getProgressPercentage = () => {
+    let filled = 0
+    if (displayName && displayName.trim() !== '') filled++
+    if (dob && dob !== '') filled++
+    if (height && height !== '' && parseFloat(height) > 0) filled++
+    if (weight && weight !== '' && parseFloat(weight) > 0) filled++
+    return (filled / 4) * 100
+  }
+  const progressPercentage = getProgressPercentage()
+
+  const handleProfileSubmit = async (e) => {
+    e.preventDefault()
+    if (!displayName || !dob || !height || !weight || progressPercentage < 100) return
+
+    setSubmitting(true)
+    try {
+      playVictorySound()
+      await completeProfileOnboarding(displayName, dob, parseFloat(height), parseFloat(weight))
+      addToast('Profile Completed! +15 Points added to your account! 🔥', 'success')
+      setProfileModalOpen(false)
+    } catch (err) {
+      console.error('Failed to update profile:', err)
+      addToast(err.message || 'Failed to update profile', 'error')
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   const today = todayKey()
   const todayLog = dailyLogs[today] || {}
@@ -75,6 +135,39 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-4 page-enter">
+      <Toast toasts={toasts} removeToast={removeToast} />
+
+      {/* Dynamic Profile Check & Dashboard Notification Banner */}
+      <AnimatePresence>
+        {showBanner && (
+          <motion.div
+            initial={{ opacity: 0, height: 0, y: -20 }}
+            animate={{ opacity: 1, height: 'auto', y: 0 }}
+            exit={{ opacity: 0, height: 0, y: -20 }}
+            className="overflow-hidden"
+          >
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-amber-500/90 via-indigo-600/95 to-indigo-700/90 p-4 shadow-lg border border-amber-500/30 text-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl flex-shrink-0 animate-bounce">🎁</span>
+                <div>
+                  <h4 className="text-sm font-bold text-amber-200">Welcome Back!</h4>
+                  <p className="text-xs text-white/95 font-medium">
+                    Complete your profile setup to unlock full stats and earn +15 points!
+                  </p>
+                </div>
+              </div>
+              <button
+                id="complete-setup-btn"
+                onClick={() => setProfileModalOpen(true)}
+                className="flex-shrink-0 bg-amber-400 hover:bg-amber-300 text-navy-950 text-xs font-bold px-4 py-2 rounded-xl transition-all duration-200 shadow-md hover:shadow-lg active:scale-95 text-center"
+              >
+                Complete Setup
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Hero — Today Summary */}
       <motion.div custom={0} variants={cardVariants} initial="hidden" animate="visible">
         <div className="gradient-border p-4">
@@ -335,6 +428,146 @@ export default function Dashboard() {
               </div>
             </div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Onboarding Profile Completion Modal - perfectly centered horizontally and vertically */}
+      <AnimatePresence>
+        {profileModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setProfileModalOpen(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+
+            {/* Modal Card */}
+            <motion.div
+              initial={{ opacity: 0, y: 50, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 30, scale: 0.95 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+              className="relative w-full max-w-md bg-gradient-to-b from-navy-800 to-navy-900 border border-white/10 rounded-3xl shadow-2xl overflow-hidden flex flex-col z-10 max-h-[85vh]"
+            >
+              {/* Animated Progress Line at the very top */}
+              <div className="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${progressPercentage}%` }}
+                  transition={{ duration: 0.3, ease: 'easeOut' }}
+                  className="bg-gradient-to-r from-teal-400 to-blue-500 h-full rounded-full"
+                />
+              </div>
+
+              {/* Modal Header */}
+              <div className="px-6 pt-5 pb-3 border-b border-white/5 flex items-center justify-between flex-shrink-0">
+                <div>
+                  <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                    <span>🎁 Complete Your Profile</span>
+                  </h2>
+                  <p className="text-[10px] text-white/40 mt-0.5">Unlock full stats & earn +15 points!</p>
+                </div>
+                <button
+                  onClick={() => setProfileModalOpen(false)}
+                  className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-all duration-200 active:scale-90"
+                >
+                  <span className="text-white/60 text-sm">✕</span>
+                </button>
+              </div>
+
+              {/* Form Content */}
+              <form onSubmit={handleProfileSubmit} className="flex-1 flex flex-col overflow-hidden">
+                {/* Scrollable inputs wrapper */}
+                <div className="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-thin">
+                  <div className="flex items-center justify-between text-xs font-semibold text-white/50 mb-1">
+                    <span>Profile Completion</span>
+                    <span className="text-teal-400 font-bold">{progressPercentage}%</span>
+                  </div>
+
+                  <div>
+                    <label htmlFor="display-name-input" className="text-xs text-white/40 block mb-1 font-medium">Display Name</label>
+                    <input
+                      id="display-name-input"
+                      type="text"
+                      required
+                      placeholder="Your Name"
+                      value={displayName}
+                      onChange={e => setDisplayName(e.target.value)}
+                      className="input-cyber text-sm w-full font-sans bg-navy-950/40 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-cyber-500 transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="dob-input" className="text-xs text-white/40 block mb-1 font-medium">Date of Birth</label>
+                    <input
+                      id="dob-input"
+                      type="date"
+                      required
+                      value={dob}
+                      onChange={e => setDob(e.target.value)}
+                      className="input-cyber text-sm w-full font-sans appearance-none bg-navy-950/40 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-cyber-500 transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="height-input" className="text-xs text-white/40 block mb-1 font-medium">Height (cm)</label>
+                    <input
+                      id="height-input"
+                      type="number"
+                      required
+                      min="50"
+                      max="300"
+                      placeholder="e.g. 175"
+                      value={height}
+                      onChange={e => setHeight(e.target.value)}
+                      className="input-cyber text-sm w-full font-sans bg-navy-950/40 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-cyber-500 transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="weight-input" className="text-xs text-white/40 block mb-1 font-medium">Weight (kg)</label>
+                    <input
+                      id="weight-input"
+                      type="number"
+                      step="0.1"
+                      required
+                      min="10"
+                      max="500"
+                      placeholder="e.g. 72.5"
+                      value={weight}
+                      onChange={e => setWeight(e.target.value)}
+                      className="input-cyber text-sm w-full font-sans bg-navy-950/40 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-cyber-500 transition-all"
+                    />
+                  </div>
+                </div>
+
+                {/* Sticky Action Footer */}
+                <div className="flex-shrink-0 p-4 border-t border-slate-800 bg-slate-900 flex items-center justify-between gap-3 sticky bottom-0">
+                  <button
+                    type="button"
+                    onClick={() => setProfileModalOpen(false)}
+                    className="w-1/2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium py-2.5 px-4 rounded-xl transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting || progressPercentage < 100}
+                    className={`w-1/2 font-bold py-2.5 px-4 rounded-xl transition-all active:scale-[0.98] ${
+                      progressPercentage === 100
+                        ? 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-md cursor-pointer'
+                        : 'bg-slate-700 text-white/40 border border-white/5 cursor-not-allowed'
+                    }`}
+                  >
+                    {submitting ? 'Saving...' : 'Complete Setup 🚀'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 
