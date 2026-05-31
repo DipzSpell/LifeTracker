@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useApp } from '../context/AppContext'
-import { useTheme } from '../context/ThemeContext'
 import { BADGES, checkBadges } from '../lib/points'
 import Toast, { useToast } from '../components/ui/Toast'
 import { todayKey } from '../lib/storage'
@@ -147,7 +146,7 @@ export default function Profile() {
   const { user, logout, updateProfile } = useAuth()
   const { dispatch, settings, dailyLogs, habits, todos, totalPoints, pointsHistory, fitnessLogs, resetAppState, getHabitStreak } = useApp()
   const { toasts, addToast, removeToast } = useToast()
-  const { theme, setTheme } = useTheme()
+  const theme = settings?.theme || 'dark'
 
   const [editProfile, setEditProfile] = useState(false)
   const [newName, setNewName] = useState(user?.displayName || '')
@@ -711,9 +710,11 @@ export default function Profile() {
                       </p>
                       <div className="grid grid-cols-2 gap-3">
                         {[
-                          { val: 'dark', label: '🌌 Dark Mode' },
-                          { val: 'light', label: '☀️ Light Mode' },
-                          { val: 'synthwave', label: '📟 Synthwave' },
+                          { val: 'dark', label: '🌌 Dark Slate' },
+                          { val: 'midnight', label: '👑 Midnight Gold' },
+                          { val: 'matrix', label: '📟 Matrix Green' },
+                          { val: 'cyberpunk', label: '🔮 Cyberpunk Neon' },
+                          { val: 'frost', label: '❄️ Frost Ice' },
                           { val: 'system', label: '💻 System Auto' },
                         ].map(t => {
                           const isSelected = theme === t.val
@@ -721,7 +722,7 @@ export default function Profile() {
                             <button
                               key={t.val}
                               onClick={() => {
-                                setTheme(t.val)
+                                updateSetting('theme', t.val)
                                 addToast(`Theme updated successfully!`, 'success')
                               }}
                               className={`p-3 rounded-xl border-2 text-left flex flex-col justify-between h-20 transition-all active:scale-[0.98] ${
@@ -735,19 +736,31 @@ export default function Profile() {
                                 {t.val === 'dark' && (
                                   <>
                                     <div className="w-3.5 h-3.5 rounded-full bg-[#06b6d4]" />
-                                    <div className="w-3.5 h-3.5 rounded-full bg-[#0f0e2e]" />
+                                    <div className="w-3.5 h-3.5 rounded-full bg-[#0f172a]" />
                                   </>
                                 )}
-                                {t.val === 'light' && (
+                                {t.val === 'midnight' && (
                                   <>
-                                    <div className="w-3.5 h-3.5 rounded-full bg-[#0284c7]" />
-                                    <div className="w-3.5 h-3.5 rounded-full bg-[#f8fafc] border border-slate-400/30" />
+                                    <div className="w-3.5 h-3.5 rounded-full bg-[#f59e0b]" />
+                                    <div className="w-3.5 h-3.5 rounded-full bg-[#0b0f19]" />
                                   </>
                                 )}
-                                {t.val === 'synthwave' && (
+                                {t.val === 'matrix' && (
+                                  <>
+                                    <div className="w-3.5 h-3.5 rounded-full bg-[#22c55e]" />
+                                    <div className="w-3.5 h-3.5 rounded-full bg-[#000000]" />
+                                  </>
+                                )}
+                                {t.val === 'cyberpunk' && (
                                   <>
                                     <div className="w-3.5 h-3.5 rounded-full bg-[#ec4899]" />
-                                    <div className="w-3.5 h-3.5 rounded-full bg-[#251445]" />
+                                    <div className="w-3.5 h-3.5 rounded-full bg-[#1e0b36]" />
+                                  </>
+                                )}
+                                {t.val === 'frost' && (
+                                  <>
+                                    <div className="w-3.5 h-3.5 rounded-full bg-[#3b82f6]" />
+                                    <div className="w-3.5 h-3.5 rounded-full bg-[#f8fafc] border border-slate-300" />
                                   </>
                                 )}
                                 {t.val === 'system' && (
@@ -1062,13 +1075,13 @@ export default function Profile() {
       {/* Danger Zone Confirmation Modal */}
       <AnimatePresence>
         {showClearConfirm && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-950/80 backdrop-blur-md">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md">
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ type: 'spring', duration: 0.3 }}
-              className="w-full max-w-md bg-navy-900 border border-red-500/30 rounded-3xl p-6 shadow-[0_0_50px_rgba(239,68,68,0.15)] overflow-hidden relative"
+              className="w-full max-w-md bg-card border border-red-500/30 rounded-3xl p-6 shadow-[0_0_50px_rgba(239,68,68,0.15)] overflow-hidden relative"
             >
               <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-red-500 to-pink-600 animate-pulse" />
               

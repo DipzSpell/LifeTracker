@@ -1,13 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { format } from 'date-fns'
 import { useNavigate } from 'react-router-dom'
-import { Flame, CheckCircle2, TrendingUp, Calendar, Plus, Moon } from 'lucide-react'
+import { Flame, CheckCircle2, TrendingUp, Calendar, Plus, Moon, Sparkles, RefreshCw } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { useAuth } from '../context/AuthContext'
 import { todayKey, getLast7Days } from '../lib/storage'
 import QuickLogModal from '../components/QuickLogModal'
-import Modal from '../components/ui/Modal'
 import Toast, { useToast } from '../components/ui/Toast'
 import { playVictorySound } from '../lib/sounds'
 
@@ -43,16 +42,124 @@ function calculateSleepDuration(sleepTime, wakeTime) {
   }
 }
 
+function generateBrief(yesterdayLog, yesterdayFitness, habitsPct, pendingHigh, pendingMedium) {
+  const mood = yesterdayLog?.mood || 0
+  const steps = yesterdayFitness?.steps || yesterdayLog?.steps || 0
+  const gym = yesterdayLog?.gymStatus
+  
+  // Calculate sleep duration if log exists
+  let sleepHours = 0
+  if (yesterdayLog?.sleepTime && yesterdayLog?.wakeTime) {
+    try {
+      const [sH, sM] = yesterdayLog.sleepTime.split(':').map(Number)
+      const [wH, wM] = yesterdayLog.wakeTime.split(':').map(Number)
+      if (!isNaN(sH) && !isNaN(wH)) {
+        let diff = (wH * 60 + wM) - (sH * 60 + sM)
+        if (diff < 0) diff += 24 * 60
+        sleepHours = diff / 60
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  // Aura classification
+  let aura = '✨ Balanced Aura'
+  let auraColor = 'from-cyan-400 to-emerald-400'
+
+  if (mood >= 8 && (steps >= 8000 || habitsPct >= 80)) {
+    aura = '🌟 Glowing Aura'
+    auraColor = 'from-yellow-400 via-amber-400 to-orange-500'
+  } else if (steps >= 10000 || gym === 'done') {
+    aura = '⚡ Energetic Aura'
+    auraColor = 'from-orange-500 via-red-500 to-pink-500'
+  } else if (mood >= 7 && (yesterdayLog?.meditated || yesterdayLog?.notes)) {
+    aura = '🧘 Mindful Aura'
+    auraColor = 'from-purple-400 via-indigo-400 to-blue-500'
+  } else if (sleepHours >= 8.5) {
+    aura = '💤 Restorative Aura'
+    auraColor = 'from-blue-400 via-cyan-400 to-indigo-500'
+  } else if (mood > 0 && mood <= 4) {
+    aura = '🌧️ Reflective Aura'
+    auraColor = 'from-slate-500 via-zinc-400 to-slate-600'
+  } else if (habitsPct >= 70) {
+    aura = '🌱 Resilient Aura'
+    auraColor = 'from-emerald-400 via-teal-400 to-cyan-500'
+  }
+
+  // Brief creation
+  const moodText = mood ? `${mood}/10 vibe` : 'relaxed flow'
+  const stepsText = steps >= 10000 ? 'over 10k steps' : steps >= 6000 ? 'active steps' : ''
+  const habitsText = habitsPct >= 80 ? 'perfect habits' : habitsPct >= 50 ? 'solid progress' : ''
+  
+  const segments = [moodText, stepsText, habitsText].filter(Boolean)
+  const statsSummary = segments.join(', ')
+
+  // Suggest focus task
+  let focus = "Today's vibe: focus on self-care and easy wins."
+  if (pendingHigh.length > 0) {
+    focus = `Today's mission: Tackle "${pendingHigh[0].title}" (High priority)!`
+  } else if (pendingMedium.length > 0) {
+    focus = `Today's mission: Work on "${pendingMedium[0].title}".`
+  } else if (habitsPct < 50 && habitsPct > 0) {
+    focus = "Today's mission: Focus on completing your daily habits."
+  }
+
+  const text = `Yesterday was marked by ${statsSummary ? statsSummary : 'a quiet flow'}. Your aura is ${aura.toLowerCase()}. ${focus}`
+
+  return { aura, auraColor, text }
+}
+
 export default function Dashboard() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const {
-    habits, dailyLogs, fitnessLogs, pointsHistory,
+    todos, habits, dailyLogs, fitnessLogs, pointsHistory,
     totalPoints, todayPoints, getHabitStreak, getUpcomingTodos, settings,
     profile, completeProfileOnboarding,
   } = useApp()
   const [quickLogOpen, setQuickLogOpen] = useState(false)
   const [profileModalOpen, setProfileModalOpen] = useState(false)
+
+  const [brief, setBrief] = useState(null)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
+  // Memoize good habits list
+  const goodHabits = useMemo(() => {
+    return Object.values(habits).filter(h => h.type === 'good')
+  }, [habits])
+
+  const loadBrief = useCallback(() => {
+    const d = new Date()
+    d.setDate(d.getDate() - 1)
+    const yesterdayK = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+    const yLog = dailyLogs[yesterdayK] || {}
+    const yFitness = fitnessLogs[yesterdayK] || {}
+
+    const yDone = goodHabits.filter(h => h.entries?.[yesterdayK]?.status === 'done').length
+    const yHabitsPct = goodHabits.length ? (yDone / goodHabits.length) * 100 : 0
+
+    const pHigh = todos.filter(t => t.status === 'pending' && t.priority === 'high')
+    const pMedium = todos.filter(t => t.status === 'pending' && t.priority === 'medium')
+
+    const generated = generateBrief(yLog, yFitness, yHabitsPct, pHigh, pMedium)
+    setBrief(generated)
+  }, [dailyLogs, fitnessLogs, goodHabits, todos])
+
+  useEffect(() => {
+    if (dailyLogs && fitnessLogs && habits && todos) {
+      loadBrief()
+    }
+  }, [dailyLogs, fitnessLogs, habits, todos, loadBrief])
+
+  const triggerRefresh = () => {
+    setIsRefreshing(true)
+    setTimeout(() => {
+      loadBrief()
+      setIsRefreshing(false)
+    }, 800)
+  }
 
   // Toast notifications
   const { toasts, addToast, removeToast } = useToast()
@@ -71,13 +178,13 @@ export default function Dashboard() {
     if (user?.displayName && !displayName) {
       setDisplayName(user.displayName)
     }
-  }, [user])
+  }, [user, displayName])
 
   useEffect(() => {
-    if (userProfile.dob && !dob) setDob(userProfile.dob)
-    if (userProfile.height && !height) setHeight(userProfile.height)
-    if (userProfile.weight && !weight) setWeight(userProfile.weight)
-  }, [userProfile])
+    if (profile?.dob && !dob) setDob(profile.dob)
+    if (profile?.height && !height) setHeight(profile.height)
+    if (profile?.weight && !weight) setWeight(profile.weight)
+  }, [profile, dob, height, weight])
 
   const getProgressPercentage = () => {
     let filled = 0
@@ -112,7 +219,6 @@ export default function Dashboard() {
   const todayFitness = fitnessLogs[today] || {}
 
   // Today's habits
-  const goodHabits = Object.values(habits).filter(h => h.type === 'good')
   const doneToday = goodHabits.filter(h => h.entries?.[today]?.status === 'done').length
   const habitPct = goodHabits.length ? Math.round((doneToday / goodHabits.length) * 100) : 0
 
@@ -167,6 +273,45 @@ export default function Dashboard() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* AI Morning Brief & Vibe Check */}
+      {brief && (
+        <motion.div
+          custom={0}
+          variants={cardVariants}
+          initial="hidden"
+          animate="visible"
+          className="aura-card shadow-lg"
+        >
+          <div className="bg-card/95 backdrop-blur-md rounded-[1.2rem] p-4 text-white">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Sparkles size={16} className="text-cyber-400" />
+                <span className="text-xs font-bold uppercase tracking-wider text-cyber-300">
+                  AI Morning Brief
+                </span>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold bg-gradient-to-r ${brief.auraColor} text-navy-950`}>
+                  {brief.aura}
+                </span>
+              </div>
+              <button
+                id="brief-refresh-btn"
+                onClick={triggerRefresh}
+                className="p-1.5 rounded-lg bg-white/5 border border-white/5 hover:border-white/10 hover:bg-white/10 transition-all text-white/50 hover:text-white active:scale-90"
+                title="Refresh Briefing"
+              >
+                <RefreshCw
+                  size={12}
+                  className={`transition-all duration-700 ${isRefreshing ? 'animate-spin' : ''}`}
+                />
+              </button>
+            </div>
+            <p className="text-xs text-white/80 leading-relaxed font-medium">
+              {brief.text}
+            </p>
+          </div>
+        </motion.div>
+      )}
 
       {/* Hero — Today Summary */}
       <motion.div custom={0} variants={cardVariants} initial="hidden" animate="visible">
@@ -450,7 +595,7 @@ export default function Dashboard() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 30, scale: 0.95 }}
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className="relative w-full max-w-md bg-gradient-to-b from-navy-800 to-navy-900 border border-white/10 rounded-3xl shadow-2xl overflow-hidden flex flex-col z-10 max-h-[85vh]"
+              className="relative w-full max-w-md bg-card border border-white/10 rounded-3xl shadow-2xl overflow-hidden flex flex-col z-10 max-h-[85vh]"
             >
               {/* Animated Progress Line at the very top */}
               <div className="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden">
@@ -496,7 +641,7 @@ export default function Dashboard() {
                       placeholder="Your Name"
                       value={displayName}
                       onChange={e => setDisplayName(e.target.value)}
-                      className="input-cyber text-sm w-full font-sans bg-navy-950/40 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-cyber-500 transition-all"
+                      className="input-cyber text-sm w-full font-sans bg-background/40 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-cyber-500 transition-all"
                     />
                   </div>
 
@@ -508,7 +653,7 @@ export default function Dashboard() {
                       required
                       value={dob}
                       onChange={e => setDob(e.target.value)}
-                      className="input-cyber text-sm w-full font-sans appearance-none bg-navy-950/40 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-cyber-500 transition-all"
+                      className="input-cyber text-sm w-full font-sans appearance-none bg-background/40 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-cyber-500 transition-all"
                     />
                   </div>
 
@@ -523,7 +668,7 @@ export default function Dashboard() {
                       placeholder="e.g. 175"
                       value={height}
                       onChange={e => setHeight(e.target.value)}
-                      className="input-cyber text-sm w-full font-sans bg-navy-950/40 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-cyber-500 transition-all"
+                      className="input-cyber text-sm w-full font-sans bg-background/40 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-cyber-500 transition-all"
                     />
                   </div>
 
@@ -539,13 +684,13 @@ export default function Dashboard() {
                       placeholder="e.g. 72.5"
                       value={weight}
                       onChange={e => setWeight(e.target.value)}
-                      className="input-cyber text-sm w-full font-sans bg-navy-950/40 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-cyber-500 transition-all"
+                      className="input-cyber text-sm w-full font-sans bg-background/40 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-cyber-500 transition-all"
                     />
                   </div>
                 </div>
 
                 {/* Sticky Action Footer */}
-                <div className="flex-shrink-0 p-4 border-t border-slate-800 bg-slate-900 flex items-center justify-between gap-3 sticky bottom-0">
+                <div className="flex-shrink-0 p-4 border-t border-white/10 bg-card flex items-center justify-between gap-3 sticky bottom-0">
                   <button
                     type="button"
                     onClick={() => setProfileModalOpen(false)}

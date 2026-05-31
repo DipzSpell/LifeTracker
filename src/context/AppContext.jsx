@@ -33,6 +33,7 @@ const getDefaultState = () => ({
     pinEnabled: false,
     pin: null,
     darkMode: true,
+    theme: 'dark',
     notificationsEnabled: false,
     sleepTrackerEnabled: true,
     loveTrackerEnabled: true,
@@ -316,9 +317,8 @@ export function AppProvider({ children }) {
   const recalcPoints = useCallback(() => {
     const today = todayKey()
     const log = state.dailyLogs[today]
-    const todayTodos = state.todos.filter(t => dateKey(t.dueDate) === today)
     const fitnessLog = state.fitnessLogs[today] || {}
-    const earned = calculateDayPoints(log, state.habits, todayTodos, fitnessLog)
+    const earned = calculateDayPoints(log, state.habits, state.todos, fitnessLog)
     const pts = sumPoints(earned)
     dispatch({ type: 'UPDATE_POINTS', payload: { date: today, pts } })
   }, [state.dailyLogs, state.habits, state.todos, state.fitnessLogs])
@@ -393,6 +393,19 @@ export function AppProvider({ children }) {
     document.addEventListener('click', handleGlobalClick, { capture: true })
     return () => document.removeEventListener('click', handleGlobalClick, { capture: true })
   }, [state.settings?.soundEffectsEnabled])
+ 
+  // Dynamic theme injector
+  useEffect(() => {
+    const currentTheme = state.settings?.theme || 'dark'
+    document.documentElement.setAttribute('data-theme', currentTheme)
+    localStorage.setItem('theme', currentTheme)
+    
+    if (currentTheme === 'dark' || currentTheme === 'midnight' || currentTheme === 'matrix' || currentTheme === 'cyberpunk') {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
+  }, [state.settings?.theme])
 
   // Explicit Supabase and local data reset
   const resetAppState = async () => {

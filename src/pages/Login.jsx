@@ -170,7 +170,7 @@ export default function Login() {
   const isLoading = googleLoading || emailLoading
 
   return (
-    <div className="min-h-screen bg-navy-950 flex flex-col items-center justify-center px-4 relative overflow-hidden">
+    <div className="min-h-screen bg-background text-text flex flex-col items-center justify-center px-4 relative overflow-hidden transition-colors duration-300">
 
       {/* ── Ambient Background ──────────────────────────────────────────── */}
       <div className="absolute inset-0 pointer-events-none select-none" aria-hidden>

@@ -8,6 +8,11 @@ export default {
   theme: {
     extend: {
       colors: {
+        background: 'var(--background)',
+        card: 'var(--card)',
+        primary: 'var(--primary)',
+        accent: 'var(--accent)',
+        text: 'var(--text)',
         white: 'rgb(var(--color-white) / <alpha-value>)',
         navy: {
           50: 'rgb(var(--color-navy-50) / <alpha-value>)',

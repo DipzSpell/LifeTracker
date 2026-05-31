@@ -42,7 +42,7 @@ import PageLayout from './components/layout/PageLayout'
 // MUST render before any <Navigate> to prevent the redirect loop.
 function GlobalLoader() {
   return (
-    <div className="min-h-screen bg-navy-950 flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center transition-colors duration-300">
       <div className="flex flex-col items-center gap-4">
         {/* Spinning ring */}
         <div className="relative w-14 h-14">

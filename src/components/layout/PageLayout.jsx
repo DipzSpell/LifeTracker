@@ -7,7 +7,7 @@ export default function PageLayout({ children }) {
   const location = useLocation()
 
   return (
-    <div className="min-h-screen bg-navy-950 flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col text-text transition-colors duration-300">
       {/* Background gradient orbs */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-40 -right-40 w-96 h-96 bg-cyber-600/10 rounded-full blur-3xl" />

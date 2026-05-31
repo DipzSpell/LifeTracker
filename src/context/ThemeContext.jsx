@@ -21,7 +21,7 @@ export function ThemeProvider({ children }) {
       root.setAttribute('data-theme', resolvedTheme)
       
       // Also sync standard Tailwind dark class if any library depends on it
-      if (resolvedTheme === 'dark' || resolvedTheme === 'synthwave') {
+      if (resolvedTheme === 'dark' || resolvedTheme === 'synthwave' || resolvedTheme === 'midnight' || resolvedTheme === 'matrix' || resolvedTheme === 'cyberpunk') {
         root.classList.add('dark')
       } else {
         root.classList.remove('dark')

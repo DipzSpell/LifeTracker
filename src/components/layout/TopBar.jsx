@@ -9,7 +9,7 @@ export default function TopBar() {
   const today = format(new Date(), 'EEE, MMM d')
 
   return (
-    <header className="sticky top-0 z-30 bg-navy-950/80 backdrop-blur-xl border-b border-white/5">
+    <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-white/5 transition-colors duration-300">
       <div className="flex items-center justify-between px-4 py-3 max-w-lg mx-auto">
         {/* User + Date + Logo */}
         <div className="flex items-center gap-2.5">

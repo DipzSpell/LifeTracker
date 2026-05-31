@@ -86,7 +86,7 @@ export default function BottomNav() {
         animate={{ y: isVisible ? 0 : '100%' }}
         transition={{ type: 'spring', stiffness: 260, damping: 26 }}
         style={{ pointerEvents: isVisible ? 'auto' : 'none' }}
-        className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-navy-950/90 backdrop-blur-xl pb-safe"
+        className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-background/90 backdrop-blur-xl pb-safe transition-colors duration-300"
       >
         <div className="flex items-center justify-around px-2 pt-2 pb-2 max-w-lg mx-auto">
           {visibleNavItems.map(({ path, icon: Icon, label }) => {

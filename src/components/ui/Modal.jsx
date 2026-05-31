@@ -30,7 +30,7 @@ export default function Modal({ isOpen, onClose, title, children, footer, size =
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 40, scale: 0.95 }}
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className={`relative flex flex-col max-h-[85vh] w-full ${sizeMap[size] || 'max-w-md'} bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden window-safe`}
+              className={`relative flex flex-col max-h-[85vh] w-full ${sizeMap[size] || 'max-w-md'} bg-card border border-white/10 rounded-2xl shadow-2xl overflow-hidden window-safe`}
             >
               {/* Header */}
               <div className="flex-shrink-0 px-6 pt-5 pb-3 border-b border-white/5">
@@ -51,7 +51,7 @@ export default function Modal({ isOpen, onClose, title, children, footer, size =
               </div>
               {/* Footer */}
               {footer && (
-                <div className="flex-shrink-0 p-4 border-t border-slate-800 bg-slate-900 flex items-center justify-between gap-3 sticky bottom-0">
+                <div className="flex-shrink-0 p-4 border-t border-white/5 bg-card flex items-center justify-between gap-3 sticky bottom-0">
                   {footer}
                 </div>
               )}

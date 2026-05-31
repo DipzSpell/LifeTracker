@@ -103,16 +103,19 @@ function AddTaskModal({ isOpen, onClose }) {
         </div>
       </div>
       <div>
-        <label className="text-xs text-white/40 block mb-2">Priority</label>
-        <div className="flex gap-2">
+        <label className="text-xs text-white/40 block mb-1">Priority Level</label>
+        <select
+          id="todo-priority"
+          value={form.priority}
+          onChange={e => setForm(f => ({ ...f, priority: e.target.value }))}
+          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-cyber-400 focus:bg-card outline-none transition-all cursor-pointer text-sm font-semibold"
+        >
           {PRIORITIES.map(p => (
-            <button key={p.val} id={`todo-priority-${p.val}`}
-              onClick={() => setForm(f => ({ ...f, priority: p.val }))}
-              className={`flex-1 py-2 rounded-xl text-xs font-semibold border transition-all ${form.priority === p.val ? p.color : 'border-white/10 bg-white/5 text-white/40'}`}>
+            <option key={p.val} value={p.val} className="bg-slate-900 text-white font-medium">
               {p.label}
-            </button>
+            </option>
           ))}
-        </div>
+        </select>
       </div>
       <div>
         <label className="text-xs text-white/40 block mb-2">Category</label>
@@ -154,8 +157,8 @@ function TaskCard({ task }) {
       type: 'UPDATE_TODO',
       payload: { id: task.id, status: newStatus, completedDate: newStatus === 'done' ? today : null },
     })
+    setTimeout(recalcPoints, 100)
     if (newStatus === 'done') {
-      setTimeout(recalcPoints, 100)
       if (settings?.soundEffectsEnabled !== false) {
         playVictorySound()
       }
@@ -164,7 +167,11 @@ function TaskCard({ task }) {
 
   const deleteTask = () => dispatch({ type: 'DELETE_TODO', payload: task.id })
 
-  const priorityColor = { high: 'bg-red-500', medium: 'bg-yellow-400', low: 'bg-emerald-400' }
+  const priorityColor = {
+    high: 'bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)]',
+    medium: 'bg-orange-500 shadow-[0_0_6px_rgba(249,115,22,0.4)]',
+    low: 'bg-transparent border border-slate-400/60'
+  }
 
   return (
     <motion.div layout initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}
@@ -198,6 +205,13 @@ function TaskCard({ task }) {
             <span className={`badge text-[10px] ${
               task.category === 'Work' ? 'badge-cyan' : task.category === 'Health' ? 'badge-green' : 'badge-purple'
             }`}>{task.category}</span>
+            <span className={`badge text-[10px] ${
+              task.priority === 'high' ? 'bg-red-500/10 text-red-400 border border-red-500/30 animate-pulse font-semibold' :
+              task.priority === 'medium' ? 'bg-orange-500/10 text-orange-400 border border-orange-500/30 font-semibold' :
+              'bg-slate-500/5 text-slate-400 border border-slate-500/30 font-semibold'
+            }`}>
+              {task.priority}
+            </span>
           </div>
         </div>
 

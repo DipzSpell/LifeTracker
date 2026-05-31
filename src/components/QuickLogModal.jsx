@@ -5,7 +5,7 @@ import { useApp } from '../context/AppContext'
 import { todayKey } from '../lib/storage'
 import { playVictorySound } from '../lib/sounds'
 import Toast, { useToast } from './ui/Toast'
-import { CheckCircle2, Clock, Droplets, BookOpen, Save } from 'lucide-react'
+import { CheckCircle2, Clock, Droplets, BookOpen } from 'lucide-react'
 
 // This is a standalone modal for the Quick Log flow
 export default function QuickLogModal({ isOpen, onClose }) {
@@ -42,7 +42,18 @@ export default function QuickLogModal({ isOpen, onClose }) {
         waterGlasses: existing.waterGlasses || 0,
       })
     }
-  }, [isOpen])
+  }, [
+    isOpen,
+    existing.gymStatus,
+    existing.brushed,
+    existing.bathed,
+    existing.meditated,
+    existing.wakeTime,
+    existing.sleepTime,
+    existing.mood,
+    existing.notes,
+    existing.waterGlasses
+  ])
 
   const handleSave = () => {
     try {

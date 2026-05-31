@@ -140,7 +140,17 @@ export function calculateDayPoints(log, habits = {}, todos = [], fitnessLog = {}
 
   // Todos completed today
   const completedTodos = todos.filter(t => t.completedDate === log.date && t.status === 'done')
-  completedTodos.forEach(() => earned.push({ ...POINTS_RULES.TODO_DONE }))
+  completedTodos.forEach(t => {
+    if (t.priority === 'high') {
+      earned.push({ pts: 20, label: `High priority task: ${t.title}`, icon: '🔥' })
+    } else if (t.priority === 'medium') {
+      earned.push({ pts: 10, label: `Medium priority task: ${t.title}`, icon: '⚡' })
+    } else if (t.priority === 'low') {
+      earned.push({ pts: 5, label: `Low priority task: ${t.title}`, icon: '✅' })
+    } else {
+      earned.push({ pts: 5, label: `Task: ${t.title}`, icon: '✅' })
+    }
+  })
 
   // Bad habits check
   const badHabitIds = Object.keys(habits).filter(id => habits[id].type === 'bad')

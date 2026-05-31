@@ -2,17 +2,17 @@ import { useState } from 'react'
 import { format } from 'date-fns'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  AreaChart, Area, LineChart, Line, PieChart, Pie, Cell, Legend,
+  AreaChart, Area, PieChart, Pie, Cell, Legend, ComposedChart,
 } from 'recharts'
 import { useApp } from '../context/AppContext'
 import { getLast30Days, getLast7Days } from '../lib/storage'
-import { BarChart2, TrendingUp, Moon, Activity, Award, Download } from 'lucide-react'
+import { BarChart2, TrendingUp, Activity, Award, Download } from 'lucide-react'
 
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null
   return (
-    <div className="bg-navy-900 border border-white/10 rounded-xl p-2.5 text-xs shadow-lg">
+    <div className="bg-card border border-white/10 rounded-xl p-2.5 text-xs shadow-lg">
       <p className="text-white/60 mb-1">{label}</p>
       {payload.map((p, i) => (
         <p key={i} style={{ color: p.color }}>{p.name}: <span className="font-bold">{p.value}</span></p>
@@ -93,7 +93,7 @@ function HabitHeatmap({ habits }) {
           onChange={(e) => {
             setSelectedFilter(e.target.value)
           }}
-          className="bg-white/5 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs text-white/80 focus:border-cyber-400 focus:bg-navy-900 outline-none transition-all cursor-pointer"
+          className="bg-white/5 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs text-white/80 focus:border-cyber-400 focus:bg-card outline-none transition-all cursor-pointer"
         >
           <option value="all">All Good Habits</option>
           {habitList.map((h) => (
@@ -410,27 +410,32 @@ export default function Analytics() {
     skipped: dailyLogs[d]?.gymStatus === 'skipped' ? 1 : 0,
   }))
 
-  // Steps
-  const stepsData = days.map(d => ({
-    day: range === 'week' ? format(new Date(d), 'EEE') : format(new Date(d), 'd'),
-    steps: (fitnessLogs[d]?.steps || dailyLogs[d]?.steps || 0),
-    goal: 8000,
-  }))
-
-  // Sleep
-  const sleepData = days.map(d => {
-    const log = dailyLogs[d] || {}
-    const parseTime = (t) => {
-      if (!t) return null
-      const [h, m] = t.split(':').map(Number)
-      return h + m / 60
+  // Energy & Sleep Calculation
+  const calculateSleepDurationHours = (sleepTime, wakeTime) => {
+    if (!sleepTime || !wakeTime) return 0
+    try {
+      const [sleepH, sleepM] = sleepTime.split(':').map(Number)
+      const [wakeH, wakeM] = wakeTime.split(':').map(Number)
+      if (isNaN(sleepH) || isNaN(sleepM) || isNaN(wakeH) || isNaN(wakeM)) return 0
+      let sleepMinutes = sleepH * 60 + sleepM
+      let wakeMinutes = wakeH * 60 + wakeM
+      let diff = wakeMinutes - sleepMinutes
+      if (diff < 0) diff += 24 * 60
+      return Number((diff / 60).toFixed(1))
+    } catch {
+      return 0
     }
+  }
+
+  const energyData = days.map(d => {
+    const log = dailyLogs[d] || {}
+    const fit = fitnessLogs[d] || {}
     return {
       day: range === 'week' ? format(new Date(d), 'EEE') : format(new Date(d), 'd'),
-      wake: parseTime(log.wakeTime),
-      sleep: parseTime(log.sleepTime),
+      sleepHours: calculateSleepDurationHours(log.sleepTime, log.wakeTime),
+      steps: fit.steps || log.steps || 0,
     }
-  }).filter(d => d.wake || d.sleep)
+  })
 
   // Points
   const pointsData = days.map(d => ({
@@ -438,11 +443,16 @@ export default function Analytics() {
     pts: pointsHistory[d] || 0,
   }))
 
-  // Mood
-  const moodData = days.map(d => ({
-    day: range === 'week' ? format(new Date(d), 'EEE') : format(new Date(d), 'd'),
-    mood: dailyLogs[d]?.mood || 0,
-  })).filter(d => d.mood > 0)
+  // Vibe & Hydration
+  const vibeData = days.map(d => {
+    const log = dailyLogs[d] || {}
+    const fit = fitnessLogs[d] || {}
+    return {
+      day: range === 'week' ? format(new Date(d), 'EEE') : format(new Date(d), 'd'),
+      mood: log.mood || 0,
+      water: fit.waterGlasses || log.waterGlasses || 0,
+    }
+  })
 
   // Good vs Bad habit ratio (today)
   const goodHabits = Object.values(habits).filter(h => h.type === 'good')
@@ -548,21 +558,23 @@ export default function Analytics() {
         </ResponsiveContainer>
       </ChartCard>
 
-      {/* Steps Chart */}
-      <ChartCard icon={Activity} color="text-cyber-400" title="Daily Steps">
-        <ResponsiveContainer width="100%" height={120}>
-          <AreaChart data={stepsData}>
+      {/* Energy & Sleep Tracker */}
+      <ChartCard icon={Activity} color="text-cyber-400" title="Energy & Sleep Tracker">
+        <ResponsiveContainer width="100%" height={160}>
+          <ComposedChart data={energyData}>
             <defs>
-              <linearGradient id="stepsGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="rgb(var(--color-cyber-500))" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="rgb(var(--color-cyber-500))" stopOpacity={0} />
+              <linearGradient id="energyStepsGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
               </linearGradient>
             </defs>
             <XAxis dataKey="day" tick={axisStyle} axisLine={false} tickLine={false} />
+            <YAxis yAxisId="left" domain={[0, 16]} tick={axisStyle} axisLine={false} tickLine={false} width={20} />
+            <YAxis yAxisId="right" orientation="right" tick={axisStyle} axisLine={false} tickLine={false} width={35} />
             <Tooltip content={<CustomTooltip />} />
-            <Area type="monotone" dataKey="steps" name="Steps" stroke="rgb(var(--color-cyber-500))" fill="url(#stepsGrad)" strokeWidth={2} />
-            <Line type="monotone" dataKey="goal" name="Goal" stroke="rgb(var(--color-white) / 0.2)" strokeDasharray="3 3" dot={false} />
-          </AreaChart>
+            <Bar yAxisId="left" dataKey="sleepHours" name="Sleep (hrs)" fill="var(--accent)" radius={[4, 4, 0, 0]} maxBarSize={20} />
+            <Area yAxisId="right" type="monotone" dataKey="steps" name="Steps" stroke="var(--primary)" fill="url(#energyStepsGrad)" strokeWidth={2} />
+          </ComposedChart>
         </ResponsiveContainer>
       </ChartCard>
 
@@ -583,19 +595,25 @@ export default function Analytics() {
         </ResponsiveContainer>
       </ChartCard>
 
-      {/* Mood Chart */}
-      {moodData.length > 0 && (
-        <ChartCard icon={Activity} color="text-purple-400" title="Mood Trend">
-          <ResponsiveContainer width="100%" height={100}>
-            <LineChart data={moodData}>
-              <XAxis dataKey="day" tick={axisStyle} axisLine={false} tickLine={false} />
-              <YAxis domain={[1, 10]} tick={axisStyle} axisLine={false} tickLine={false} width={20} />
-              <Tooltip content={<CustomTooltip />} />
-              <Line type="monotone" dataKey="mood" name="Mood" stroke="#8b5cf6" strokeWidth={2} dot={{ fill: '#8b5cf6', r: 3 }} />
-            </LineChart>
-          </ResponsiveContainer>
-        </ChartCard>
-      )}
+      {/* Vibe & Hydration Matrix */}
+      <ChartCard icon={Activity} color="text-purple-400" title="Vibe & Hydration Matrix">
+        <ResponsiveContainer width="100%" height={160}>
+          <ComposedChart data={vibeData}>
+            <defs>
+              <linearGradient id="vibeMoodGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <XAxis dataKey="day" tick={axisStyle} axisLine={false} tickLine={false} />
+            <YAxis yAxisId="left" domain={[1, 10]} tick={axisStyle} axisLine={false} tickLine={false} width={20} />
+            <YAxis yAxisId="right" orientation="right" domain={[0, 12]} tick={axisStyle} axisLine={false} tickLine={false} width={20} />
+            <Tooltip content={<CustomTooltip />} />
+            <Bar yAxisId="right" dataKey="water" name="Water (glasses)" fill="var(--accent)" radius={[4, 4, 0, 0]} maxBarSize={15} />
+            <Area yAxisId="left" type="monotone" dataKey="mood" name="Mood" stroke="var(--primary)" fill="url(#vibeMoodGrad)" strokeWidth={2} />
+          </ComposedChart>
+        </ResponsiveContainer>
+      </ChartCard>
 
       {/* Habit Heatmap */}
       <ChartCard icon={Award} color="text-emerald-400" title="30-Day Habit Heatmap">
@@ -620,22 +638,7 @@ export default function Analytics() {
         </ChartCard>
       )}
 
-      {/* Sleep Chart */}
-      {sleepData.length > 0 && (
-        <ChartCard icon={Moon} color="text-indigo-400" title="Sleep Pattern">
-          <ResponsiveContainer width="100%" height={120}>
-            <AreaChart data={sleepData}>
-              <XAxis dataKey="day" tick={axisStyle} axisLine={false} tickLine={false} />
-              <YAxis domain={[0, 24]} tick={axisStyle} axisLine={false} tickLine={false} width={25}
-                tickFormatter={v => `${v}h`} />
-              <Tooltip content={<CustomTooltip />} />
-              <Area type="monotone" dataKey="wake" name="Wake (hr)" stroke="rgb(var(--color-cyber-500))" fill="rgb(var(--color-cyber-500) / 0.1)" strokeWidth={2} />
-              <Area type="monotone" dataKey="sleep" name="Sleep (hr)" stroke="#8b5cf6" fill="rgba(139,92,246,0.1)" strokeWidth={2} />
-            </AreaChart>
-          </ResponsiveContainer>
-          <p className="text-[10px] text-white/30 mt-2">Values shown in 24-hour format</p>
-        </ChartCard>
-      )}
+
     </div>
   )
 }
