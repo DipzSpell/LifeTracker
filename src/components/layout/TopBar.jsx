@@ -4,6 +4,7 @@ import { Flame, Bell, CheckCircle2, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useApp } from '../../context/AppContext'
 import { useAuth } from '../../context/AuthContext'
+import AnimatedNumber from '../ui/AnimatedNumber'
 
 // ── Icon map keyed by notification type ──────────────────────────────────────
 const TYPE_CONFIG = {
@@ -58,7 +59,7 @@ function NotifDropdown({ onClose }) {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -8, scale: 0.96 }}
       transition={{ duration: 0.18, ease: 'easeOut' }}
-      className="absolute right-0 top-full mt-2 w-80 rounded-2xl shadow-2xl z-50 overflow-hidden"
+      className="absolute right-0 top-full mt-2 w-80 rounded-2xl shadow-2xl z-50 overflow-hidden transform-gpu"
       style={{
         background: 'var(--card)',
         border: '1px solid rgba(255,255,255,0.08)',
@@ -166,7 +167,11 @@ export default function TopBar() {
                        border border-orange-500/30 rounded-full px-3 py-1.5"
           >
             <Flame size={14} className="text-orange-400 streak-fire" />
-            <span className="text-sm font-bold text-orange-300">{totalPoints.toLocaleString()}</span>
+            <AnimatedNumber
+              value={totalPoints}
+              duration={800}
+              className="text-sm font-bold text-orange-300"
+            />
             <span className="text-[10px] text-orange-400/60 font-medium">pts</span>
           </div>
 

@@ -311,7 +311,7 @@ export default function Login() {
         : emailMode === 'login' ? 'Sign in with email' : 'Create your account'
 
   return (
-    <div className="min-h-screen bg-background text-text flex flex-col items-center justify-center px-4 relative overflow-hidden transition-colors duration-300">
+    <div className="min-h-dvh bg-background text-text flex flex-col items-center justify-center px-4 relative overflow-hidden transition-colors duration-300">
 
       {/* ── Ambient Background ── */}
       <div className="absolute inset-0 pointer-events-none select-none" aria-hidden>

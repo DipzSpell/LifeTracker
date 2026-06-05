@@ -30,17 +30,69 @@ const CustomTooltip = ({ active, payload, label }) => {
   )
 }
 
-function HabitHeatmap({ habitsData, logHabit }) {
-  const last30 = getLast30Days()
-  const [selectedFilter, setSelectedFilter] = useState('all')
-  const [selectedDate, setSelectedDate] = useState(last30[last30.length - 1])
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+]
 
-  const habitList = Object.values(habitsData)
+function HabitHeatmap({ habitsData, logHabit }) {
+  const { user } = useAuth()
+  const todayDate = new Date()
+  const todayStr = format(todayDate, 'yyyy-MM-dd')
+
+  const [currentMonth, setCurrentMonth] = useState(todayDate.getMonth())
+  const [currentYear, setCurrentYear] = useState(todayDate.getFullYear())
+  const [selectedFilter, setSelectedFilter] = useState('all')
+  const [selectedDate, setSelectedDate] = useState(todayStr)
+  const [localHabits, setLocalHabits] = useState(habitsData)
+  const [fetching, setFetching] = useState(false)
+
+  // Sync with habitsData prop updates
+  useEffect(() => {
+    setLocalHabits(habitsData)
+  }, [habitsData])
+
+  // Fetch updated month data from Supabase on navigation
+  useEffect(() => {
+    let active = true
+    async function loadLatestState() {
+      if (!user?.uid) return
+      try {
+        setFetching(true)
+        const { data, error } = await supabase
+          .from('user_states')
+          .select('state')
+          .eq('user_id', user.uid)
+          .maybeSingle()
+        if (error) throw error
+        if (data?.state?.habits && active) {
+          setLocalHabits(data.state.habits)
+        }
+      } catch (err) {
+        console.error('Error fetching latest habits data:', err)
+      } finally {
+        if (active) setFetching(false)
+      }
+    }
+    loadLatestState()
+    return () => { active = false }
+  }, [currentMonth, currentYear, user?.uid])
+
+  const habitList = Object.values(localHabits)
   const goodHabits = habitList.filter(h => h.type === 'good')
 
-  const oldestDate = new Date(last30[0])
-  const oldestDayOfWeek = oldestDate.getDay()
-  const offset = (oldestDayOfWeek + 6) % 7
+  // Calculate dynamic monthly calendar grid details
+  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate()
+  const firstDayIndex = new Date(currentYear, currentMonth, 1).getDay()
+  const offset = (firstDayIndex + 6) % 7
+
+  // Generate date strings YYYY-MM-DD for this month
+  const monthDays = Array.from({ length: daysInMonth }, (_, i) => {
+    const dayNum = i + 1
+    const monthStr = String(currentMonth + 1).padStart(2, '0')
+    const dayStr = String(dayNum).padStart(2, '0')
+    return `${currentYear}-${monthStr}-${dayStr}`
+  })
 
   const parseLocalDate = (dateStr) => {
     if (!dateStr) return new Date()
@@ -59,7 +111,7 @@ function HabitHeatmap({ habitsData, logHabit }) {
       if (pct < 1) return 'bg-emerald-600/80 border border-emerald-500/40'
       return 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]'
     } else {
-      const habit = habitsData[selectedFilter]
+      const habit = localHabits[selectedFilter]
       if (!habit) return 'bg-white/5'
       const status = habit.entries?.[date]?.status
       if (habit.type === 'good') {
@@ -75,26 +127,73 @@ function HabitHeatmap({ habitsData, logHabit }) {
     }
   }
 
-  const selectedHabit = selectedFilter !== 'all' ? habitsData[selectedFilter] : null
+  const selectedHabit = selectedFilter !== 'all' ? localHabits[selectedFilter] : null
   const selectedDateObj = parseLocalDate(selectedDate)
+
+  const handlePrevMonth = () => {
+    if (currentMonth === 0) {
+      setCurrentMonth(11)
+      setCurrentYear(y => y - 1)
+    } else {
+      setCurrentMonth(m => m - 1)
+    }
+  }
+
+  const handleNextMonth = () => {
+    if (currentMonth === 11) {
+      setCurrentMonth(0)
+      setCurrentYear(y => y + 1)
+    } else {
+      setCurrentMonth(m => m + 1)
+    }
+  }
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <label className="text-xs text-white/40 font-medium">Filter View:</label>
-        <select
-          id="heatmap-filter"
-          value={selectedFilter}
-          onChange={(e) => setSelectedFilter(e.target.value)}
-          className="bg-white/5 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs text-white/80 focus:border-cyber-400 focus:bg-card outline-none transition-all cursor-pointer font-semibold"
-        >
-          <option value="all">All Good Habits</option>
-          {habitList.map((h) => (
-            <option key={h.id} value={h.id}>
-              {h.icon} {h.name}
-            </option>
-          ))}
-        </select>
+      {/* Filters and Month Header */}
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <label className="text-xs text-white/40 font-medium">Filter View:</label>
+          <select
+            id="heatmap-filter"
+            value={selectedFilter}
+            onChange={(e) => setSelectedFilter(e.target.value)}
+            className="bg-white/5 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs text-white/80 focus:border-cyber-400 focus:bg-card outline-none transition-all cursor-pointer font-semibold"
+          >
+            <option value="all">All Good Habits</option>
+            {habitList.map((h) => (
+              <option key={h.id} value={h.id}>
+                {h.icon} {h.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Month Selector bar */}
+        <div className="flex items-center justify-between px-1 bg-white/5 border border-white/5 rounded-xl py-1">
+          <button
+            onClick={handlePrevMonth}
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-white/60 hover:text-white hover:bg-white/5 transition-all active:scale-90"
+            aria-label="Previous Month"
+          >
+            ◀
+          </button>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-white tracking-wide">
+              {MONTH_NAMES[currentMonth]} {currentYear}
+            </span>
+            {fetching && (
+              <div className="w-3 h-3 rounded-full border border-t-transparent border-cyber-400 animate-spin" />
+            )}
+          </div>
+          <button
+            onClick={handleNextMonth}
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-white/60 hover:text-white hover:bg-white/5 transition-all active:scale-90"
+            aria-label="Next Month"
+          >
+            ▶
+          </button>
+        </div>
       </div>
 
       <div className="bg-white/5 border border-white/5 rounded-2xl p-3">
@@ -108,24 +207,27 @@ function HabitHeatmap({ habitsData, logHabit }) {
 
         <div className="grid grid-cols-7 gap-1">
           {Array.from({ length: offset }).map((_, i) => (
-            <div key={`spacer-${i}`} className="w-full aspect-square opacity-0 pointer-events-none" />
+            <div key={`spacer-${i}`} className="w-full aspect-square opacity-[0.02] bg-white/10 rounded-lg pointer-events-none" />
           ))}
 
-          {last30.map((d) => {
+          {monthDays.map((d) => {
             const isSelected = selectedDate === d
             const cellColorClass = getCellColor(d)
+            const dayNum = parseInt(d.split('-')[2])
             return (
               <button
                 key={d}
                 id={`heatmap-cell-${d}`}
                 title={format(parseLocalDate(d), 'MMM d, yyyy')}
                 onClick={() => setSelectedDate(d)}
-                className={`w-full aspect-square rounded-lg transition-all duration-200 ${cellColorClass} ${
+                className={`w-full aspect-square rounded-lg transition-all duration-200 flex items-center justify-center text-[9px] font-bold ${cellColorClass} ${
                   isSelected
                     ? 'ring-2 ring-cyber-400 ring-offset-2 ring-offset-navy-950 scale-105 z-10'
                     : 'hover:scale-105'
                 }`}
-              />
+              >
+                {dayNum}
+              </button>
             )
           })}
         </div>

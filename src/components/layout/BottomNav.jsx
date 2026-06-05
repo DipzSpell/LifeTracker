@@ -85,8 +85,8 @@ export default function BottomNav() {
         initial={{ y: 0 }}
         animate={{ y: isVisible ? 0 : '100%' }}
         transition={{ type: 'spring', stiffness: 260, damping: 26 }}
-        style={{ pointerEvents: isVisible ? 'auto' : 'none' }}
-        className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-background/90 backdrop-blur-xl pb-safe transition-colors duration-300"
+        style={{ pointerEvents: isVisible ? 'auto' : 'none', willChange: 'transform' }}
+        className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-background/90 backdrop-blur-xl pb-safe transition-colors duration-300 transform-gpu"
       >
         <div className="flex items-center justify-around px-2 pt-2 pb-2 max-w-lg mx-auto">
           {visibleNavItems.map(({ path, icon: Icon, label }) => {
@@ -98,12 +98,14 @@ export default function BottomNav() {
                 key={path}
                 id={`nav-${label.toLowerCase()}`}
                 onClick={() => navigate(path)}
-                className="relative flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition-all duration-200 active:scale-90 min-w-0"
+                aria-label={label}
+                aria-current={active ? 'page' : undefined}
+                className="relative flex flex-col items-center justify-center gap-0.5 min-h-[48px] min-w-[48px] px-3 rounded-xl transition-all duration-200 active:scale-90 touch-manipulation"
               >
                 {active && (
                   <motion.div
                     layoutId="nav-indicator"
-                    className="absolute inset-0 bg-cyber-500/15 rounded-xl border border-cyber-500/30"
+                    className="absolute inset-0 bg-cyber-500/15 rounded-xl border border-cyber-500/30 transform-gpu"
                     transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                   />
                 )}

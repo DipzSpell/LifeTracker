@@ -42,6 +42,13 @@ const getDefaultState = () => ({
     fitnessTrackerEnabled: true,
     soundEffectsEnabled: true,
     privacyBlurEnabled: false,
+    // Workout types: first 4 are cardio, the rest are strength/gym.
+    // Persisted via UPDATE_SETTINGS — user can add/remove via Settings.
+    workoutTypes: [
+      'Cardio', 'Running', 'Swimming', 'Cycling',
+      'Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core',
+      'Full Body', 'HIIT', 'Yoga', 'Push', 'Pull', 'Mix',
+    ],
   },
   profile: {
     displayName: '',

@@ -11,7 +11,8 @@ import {
   LogOut, ChevronRight, Heart, Zap, Award,
   Download, Trash2, Lock, Star,
   TrendingUp, Activity,
-  Database, Info, Sun, Sliders, Volume2
+  Database, Info, Sun, Sliders, Volume2,
+  Dumbbell, X, Plus
 } from 'lucide-react'
 
 function BadgeCard({ badge, earned, progress }) {
@@ -141,7 +142,164 @@ function StatBox({ icon, value, label, color }) {
   )
 }
 
+
+// ─── Canonical cardio set — mirrors the one in Fitness.jsx ───────────────────
+const CARDIO_TYPES = new Set(['Cardio', 'Running', 'Swimming', 'Cycling'])
+
+const DEFAULT_WORKOUT_TYPES = [
+  'Cardio', 'Running', 'Swimming', 'Cycling',
+  'Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core',
+  'Full Body', 'HIIT', 'Yoga', 'Push', 'Pull', 'Mix',
+]
+
+function WorkoutTypeManager({ settings, updateSetting, addToast }) {
+  const [newType, setNewType] = useState('')
+  const types = settings?.workoutTypes?.length ? settings.workoutTypes : DEFAULT_WORKOUT_TYPES
+
+  const handleAdd = () => {
+    const trimmed = newType.trim()
+    if (!trimmed) return
+    const capitalized = trimmed.charAt(0).toUpperCase() + trimmed.slice(1)
+    if (types.some(t => t.toLowerCase() === capitalized.toLowerCase())) {
+      addToast(`"${capitalized}" already exists`, 'error')
+      return
+    }
+    updateSetting('workoutTypes', [...types, capitalized])
+    setNewType('')
+    addToast(`"${capitalized}" added! 🏋️`, 'success')
+  }
+
+  const handleRemove = (type) => {
+    updateSetting('workoutTypes', types.filter(t => t !== type))
+    addToast(`"${type}" removed`, 'info')
+  }
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') handleAdd()
+  }
+
+  return (
+    <div className="pt-2 border-t border-white/5 mt-2">
+      {/* Section label */}
+      <div className="flex items-center gap-2 mb-3">
+        <Dumbbell size={13} className="text-orange-400" />
+        <span className="text-xs font-semibold text-white">Manage Workout Types</span>
+        <span className="text-[9px] bg-white/8 text-white/40 rounded-full px-1.5 py-0.5 font-medium">
+          {types.length} types
+        </span>
+      </div>
+
+      {/* Add new type row */}
+      <div className="flex gap-2 mb-3 items-center">
+        <input
+          id="settings-new-workout-type"
+          type="text"
+          value={newType}
+          onChange={e => setNewType(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="e.g. Calisthenics, Zumba…"
+          maxLength={24}
+          className="input-cyber text-xs flex-1 py-2.5 min-h-[48px]"
+        />
+        <motion.button
+          id="settings-add-workout-type"
+          whileTap={{ scale: 0.93 }}
+          onClick={handleAdd}
+          disabled={!newType.trim()}
+          className="flex items-center justify-center gap-1.5 px-4 py-2.5 min-h-[48px] min-w-[48px] rounded-xl text-xs font-semibold
+                     bg-orange-500/20 border border-orange-500/30 text-orange-300
+                     hover:bg-orange-500/30 hover:border-orange-500/50
+                     disabled:opacity-40 disabled:cursor-not-allowed
+                     transition-all duration-150"
+        >
+          <Plus size={13} />
+          Add
+        </motion.button>
+      </div>
+
+      {/* Cardio types */}
+      <div className="mb-3">
+        <p className="text-[10px] uppercase tracking-wider text-cyan-400/60 font-semibold mb-1.5">
+          🏃 Cardio
+        </p>
+        <div className="flex flex-wrap gap-1.5">
+          <AnimatePresence>
+            {types.filter(t => CARDIO_TYPES.has(t)).map(type => (
+              <motion.div
+                key={type}
+                layout
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.7 }}
+                transition={{ duration: 0.18 }}
+                className="flex items-center gap-1 px-3 py-1.5 min-h-[36px] rounded-lg text-xs font-medium
+                           border border-cyan-500/30 bg-cyan-500/10 text-cyan-300"
+              >
+                {type}
+                <button
+                  id={`settings-remove-workout-${type.toLowerCase()}`}
+                  onClick={() => handleRemove(type)}
+                  className="text-cyan-400/50 hover:text-red-400 transition-colors ml-1 p-2 -m-2 flex items-center justify-center min-w-[28px] min-h-[28px]"
+                  aria-label={`Remove ${type}`}
+                >
+                  <X size={12} />
+                </button>
+              </motion.div>
+            ))}
+            {/* User-added cardio types not in the canonical set won't show here;
+                they land in the Strength bucket below */}
+          </AnimatePresence>
+          {types.filter(t => CARDIO_TYPES.has(t)).length === 0 && (
+            <p className="text-[10px] text-white/25 italic">No cardio types</p>
+          )}
+        </div>
+      </div>
+
+      {/* Strength / Gym types */}
+      <div>
+        <p className="text-[10px] uppercase tracking-wider text-orange-400/60 font-semibold mb-1.5">
+          🏋️ Strength / Gym
+        </p>
+        <div className="flex flex-wrap gap-1.5">
+          <AnimatePresence>
+            {types.filter(t => !CARDIO_TYPES.has(t)).map(type => (
+              <motion.div
+                key={type}
+                layout
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.7 }}
+                transition={{ duration: 0.18 }}
+                className="flex items-center gap-1 px-3 py-1.5 min-h-[36px] rounded-lg text-xs font-medium
+                           border border-orange-500/30 bg-orange-500/10 text-orange-300"
+              >
+                {type}
+                <button
+                  id={`settings-remove-workout-${type.toLowerCase()}`}
+                  onClick={() => handleRemove(type)}
+                  className="text-orange-400/50 hover:text-red-400 transition-colors ml-1 p-2 -m-2 flex items-center justify-center min-w-[28px] min-h-[28px]"
+                  aria-label={`Remove ${type}`}
+                >
+                  <X size={12} />
+                </button>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+          {types.filter(t => !CARDIO_TYPES.has(t)).length === 0 && (
+            <p className="text-[10px] text-white/25 italic">No strength types</p>
+          )}
+        </div>
+      </div>
+
+      <p className="text-[10px] text-white/25 mt-2 leading-relaxed">
+        New types added here appear instantly on the Fitness log screen. Custom types land in the Strength bucket.
+      </p>
+    </div>
+  )
+}
+
 export default function Profile() {
+
   const navigate = useNavigate()
   const { user, logout, updateProfile } = useAuth()
   const { dispatch, settings, dailyLogs, habits, todos, totalPoints, pointsHistory, fitnessLogs, resetAppState, getHabitStreak, loveTracker, notifications } = useApp()
@@ -699,7 +857,7 @@ export default function Profile() {
                                     : [...current, day]
                                   updateSetting('gymDays', updated)
                                 }}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                                className={`px-4 py-2.5 min-h-[48px] min-w-[48px] flex items-center justify-center rounded-xl text-xs font-semibold border transition-all ${
                                   isSelected
                                     ? 'border-emerald-500/50 bg-emerald-500/20 text-emerald-300'
                                     : 'border-white/10 bg-white/5 text-white/40'
@@ -711,6 +869,13 @@ export default function Profile() {
                           })}
                         </div>
                       </div>
+
+                      {/* ── Manage Workout Types ── */}
+                      <WorkoutTypeManager
+                        settings={settings}
+                        updateSetting={updateSetting}
+                        addToast={addToast}
+                      />
                     </div>
                   )}
 

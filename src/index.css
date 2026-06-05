@@ -200,14 +200,16 @@
     -webkit-tap-highlight-color: transparent;
   }
 
-  button, a, [role="button"] {
+  button, a, input, select, textarea, [role="button"] {
     user-select: none;
     -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent !important;
+    touch-action: manipulation;
   }
 
   html {
     scroll-behavior: smooth;
-    overscroll-behavior-y: none;
+    overscroll-behavior-y: contain;
   }
 
   body {
@@ -217,7 +219,19 @@
     min-height: 100vh;
     min-height: 100dvh;
     overflow-x: hidden;
-    overscroll-behavior-y: none;
+    overscroll-behavior-y: contain;
+  }
+
+  /* Force inertial scrolling on all webkit touch containers */
+  .overflow-y-auto, .overflow-x-auto, .overflow-auto, [class*="overflow-"] {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* GPU accelerated animations rendering helpers */
+  .transform-gpu, .will-change-transform {
+    transform: translate3d(0, 0, 0);
+    will-change: transform;
+    backface-visibility: hidden;
   }
 
   ::-webkit-scrollbar {

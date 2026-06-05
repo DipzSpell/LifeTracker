@@ -2,13 +2,14 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { format } from 'date-fns'
 import { useNavigate } from 'react-router-dom'
-import { Flame, CheckCircle2, TrendingUp, Calendar, Plus, Moon, Sparkles, RefreshCw } from 'lucide-react'
+import { Flame, CheckCircle2, TrendingUp, Calendar, Plus, Moon } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { useAuth } from '../context/AuthContext'
 import { todayKey, getLast7Days } from '../lib/storage'
 import QuickLogModal from '../components/QuickLogModal'
 import Toast, { useToast } from '../components/ui/Toast'
 import { playVictorySound } from '../lib/sounds'
+import AIMorningBrief, { generateDailyInsight } from '../components/AIMorningBrief'
 
 import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from 'recharts'
 
@@ -42,73 +43,7 @@ function calculateSleepDuration(sleepTime, wakeTime) {
   }
 }
 
-function generateBrief(yesterdayLog, yesterdayFitness, habitsPct, pendingHigh, pendingMedium) {
-  const mood = yesterdayLog?.mood || 0
-  const steps = yesterdayFitness?.steps || yesterdayLog?.steps || 0
-  const gym = yesterdayLog?.gymStatus
-  
-  // Calculate sleep duration if log exists
-  let sleepHours = 0
-  if (yesterdayLog?.sleepTime && yesterdayLog?.wakeTime) {
-    try {
-      const [sH, sM] = yesterdayLog.sleepTime.split(':').map(Number)
-      const [wH, wM] = yesterdayLog.wakeTime.split(':').map(Number)
-      if (!isNaN(sH) && !isNaN(wH)) {
-        let diff = (wH * 60 + wM) - (sH * 60 + sM)
-        if (diff < 0) diff += 24 * 60
-        sleepHours = diff / 60
-      }
-    } catch {
-      // ignore
-    }
-  }
 
-  // Aura classification
-  let aura = '✨ Balanced Aura'
-  let auraColor = 'from-cyan-400 to-emerald-400'
-
-  if (mood >= 8 && (steps >= 8000 || habitsPct >= 80)) {
-    aura = '🌟 Glowing Aura'
-    auraColor = 'from-yellow-400 via-amber-400 to-orange-500'
-  } else if (steps >= 10000 || gym === 'done') {
-    aura = '⚡ Energetic Aura'
-    auraColor = 'from-orange-500 via-red-500 to-pink-500'
-  } else if (mood >= 7 && (yesterdayLog?.meditated || yesterdayLog?.notes)) {
-    aura = '🧘 Mindful Aura'
-    auraColor = 'from-purple-400 via-indigo-400 to-blue-500'
-  } else if (sleepHours >= 8.5) {
-    aura = '💤 Restorative Aura'
-    auraColor = 'from-blue-400 via-cyan-400 to-indigo-500'
-  } else if (mood > 0 && mood <= 4) {
-    aura = '🌧️ Reflective Aura'
-    auraColor = 'from-slate-500 via-zinc-400 to-slate-600'
-  } else if (habitsPct >= 70) {
-    aura = '🌱 Resilient Aura'
-    auraColor = 'from-emerald-400 via-teal-400 to-cyan-500'
-  }
-
-  // Brief creation
-  const moodText = mood ? `${mood}/10 vibe` : 'relaxed flow'
-  const stepsText = steps >= 10000 ? 'over 10k steps' : steps >= 6000 ? 'active steps' : ''
-  const habitsText = habitsPct >= 80 ? 'perfect habits' : habitsPct >= 50 ? 'solid progress' : ''
-  
-  const segments = [moodText, stepsText, habitsText].filter(Boolean)
-  const statsSummary = segments.join(', ')
-
-  // Suggest focus task
-  let focus = "Today's vibe: focus on self-care and easy wins."
-  if (pendingHigh.length > 0) {
-    focus = `Today's mission: Tackle "${pendingHigh[0].title}" (High priority)!`
-  } else if (pendingMedium.length > 0) {
-    focus = `Today's mission: Work on "${pendingMedium[0].title}".`
-  } else if (habitsPct < 50 && habitsPct > 0) {
-    focus = "Today's mission: Focus on completing your daily habits."
-  }
-
-  const text = `Yesterday was marked by ${statsSummary ? statsSummary : 'a quiet flow'}. Your aura is ${aura.toLowerCase()}. ${focus}`
-
-  return { aura, auraColor, text }
-}
 
 export default function Dashboard() {
   const navigate = useNavigate()
@@ -121,7 +56,7 @@ export default function Dashboard() {
   const [quickLogOpen, setQuickLogOpen] = useState(false)
   const [profileModalOpen, setProfileModalOpen] = useState(false)
 
-  const [brief, setBrief] = useState(null)
+  const [insight, setInsight] = useState(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
 
   // Memoize good habits list
@@ -129,37 +64,33 @@ export default function Dashboard() {
     return Object.values(habits).filter(h => h.type === 'good')
   }, [habits])
 
-  const loadBrief = useCallback(() => {
+  const loadInsight = useCallback(() => {
     const d = new Date()
     d.setDate(d.getDate() - 1)
     const yesterdayK = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
     const yLog = dailyLogs[yesterdayK] || {}
     const yFitness = fitnessLogs[yesterdayK] || {}
-
-    const yDone = goodHabits.filter(h => h.entries?.[yesterdayK]?.status === 'done').length
-    const yHabitsPct = goodHabits.length ? (yDone / goodHabits.length) * 100 : 0
-
     const pHigh = todos.filter(t => t.status === 'pending' && t.priority === 'high')
     const pMedium = todos.filter(t => t.status === 'pending' && t.priority === 'medium')
 
-    const generated = generateBrief(yLog, yFitness, yHabitsPct, pHigh, pMedium)
-    setBrief(generated)
+    const generated = generateDailyInsight(yLog, yFitness, goodHabits, yesterdayK, pHigh, pMedium)
+    setInsight(generated)
   }, [dailyLogs, fitnessLogs, goodHabits, todos])
 
   useEffect(() => {
     if (dailyLogs && fitnessLogs && habits && todos) {
-      loadBrief()
+      loadInsight()
     }
-  }, [dailyLogs, fitnessLogs, habits, todos, loadBrief])
+  }, [dailyLogs, fitnessLogs, habits, todos, loadInsight])
 
-  const triggerRefresh = () => {
+  const triggerRefresh = useCallback(() => {
     setIsRefreshing(true)
     setTimeout(() => {
-      loadBrief()
+      loadInsight()
       setIsRefreshing(false)
     }, 800)
-  }
+  }, [loadInsight])
 
   // Toast notifications
   const { toasts, addToast, removeToast } = useToast()
@@ -271,44 +202,31 @@ export default function Dashboard() {
         )}
       </AnimatePresence>
 
-      {/* AI Morning Brief & Vibe Check */}
-      {brief && (
-        <motion.div
-          custom={0}
-          variants={cardVariants}
-          initial="hidden"
-          animate="visible"
-          className="aura-card shadow-lg"
-        >
-          <div className="bg-card/95 backdrop-blur-md rounded-[1.2rem] p-4 text-white">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <Sparkles size={16} className="text-cyber-400" />
-                <span className="text-xs font-bold uppercase tracking-wider text-cyber-300">
-                  AI Morning Brief
-                </span>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold bg-gradient-to-r ${brief.auraColor} text-navy-950`}>
-                  {brief.aura}
-                </span>
-              </div>
-              <button
-                id="brief-refresh-btn"
-                onClick={triggerRefresh}
-                className="p-1.5 rounded-lg bg-white/5 border border-white/5 hover:border-white/10 hover:bg-white/10 transition-all text-white/50 hover:text-white active:scale-90"
-                title="Refresh Briefing"
-              >
-                <RefreshCw
-                  size={12}
-                  className={`transition-all duration-700 ${isRefreshing ? 'animate-spin' : ''}`}
-                />
-              </button>
-            </div>
-            <p className="text-xs text-white/80 leading-relaxed font-medium">
-              {brief.text}
-            </p>
-          </div>
-        </motion.div>
-      )}
+      {/* ── Welcome Greeting ──────────────────────────────────── */}
+      <motion.div
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35 }}
+        className="px-1"
+      >
+        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-white/30">
+          {format(new Date(), 'EEEE, MMMM d · yyyy')}
+        </p>
+        <h1 className="text-lg font-display font-bold text-white mt-0.5 leading-tight">
+          Good{new Date().getHours() < 12 ? ' Morning' : new Date().getHours() < 17 ? ' Afternoon' : ' Evening'},{' '}
+          <span className="text-transparent bg-clip-text"
+            style={{ backgroundImage: 'linear-gradient(90deg, var(--primary), var(--accent))' }}>
+            {profile?.displayName?.split(' ')[0] || user?.displayName?.split(' ')[0] || 'there'}
+          </span>{' '}✦
+        </h1>
+      </motion.div>
+
+      {/* ── AI Morning Brief & Vibe Check ─────────────────────── */}
+      <AIMorningBrief
+        insight={insight}
+        onRefresh={triggerRefresh}
+        isRefreshing={isRefreshing}
+      />
 
       {/* Hero — Today Summary */}
       <motion.div custom={0} variants={cardVariants} initial="hidden" animate="visible">
