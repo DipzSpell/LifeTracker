@@ -99,7 +99,7 @@ function AddHabitModal({ isOpen, onClose }) {
 }
 
 function HabitCard({ habit }) {
-  const { dispatch, getHabitStreak, settings } = useApp()
+  const { dispatch, getHabitStreak, settings, notify } = useApp()
   const today = todayKey()
   const entry = habit.entries?.[today]
   const status = entry?.status
@@ -109,8 +109,13 @@ function HabitCard({ habit }) {
   const logHabit = (s) => {
     dispatch({ type: 'LOG_HABIT', payload: { habitId: habit.id, date: today, status: s } })
     const isSuccess = habit.type === 'good' ? s === 'done' : s === 'clean'
-    if (isSuccess && settings?.soundEffectsEnabled !== false) {
-      playVictorySound()
+    if (isSuccess) {
+      if (settings?.soundEffectsEnabled !== false) playVictorySound()
+      // Streak notification — fires every time a habit is successfully logged
+      const streakMsg = streak >= 1
+        ? `${habit.icon} "${habit.name}" streak is live — ${streak + 1} days strong!`
+        : `${habit.icon} "${habit.name}" marked done. Keep it up!`
+      notify('Streak Flaming! 🔥', streakMsg, 'streak')
     }
   }
 

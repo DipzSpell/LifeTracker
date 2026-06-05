@@ -175,16 +175,13 @@ export default function Dashboard() {
   const showBanner = !userProfile.onboarding_completed && (!userProfile.dob || !userProfile.height || !userProfile.weight)
 
   useEffect(() => {
-    if (user?.displayName && !displayName) {
-      setDisplayName(user.displayName)
+    if (profileModalOpen) {
+      setDisplayName(user?.displayName || '')
+      setDob(profile?.dob || '')
+      setHeight(profile?.height || '')
+      setWeight(profile?.weight || '')
     }
-  }, [user, displayName])
-
-  useEffect(() => {
-    if (profile?.dob && !dob) setDob(profile.dob)
-    if (profile?.height && !height) setHeight(profile.height)
-    if (profile?.weight && !weight) setWeight(profile.weight)
-  }, [profile, dob, height, weight])
+  }, [profileModalOpen, user?.displayName, profile])
 
   const getProgressPercentage = () => {
     let filled = 0

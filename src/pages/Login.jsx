@@ -1,16 +1,23 @@
 /**
  * Login.jsx — Premium Life OS authentication page
  *
- * Layout:
- *  - Full-screen dark background with ambient gradient orbs + grid overlay
- *  - Centered card: Google OAuth button (primary) + email/password (collapsible)
- *  - Smooth framer-motion transitions throughout
- *  - Accessible: all interactive elements have unique IDs, ARIA labels
+ * Auth methods:
+ *  1. Google OAuth (existing)
+ *  2. Phone + OTP via Supabase (new)
+ *  3. Email / Password (existing, collapsible)
+ *
+ * Phone OTP flow:
+ *  Step 1: user enters 10-digit number → signInWithOtp({ phone })
+ *  Step 2: user enters 6-digit token   → verifyOtp({ phone, token, type:'sms' })
+ *  A 30-second countdown controls the resend button.
  */
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { Eye, EyeOff, AlertTriangle, ChevronDown, Loader2 } from 'lucide-react'
+import { supabase } from '../lib/supabase'
+import { playVictorySound } from '../lib/sounds'
+import { Eye, EyeOff, AlertTriangle, ChevronDown, Loader2, Phone, MessageSquare, RefreshCw } from 'lucide-react'
 
 // ── Google SVG icon (official brand colors) ────────────────────────────────
 function GoogleIcon({ size = 20 }) {
@@ -24,8 +31,7 @@ function GoogleIcon({ size = 20 }) {
   )
 }
 
-// ── Animated background dots / particles ──────────────────────────────────
-// Generated once at module level (not per render) to avoid impure calls during render
+// ── Animated floating particles ────────────────────────────────────────────
 const PARTICLES = Array.from({ length: 20 }, (_, i) => ({
   id: i,
   x: Math.random() * 100,
@@ -36,7 +42,6 @@ const PARTICLES = Array.from({ length: 20 }, (_, i) => ({
 }))
 
 function FloatingParticles() {
-
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden>
       {PARTICLES.map(p => (
@@ -44,23 +49,14 @@ function FloatingParticles() {
           key={p.id}
           className="absolute rounded-full bg-cyan-400/20"
           style={{ left: `${p.x}%`, top: `${p.y}%`, width: p.size, height: p.size }}
-          animate={{
-            y: [0, -30, 0],
-            opacity: [0, 0.6, 0],
-          }}
-          transition={{
-            duration: p.duration,
-            delay: p.delay,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
+          animate={{ y: [0, -30, 0], opacity: [0, 0.6, 0] }}
+          transition={{ duration: p.duration, delay: p.delay, repeat: Infinity, ease: 'easeInOut' }}
         />
       ))}
     </div>
   )
 }
 
-// ── Feature pill ───────────────────────────────────────────────────────────
 function FeaturePill({ emoji, label }) {
   return (
     <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-full px-3 py-1.5">
@@ -70,30 +66,121 @@ function FeaturePill({ emoji, label }) {
   )
 }
 
+// ── OTP digit display (visual dots) ───────────────────────────────────────
+function OtpProgress({ value }) {
+  return (
+    <div className="flex justify-center gap-2 mt-1">
+      {Array.from({ length: 6 }, (_, i) => (
+        <div
+          key={i}
+          className={`w-2 h-2 rounded-full transition-all duration-200 ${
+            i < value.length
+              ? 'bg-[var(--primary)] shadow-[0_0_6px_var(--primary)]'
+              : 'bg-white/15'
+          }`}
+        />
+      ))}
+    </div>
+  )
+}
+
+// ── Resend countdown component ─────────────────────────────────────────────
+function ResendCountdown({ onResend, loading }) {
+  const [seconds, setSeconds] = useState(30)
+  const timerRef = useRef(null)
+
+  useEffect(() => {
+    setSeconds(30)
+    timerRef.current = setInterval(() => {
+      setSeconds(s => {
+        if (s <= 1) { clearInterval(timerRef.current); return 0 }
+        return s - 1
+      })
+    }, 1000)
+    return () => clearInterval(timerRef.current)
+  }, [])
+
+  const handleResend = () => {
+    setSeconds(30)
+    clearInterval(timerRef.current)
+    timerRef.current = setInterval(() => {
+      setSeconds(s => {
+        if (s <= 1) { clearInterval(timerRef.current); return 0 }
+        return s - 1
+      })
+    }, 1000)
+    onResend()
+  }
+
+  return (
+    <div className="text-center">
+      {seconds > 0 ? (
+        <p className="text-[11px] text-white/35">
+          Resend OTP in{' '}
+          <span className="text-[var(--primary)] font-bold tabular-nums">{seconds}s</span>
+        </p>
+      ) : (
+        <button
+          type="button"
+          onClick={handleResend}
+          disabled={loading}
+          className="flex items-center gap-1.5 mx-auto text-[11px] text-[var(--primary)]
+                     hover:text-cyan-300 font-semibold transition-colors disabled:opacity-50"
+        >
+          <RefreshCw size={11} className={loading ? 'animate-spin' : ''} />
+          Resend OTP
+        </button>
+      )}
+    </div>
+  )
+}
+
+// ── Country code options ───────────────────────────────────────────────────
+const COUNTRY_CODES = [
+  { code: '+91', flag: '🇮🇳', label: 'IN' },
+  { code: '+1',  flag: '🇺🇸', label: 'US' },
+  { code: '+44', flag: '🇬🇧', label: 'GB' },
+  { code: '+61', flag: '🇦🇺', label: 'AU' },
+  { code: '+971',flag: '🇦🇪', label: 'AE' },
+]
+
+// ── Main Login component ───────────────────────────────────────────────────
 export default function Login() {
+  const navigate = useNavigate()
   const { signInWithGoogle, login, signup } = useAuth()
 
-  // Google loading state
+  // ── Auth method tab: 'google' | 'phone' ──────────────────────────────
+  const [authTab, setAuthTab] = useState('google')
+
+  // ── Google ────────────────────────────────────────────────────────────
   const [googleLoading, setGoogleLoading] = useState(false)
 
-  // Email form
-  const [showEmail, setShowEmail]     = useState(false)
-  const [emailMode, setEmailMode]     = useState('login')   // 'login' | 'signup'
-  const [form, setForm]               = useState({ name: '', email: '', password: '' })
-  const [showPass, setShowPass]       = useState(false)
-  const [emailLoading, setEmailLoading] = useState(false)
+  // ── Email form ────────────────────────────────────────────────────────
+  const [showEmail, setShowEmail]         = useState(false)
+  const [emailMode, setEmailMode]         = useState('login')
+  const [form, setForm]                   = useState({ name: '', email: '', password: '' })
+  const [showPass, setShowPass]           = useState(false)
+  const [emailLoading, setEmailLoading]   = useState(false)
   const [signupSuccess, setSignupSuccess] = useState(false)
 
-  // Error
-  const [error, setError] = useState('')
+  // ── Phone OTP ─────────────────────────────────────────────────────────
+  const [countryCode, setCountryCode]     = useState('+91')
+  const [phone, setPhone]                 = useState('')          // 10 digits only
+  const [otpStep, setOtpStep]             = useState('input')    // 'input' | 'verify'
+  const [otpToken, setOtpToken]           = useState('')          // 6 digits
+  const [phoneLoading, setPhoneLoading]   = useState(false)
+  const [otpLoading, setOtpLoading]       = useState(false)
+  const [resendKey, setResendKey]         = useState(0)           // resets countdown
 
-  // Parse error parameters from URL (e.g. OAuth failures)
+  // ── Global error ──────────────────────────────────────────────────────
+  const [error, setError] = useState('')
+  const [successMsg, setSuccessMsg] = useState('')
+
+  // Parse OAuth redirect errors
   useEffect(() => {
     try {
       const url = new URL(window.location.href)
       let oauthError = url.searchParams.get('error_description') || url.searchParams.get('error')
-
-      // Check hash parameters if using HashRouter (e.g. #/login?error=...)
       if (!oauthError && window.location.hash) {
         const hashQuery = window.location.hash.split('?')[1]
         if (hashQuery) {
@@ -104,32 +191,24 @@ export default function Login() {
           oauthError = params.get('error_description') || params.get('error')
         }
       }
-
       if (oauthError) {
-        console.error('[Login] OAuth redirect error:', oauthError)
         setError(decodeURIComponent(oauthError).replace(/\+/g, ' '))
-
-        // Clear query parameters from URL history to break redirect loops
-        const cleanUrl = window.location.origin + window.location.pathname + (window.location.hash ? window.location.hash.split('?')[0] : '')
+        const cleanUrl = window.location.origin + window.location.pathname +
+          (window.location.hash ? window.location.hash.split('?')[0] : '')
         window.history.replaceState({}, document.title, cleanUrl)
       }
-    } catch (err) {
-      console.warn('[Login] Error parsing URL error params:', err)
-    }
+    } catch { /* non-critical */ }
   }, [])
 
-  // Clear error when switching modes (done inline on button clicks)
+  const clearMessages = () => { setError(''); setSuccessMsg('') }
 
-  // ── Google OAuth ─────────────────────────────────────────────────────────
+  // ── Google OAuth ──────────────────────────────────────────────────────
   const handleGoogleLogin = async () => {
-    setError('')
+    clearMessages()
     setGoogleLoading(true)
     try {
       await signInWithGoogle()
-      // Browser will redirect — loading stays true intentionally.
-      // If popup is blocked or the call fails, we catch below.
     } catch (err) {
-      console.error('[Login] Google OAuth error:', err)
       setError(
         err.message?.includes('fetch')
           ? 'Network error — check your connection and try again.'
@@ -139,17 +218,13 @@ export default function Login() {
     }
   }
 
-  // ── Email / Password ─────────────────────────────────────────────────────
+  // ── Email / Password ──────────────────────────────────────────────────
   const handleEmailSubmit = async (e) => {
     e.preventDefault()
-    setError('')
-    if (emailMode === 'signup' && !form.name.trim()) {
-      setError('Please enter your full name.')
-      return
-    }
+    clearMessages()
+    if (emailMode === 'signup' && !form.name.trim()) { setError('Please enter your full name.'); return }
     if (!form.email.trim()) { setError('Please enter your email.'); return }
     if (form.password.length < 6) { setError('Password must be at least 6 characters.'); return }
-
     setEmailLoading(true)
     try {
       if (emailMode === 'login') {
@@ -159,28 +234,91 @@ export default function Login() {
         setSignupSuccess(true)
       }
     } catch (err) {
-      console.error('[Login] Email auth error:', err)
       setError(err.message || 'Authentication failed. Check your credentials.')
     } finally {
       setEmailLoading(false)
     }
   }
 
+  // ── Phone: Step 1 — Send OTP ──────────────────────────────────────────
+  const fullPhone = `${countryCode}${phone}`
+
+  const handleSendOtp = async () => {
+    clearMessages()
+    if (phone.length !== 10) { setError('Please enter a valid 10-digit mobile number.'); return }
+    setPhoneLoading(true)
+    try {
+      const { error: sbError } = await supabase.auth.signInWithOtp({ phone: fullPhone })
+      if (sbError) throw sbError
+      setOtpStep('verify')
+      setResendKey(k => k + 1)
+      setSuccessMsg(`OTP sent to ${countryCode} ${phone}`)
+    } catch (err) {
+      setError(err.message || 'Failed to send OTP. Check the number and try again.')
+    } finally {
+      setPhoneLoading(false)
+    }
+  }
+
+  // ── Phone: Step 2 — Verify OTP ────────────────────────────────────────
+  const handleVerifyOtp = async () => {
+    clearMessages()
+    if (otpToken.length !== 6) { setError('Please enter the full 6-digit OTP.'); return }
+    setOtpLoading(true)
+    try {
+      const { error: sbError } = await supabase.auth.verifyOtp({
+        phone: fullPhone,
+        token: otpToken,
+        type: 'sms',
+      })
+      if (sbError) throw sbError
+      // Auth state change is handled by onAuthStateChange in AuthContext.
+      // Play victory sound + navigate.
+      playVictorySound()
+      navigate('/dashboard', { replace: true })
+    } catch (err) {
+      setError(err.message || 'Invalid or expired OTP. Please try again.')
+    } finally {
+      setOtpLoading(false)
+    }
+  }
+
+  // Resend OTP (reuses handleSendOtp)
+  const handleResendOtp = async () => {
+    clearMessages()
+    setPhoneLoading(true)
+    try {
+      const { error: sbError } = await supabase.auth.signInWithOtp({ phone: fullPhone })
+      if (sbError) throw sbError
+      setSuccessMsg('New OTP sent!')
+    } catch (err) {
+      setError(err.message || 'Failed to resend OTP.')
+    } finally {
+      setPhoneLoading(false)
+    }
+  }
+
   const setField = (key) => (e) => setForm(f => ({ ...f, [key]: e.target.value }))
-  const isLoading = googleLoading || emailLoading
+  const isLoading = googleLoading || emailLoading || phoneLoading || otpLoading
+
+  // ── Dynamic card subtitle ─────────────────────────────────────────────
+  const cardTitle = signupSuccess
+    ? 'Registration Complete'
+    : authTab === 'phone'
+      ? otpStep === 'input' ? 'Enter your mobile number' : 'Verify OTP'
+      : !showEmail
+        ? 'Sign in to continue'
+        : emailMode === 'login' ? 'Sign in with email' : 'Create your account'
 
   return (
     <div className="min-h-screen bg-background text-text flex flex-col items-center justify-center px-4 relative overflow-hidden transition-colors duration-300">
 
-      {/* ── Ambient Background ──────────────────────────────────────────── */}
+      {/* ── Ambient Background ── */}
       <div className="absolute inset-0 pointer-events-none select-none" aria-hidden>
-        {/* Primary glow — top center */}
         <div className="absolute top-[-15%] left-1/2 -translate-x-1/2 w-[700px] h-[700px]
                         bg-cyan-500/8 rounded-full blur-[140px]" />
-        {/* Secondary glows */}
         <div className="absolute bottom-[-5%] left-[-5%] w-96 h-96 bg-emerald-500/6 rounded-full blur-3xl" />
         <div className="absolute bottom-[-5%] right-[-5%] w-96 h-96 bg-violet-600/6 rounded-full blur-3xl" />
-        {/* Subtle grid */}
         <div
           className="absolute inset-0 opacity-[0.025]"
           style={{
@@ -191,12 +329,11 @@ export default function Login() {
         />
       </div>
 
-      {/* Floating particles */}
       <FloatingParticles />
 
       <div className="relative z-10 w-full max-w-sm">
 
-        {/* ── App logo + headline ─────────────────────────────────────────── */}
+        {/* ── App logo + headline ── */}
         <motion.div
           initial={{ opacity: 0, y: -28 }}
           animate={{ opacity: 1, y: 0 }}
@@ -214,49 +351,74 @@ export default function Login() {
           </motion.div>
 
           <h1 className="text-[2.1rem] font-black tracking-tight gradient-text leading-none mb-1.5">
-            LifeTracker
+            LifeNotebook
           </h1>
           <p className="text-white/35 text-[0.8rem] tracking-wide font-medium">
             Your Personal Life OS ✦
           </p>
 
-          {/* Feature pills */}
           <div className="flex flex-wrap justify-center gap-2 mt-4">
-            {[
-              ['🎯', 'Habits'],
-              ['💪', 'Fitness'],
-              ['📊', 'Analytics'],
-              ['✅', 'Tasks'],
-            ].map(([emoji, label]) => (
+            {[['🎯', 'Habits'], ['💪', 'Fitness'], ['📊', 'Analytics'], ['✅', 'Tasks']].map(([emoji, label]) => (
               <FeaturePill key={label} emoji={emoji} label={label} />
             ))}
           </div>
         </motion.div>
 
-        {/* ── Auth Card ───────────────────────────────────────────────────── */}
+        {/* ── Auth Card ── */}
         <motion.div
           initial={{ opacity: 0, y: 28 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.12, ease: [0.22, 1, 0.36, 1] }}
         >
           <div className="relative bg-white/[0.04] backdrop-blur-xl border border-white/10
-                          rounded-2xl p-7 shadow-[0_8px_60px_rgba(0,0,0,0.5)]
-                          overflow-hidden">
-            {/* Card shimmer top border */}
+                          rounded-2xl p-7 shadow-[0_8px_60px_rgba(0,0,0,0.5)] overflow-hidden">
+            {/* Top shimmer */}
             <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r
                             from-transparent via-cyan-400/40 to-transparent" />
 
+            {/* ── Auth method tabs (Google | Phone) ── */}
+            {!signupSuccess && (
+              <div className="flex bg-white/5 rounded-xl p-1 mb-5">
+                {[
+                  { id: 'google', icon: GoogleIcon, label: 'Google' },
+                  { id: 'phone',  icon: Phone,      label: 'Phone' },
+                ].map(({ id, icon: Icon, label }) => (
+                  <button
+                    key={id}
+                    id={`auth-tab-${id}`}
+                    type="button"
+                    onClick={() => {
+                      setAuthTab(id)
+                      setOtpStep('input')
+                      setPhone('')
+                      setOtpToken('')
+                      clearMessages()
+                    }}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg
+                                text-[12px] font-semibold transition-all duration-200 ${
+                      authTab === id
+                        ? 'bg-[var(--primary)] text-white shadow-md'
+                        : 'text-white/35 hover:text-white/60'
+                    }`}
+                  >
+                    {id === 'google'
+                      ? <><GoogleIcon size={14} />{label}</>
+                      : <><Icon size={13} />{label}</>
+                    }
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Dynamic subtitle */}
             <p className="text-center text-white/40 text-[11px] font-semibold
-                          uppercase tracking-[0.18em] mb-6">
-              {signupSuccess
-                ? 'Registration Complete'
-                : !showEmail
-                  ? 'Sign in to continue'
-                  : emailMode === 'login'
-                    ? 'Sign in with email'
-                    : 'Create your account'}
+                          uppercase tracking-[0.18em] mb-5">
+              {cardTitle}
             </p>
 
+            {/* ══════════════════════════════════════════════════════════════
+                  Signup success view
+               ══════════════════════════════════════════════════════════════ */}
             {signupSuccess ? (
               <motion.div
                 key="signup-success-view"
@@ -266,10 +428,7 @@ export default function Login() {
                 className="text-center py-4 space-y-4"
               >
                 <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/30 rounded-full mx-auto flex items-center justify-center text-emerald-400">
-                  <motion.div
-                    animate={{ scale: [1, 1.1, 1] }}
-                    transition={{ repeat: Infinity, duration: 2 }}
-                  >
+                  <motion.div animate={{ scale: [1, 1.1, 1] }} transition={{ repeat: Infinity, duration: 2 }}>
                     <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                     </svg>
@@ -277,26 +436,24 @@ export default function Login() {
                 </div>
                 <h3 className="text-lg font-bold text-white">Verify your email</h3>
                 <p className="text-xs text-white/60 leading-relaxed">
-                  We've sent a verification link to <span className="text-cyan-400 font-semibold">{form.email}</span>.
-                  Please check your inbox (and spam folder) to complete registration and confirm your account.
+                  We&apos;ve sent a verification link to <span className="text-cyan-400 font-semibold">{form.email}</span>.
+                  Please check your inbox (and spam folder) to complete registration.
                 </p>
-                <div className="pt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSignupSuccess(false)
-                      setEmailMode('login')
-                      setForm({ name: '', email: '', password: '' })
-                    }}
-                    className="btn-cyber-primary btn-primary w-full py-2.5 text-xs font-semibold"
-                  >
-                    Back to Sign In
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => { setSignupSuccess(false); setEmailMode('login'); setForm({ name: '', email: '', password: '' }) }}
+                  className="btn-cyber-primary btn-primary w-full py-2.5 text-xs font-semibold"
+                >
+                  Back to Sign In
+                </button>
               </motion.div>
-            ) : (
+
+            ) : authTab === 'google' ? (
+              /* ══════════════════════════════════════════════════════════════
+                    GOOGLE + EMAIL TAB
+                 ══════════════════════════════════════════════════════════════ */
               <>
-                {/* ── Google button ─────────────────────────────────────────── */}
+                {/* Google button */}
                 <motion.button
                   id="google-login-btn"
                   type="button"
@@ -313,40 +470,31 @@ export default function Login() {
                              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
                 >
                   {googleLoading ? (
-                    <>
-                      <Loader2 size={20} className="animate-spin text-gray-500 flex-shrink-0" />
-                      <span>Redirecting to Google…</span>
-                    </>
+                    <><Loader2 size={20} className="animate-spin text-gray-500 flex-shrink-0" /><span>Redirecting to Google…</span></>
                   ) : (
-                    <>
-                      <GoogleIcon size={20} />
-                      <span>Continue with Google</span>
-                    </>
+                    <><GoogleIcon size={20} /><span>Continue with Google</span></>
                   )}
                 </motion.button>
 
-                {/* ── Divider / email toggle ─────────────────────────────────── */}
+                {/* Divider / email toggle */}
                 <div className="flex items-center gap-3 my-5">
                   <div className="h-px flex-1 bg-white/8" />
                   <button
                     type="button"
-                    onClick={() => { setShowEmail(v => !v); setError('') }}
+                    onClick={() => { setShowEmail(v => !v); clearMessages() }}
                     className="flex items-center gap-1.5 text-[11px] text-white/30
                                hover:text-white/55 uppercase tracking-wider font-medium
                                transition-colors duration-150"
                   >
                     or use email
-                    <motion.span
-                      animate={{ rotate: showEmail ? 180 : 0 }}
-                      transition={{ duration: 0.2 }}
-                    >
+                    <motion.span animate={{ rotate: showEmail ? 180 : 0 }} transition={{ duration: 0.2 }}>
                       <ChevronDown size={12} />
                     </motion.span>
                   </button>
                   <div className="h-px flex-1 bg-white/8" />
                 </div>
 
-                {/* ── Email / Password form (collapsible) ───────────────────── */}
+                {/* Email / Password form (collapsible) */}
                 <AnimatePresence initial={false}>
                   {showEmail && (
                     <motion.div
@@ -364,7 +512,7 @@ export default function Login() {
                             key={m}
                             id={`auth-${m}-tab`}
                             type="button"
-                            onClick={() => { setEmailMode(m); setError('') }}
+                            onClick={() => { setEmailMode(m); clearMessages() }}
                             className={`flex-1 py-2 rounded-lg text-[12px] font-semibold
                                         transition-all duration-200 ${
                               emailMode === m
@@ -378,7 +526,6 @@ export default function Login() {
                       </div>
 
                       <form onSubmit={handleEmailSubmit} className="space-y-3">
-                        {/* Name — signup only */}
                         <AnimatePresence initial={false}>
                           {emailMode === 'signup' && (
                             <motion.div
@@ -453,43 +600,14 @@ export default function Login() {
                   )}
                 </AnimatePresence>
 
-                {/* ── Error banner ─────────────────────────────────────────── */}
-                <AnimatePresence>
-                  {error && (
-                    <motion.div
-                      key="error-banner"
-                      id="auth-error-banner"
-                      role="alert"
-                      initial={{ opacity: 0, y: -10, height: 0 }}
-                      animate={{ opacity: 1, y: 0, height: 'auto' }}
-                      exit={{ opacity: 0, y: -10, height: 0 }}
-                      transition={{ duration: 0.22 }}
-                      className="mt-4 overflow-hidden"
-                    >
-                      <div className="flex gap-2.5 items-start text-red-400 text-xs
-                                      bg-red-500/10 border border-red-500/25 rounded-xl px-3.5 py-3">
-                        <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />
-                        <div>
-                          <p className="font-semibold">{emailMode === 'login' ? 'Sign in failed' : 'Registration failed'}</p>
-                          <p className="opacity-75 mt-0.5 leading-relaxed">{error}</p>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                {/* ── Switcher link ── */}
+                {/* Switcher link */}
                 <div className="mt-6 pt-4 border-t border-white/5 text-center text-xs text-white/40">
                   {!showEmail ? (
                     <p>
-                      New to LifeTracker?{' '}
+                      New to LifeNotebook?{' '}
                       <button
                         type="button"
-                        onClick={() => {
-                          setShowEmail(true)
-                          setEmailMode('signup')
-                          setError('')
-                        }}
+                        onClick={() => { setShowEmail(true); setEmailMode('signup'); clearMessages() }}
                         className="text-cyan-400 hover:text-cyan-300 font-semibold transition-colors focus:outline-none"
                       >
                         Create an account
@@ -497,13 +615,10 @@ export default function Login() {
                     </p>
                   ) : emailMode === 'login' ? (
                     <p>
-                      Don't have an account?{' '}
+                      Don&apos;t have an account?{' '}
                       <button
                         type="button"
-                        onClick={() => {
-                          setEmailMode('signup')
-                          setError('')
-                        }}
+                        onClick={() => { setEmailMode('signup'); clearMessages() }}
                         className="text-cyan-400 hover:text-cyan-300 font-semibold transition-colors focus:outline-none"
                       >
                         Sign Up
@@ -514,10 +629,7 @@ export default function Login() {
                       Already have an account?{' '}
                       <button
                         type="button"
-                        onClick={() => {
-                          setEmailMode('login')
-                          setError('')
-                        }}
+                        onClick={() => { setEmailMode('login'); clearMessages() }}
                         className="text-cyan-400 hover:text-cyan-300 font-semibold transition-colors focus:outline-none"
                       >
                         Sign In
@@ -526,14 +638,232 @@ export default function Login() {
                   )}
                 </div>
               </>
+
+            ) : (
+              /* ══════════════════════════════════════════════════════════════
+                    PHONE OTP TAB
+                 ══════════════════════════════════════════════════════════════ */
+              <AnimatePresence mode="wait">
+                {otpStep === 'input' ? (
+                  /* ── Step 1: Phone input ── */
+                  <motion.div
+                    key="phone-input"
+                    initial={{ opacity: 0, x: 24 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -24 }}
+                    transition={{ duration: 0.22, ease: 'easeOut' }}
+                    className="space-y-4"
+                  >
+                    {/* Country code + number row */}
+                    <div>
+                      <label className="text-[10px] text-white/40 font-medium block mb-1.5 uppercase tracking-wider">
+                        Mobile Number
+                      </label>
+                      <div className="flex gap-2">
+                        {/* Country code selector */}
+                        <div className="relative">
+                          <select
+                            id="phone-country-code"
+                            value={countryCode}
+                            onChange={e => setCountryCode(e.target.value)}
+                            className="appearance-none bg-white/5 border border-white/10 rounded-xl
+                                       text-white text-sm font-semibold px-3 py-3 pr-7
+                                       focus:border-[var(--primary)] focus:bg-card outline-none
+                                       transition-all cursor-pointer min-w-[88px]"
+                          >
+                            {COUNTRY_CODES.map(c => (
+                              <option key={c.code} value={c.code} className="bg-slate-900">
+                                {c.flag} {c.code}
+                              </option>
+                            ))}
+                          </select>
+                          <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none" />
+                        </div>
+
+                        {/* Phone digits */}
+                        <input
+                          id="phone-number-input"
+                          type="tel"
+                          inputMode="numeric"
+                          placeholder="10-digit number"
+                          maxLength={10}
+                          value={phone}
+                          onChange={e => {
+                            const digits = e.target.value.replace(/\D/g, '').slice(0, 10)
+                            setPhone(digits)
+                            if (error) setError('')
+                          }}
+                          className="input-cyber text-sm flex-1 tracking-widest"
+                          autoComplete="tel-national"
+                        />
+                      </div>
+
+                      {/* Preview */}
+                      {phone.length > 0 && (
+                        <p className="text-[10px] text-white/30 mt-1.5 font-mono">
+                          Will send to: <span className="text-[var(--primary)]">{countryCode} {phone}</span>
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Send OTP button */}
+                    <motion.button
+                      id="phone-send-otp"
+                      type="button"
+                      disabled={phone.length !== 10 || phoneLoading}
+                      onClick={handleSendOtp}
+                      whileTap={phone.length === 10 ? { scale: 0.97 } : {}}
+                      className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl
+                                 bg-gradient-to-r from-[var(--primary)] to-cyan-400
+                                 text-black font-bold text-sm
+                                 disabled:opacity-40 disabled:cursor-not-allowed
+                                 hover:opacity-90 transition-all duration-200
+                                 shadow-[0_4px_20px_rgba(6,182,212,0.3)]"
+                    >
+                      {phoneLoading
+                        ? <><Loader2 size={16} className="animate-spin" /> Sending…</>
+                        : <><MessageSquare size={15} /> Send OTP</>
+                      }
+                    </motion.button>
+
+                    <p className="text-center text-[10px] text-white/25 leading-relaxed">
+                      A 6-digit one-time password will be sent via SMS.<br />
+                      Standard SMS rates may apply.
+                    </p>
+                  </motion.div>
+
+                ) : (
+                  /* ── Step 2: OTP verification ── */
+                  <motion.div
+                    key="otp-verify"
+                    initial={{ opacity: 0, x: 24 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -24 }}
+                    transition={{ duration: 0.22, ease: 'easeOut' }}
+                    className="space-y-4"
+                  >
+                    {/* Sent-to info */}
+                    <div className="flex items-center justify-between bg-white/5 border border-white/8
+                                    rounded-xl px-3 py-2.5">
+                      <div className="flex items-center gap-2">
+                        <Phone size={13} className="text-[var(--primary)]" />
+                        <span className="text-xs font-mono text-white/70">{countryCode} {phone}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => { setOtpStep('input'); setOtpToken(''); clearMessages() }}
+                        className="text-[10px] text-[var(--primary)] hover:text-cyan-300 font-semibold transition-colors"
+                      >
+                        Change
+                      </button>
+                    </div>
+
+                    {/* OTP input */}
+                    <div>
+                      <label className="text-[10px] text-white/40 font-medium block mb-1.5 uppercase tracking-wider">
+                        Enter 6-Digit OTP
+                      </label>
+                      <input
+                        id="otp-token-input"
+                        type="tel"
+                        inputMode="numeric"
+                        placeholder="• • • • • •"
+                        maxLength={6}
+                        value={otpToken}
+                        onChange={e => {
+                          const digits = e.target.value.replace(/\D/g, '').slice(0, 6)
+                          setOtpToken(digits)
+                          if (error) setError('')
+                        }}
+                        className="input-cyber text-center text-2xl font-bold tracking-[0.5em] py-4 w-full"
+                        autoComplete="one-time-code"
+                        autoFocus
+                      />
+                      <OtpProgress value={otpToken} />
+                    </div>
+
+                    {/* Verify button */}
+                    <motion.button
+                      id="otp-verify-btn"
+                      type="button"
+                      disabled={otpToken.length !== 6 || otpLoading}
+                      onClick={handleVerifyOtp}
+                      whileTap={otpToken.length === 6 ? { scale: 0.97 } : {}}
+                      className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl
+                                 bg-gradient-to-r from-emerald-500 to-teal-500
+                                 text-white font-bold text-sm
+                                 disabled:opacity-40 disabled:cursor-not-allowed
+                                 hover:opacity-90 transition-all duration-200
+                                 shadow-[0_4px_20px_rgba(16,185,129,0.3)]"
+                    >
+                      {otpLoading
+                        ? <><Loader2 size={16} className="animate-spin" /> Verifying…</>
+                        : '✓ Verify & Sign In'
+                      }
+                    </motion.button>
+
+                    {/* Resend countdown */}
+                    <ResendCountdown
+                      key={resendKey}
+                      onResend={handleResendOtp}
+                      loading={phoneLoading}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
             )}
 
-            {/* Card shimmer bottom border */}
+            {/* ── Success message ── */}
+            <AnimatePresence>
+              {successMsg && (
+                <motion.div
+                  key="success-msg"
+                  initial={{ opacity: 0, y: -8, height: 0 }}
+                  animate={{ opacity: 1, y: 0, height: 'auto' }}
+                  exit={{ opacity: 0, y: -8, height: 0 }}
+                  transition={{ duration: 0.22 }}
+                  className="mt-3 overflow-hidden"
+                >
+                  <div className="flex gap-2 items-center text-emerald-400 text-xs
+                                  bg-emerald-500/10 border border-emerald-500/25 rounded-xl px-3.5 py-2.5">
+                    <span className="text-base">✅</span>
+                    <p className="font-semibold">{successMsg}</p>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* ── Error banner ── */}
+            <AnimatePresence>
+              {error && (
+                <motion.div
+                  key="error-banner"
+                  id="auth-error-banner"
+                  role="alert"
+                  initial={{ opacity: 0, y: -10, height: 0 }}
+                  animate={{ opacity: 1, y: 0, height: 'auto' }}
+                  exit={{ opacity: 0, y: -10, height: 0 }}
+                  transition={{ duration: 0.22 }}
+                  className="mt-4 overflow-hidden"
+                >
+                  <div className="flex gap-2.5 items-start text-red-400 text-xs
+                                  bg-red-500/10 border border-red-500/25 rounded-xl px-3.5 py-3">
+                    <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold">Authentication error</p>
+                      <p className="opacity-75 mt-0.5 leading-relaxed">{error}</p>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Bottom shimmer */}
             <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r
                             from-transparent via-white/8 to-transparent" />
           </div>
 
-          {/* ── Footer ───────────────────────────────────────────────────── */}
+          {/* Footer */}
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

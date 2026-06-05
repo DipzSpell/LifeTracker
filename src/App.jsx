@@ -31,7 +31,7 @@ import DailyLog from './pages/DailyLog'
 import Fitness from './pages/Fitness'
 import Habits from './pages/Habits'
 import Todo from './pages/Todo'
-import Analytics from './pages/Analytics'
+import Stats from './pages/Stats'
 import Profile from './pages/Profile'
 import LoveTracker from './pages/LoveTracker'
 import PageLayout from './components/layout/PageLayout'
@@ -106,7 +106,7 @@ function AppRoutes() {
                 <Route path="/fitness" element={<Fitness />} />
                 <Route path="/habits"  element={<Habits />} />
                 <Route path="/todo"    element={<Todo />} />
-                <Route path="/stats"   element={<Analytics />} />
+                <Route path="/stats"   element={<Stats />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/love"    element={<LoveTracker />} />
               </Routes>

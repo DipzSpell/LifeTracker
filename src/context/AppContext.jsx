@@ -4,6 +4,8 @@ import { calculateDayPoints, sumPoints } from '../lib/points'
 import { useAuth } from './AuthContext'
 import { supabase } from '../lib/supabase'
 import { playClickSound } from '../lib/sounds'
+// NOTE: useNotifications is defined in hooks/useNotifications.js and consumes
+// this context — to avoid a circular dep we define notify helpers locally here.
 
 const AppContext = createContext(null)
 
@@ -39,14 +41,18 @@ const getDefaultState = () => ({
     loveTrackerEnabled: true,
     fitnessTrackerEnabled: true,
     soundEffectsEnabled: true,
+    privacyBlurEnabled: false,
   },
   profile: {
+    displayName: '',
     dob: null,
     height: null,
     weight: null,
     onboarding_completed: false,
     bonusPoints: 0,
   },
+  // In-app notification history — each: { id, title, description, time, type, read }
+  notifications: [],
   initialized: false,
 })
 
@@ -173,11 +179,12 @@ function appReducer(state, action) {
       }
 
     case 'COMPLETE_PROFILE': {
-      const { dob, height, weight } = action.payload
+      const { displayName, dob, height, weight } = action.payload
       return {
         ...state,
         profile: {
           ...state.profile,
+          displayName,
           dob,
           height,
           weight,
@@ -185,6 +192,20 @@ function appReducer(state, action) {
         },
       }
     }
+
+    // ── Notifications ────────────────────────────────────────────────────
+    case 'ADD_NOTIFICATION':
+      // Prepend new notification; cap list at 50 to avoid bloating stored state
+      return {
+        ...state,
+        notifications: [action.payload, ...state.notifications].slice(0, 50),
+      }
+
+    case 'MARK_ALL_NOTIFICATIONS_READ':
+      return {
+        ...state,
+        notifications: state.notifications.map(n => ({ ...n, read: true })),
+      }
 
     case 'RESET_STATE': {
       const defaultHabits = {
@@ -212,7 +233,7 @@ function appReducer(state, action) {
 
 // ── Provider ───────────────────────────────────────────────────────────────
 export function AppProvider({ children }) {
-  const { user } = useAuth()
+  const { user, updateProfile } = useAuth()
   const uid = user?.uid || 'guest'
   const [state, dispatch] = useReducer(appReducer, getDefaultState())
 
@@ -318,7 +339,7 @@ export function AppProvider({ children }) {
     const today = todayKey()
     const log = state.dailyLogs[today]
     const fitnessLog = state.fitnessLogs[today] || {}
-    const earned = calculateDayPoints(log, state.habits, state.todos, fitnessLog)
+    const earned = calculateDayPoints(log || { date: today }, state.habits, state.todos, fitnessLog)
     const pts = sumPoints(earned)
     dispatch({ type: 'UPDATE_POINTS', payload: { date: today, pts } })
   }, [state.dailyLogs, state.habits, state.todos, state.fitnessLogs])
@@ -407,6 +428,34 @@ export function AppProvider({ children }) {
     }
   }, [state.settings?.theme])
 
+  // ── Privacy Blur — shoulder-surf protection ───────────────────────────
+  // When privacyBlurEnabled is true, add body class on tab hide / window blur
+  // and remove it instantly when the user returns.
+  useEffect(() => {
+    const privacyEnabled = state.settings?.privacyBlurEnabled
+
+    const blur  = () => { if (privacyEnabled) document.body.classList.add('privacy-blurred') }
+    const focus = () => document.body.classList.remove('privacy-blurred')
+
+    const onVisibility = () => {
+      if (document.hidden) blur()
+      else focus()
+    }
+
+    document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('blur', blur)
+    window.addEventListener('focus', focus)
+
+    // If the setting is toggled off, make sure we remove any lingering blur
+    if (!privacyEnabled) document.body.classList.remove('privacy-blurred')
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('blur', blur)
+      window.removeEventListener('focus', focus)
+    }
+  }, [state.settings?.privacyBlurEnabled])
+
   // Explicit Supabase and local data reset
   const resetAppState = async () => {
     if (!uid || uid === 'guest') return
@@ -425,28 +474,60 @@ export function AppProvider({ children }) {
     dispatch({ type: 'RESET_STATE' })
   }
 
+  // ── Notification helpers (defined locally to avoid circular dep with useNotifications) ──
+  const _fireSystemNotif = useCallback((title, body) => {
+    if (!('Notification' in window)) return
+    if (Notification.permission !== 'granted') return
+    if (state.settings?.notificationsEnabled === false) return
+    try { new Notification(title, { body, icon: '/icon-192.png' }) } catch { /* OS push not supported */ }
+  }, [state.settings?.notificationsEnabled])
+
+  const addNotification = useCallback(({ title, description, type = 'system' }) => {
+    dispatch({
+      type: 'ADD_NOTIFICATION',
+      payload: {
+        id: `notif_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        title,
+        description,
+        time: new Date().toISOString(),
+        type,
+        read: false,
+      },
+    })
+  }, [dispatch])
+
+  const notify = useCallback((title, body, type = 'system') => {
+    addNotification({ title, description: body, type })
+    _fireSystemNotif(title, body)
+  }, [addNotification, _fireSystemNotif])
+
+  const markAllNotificationsRead = useCallback(() => {
+    dispatch({ type: 'MARK_ALL_NOTIFICATIONS_READ' })
+  }, [dispatch])
+
   const completeProfileOnboarding = async (displayName, dob, height, weight) => {
     if (!uid || uid === 'guest') return
 
-    // 1. Update user metadata in Supabase Auth
-    const { error: authError } = await supabase.auth.updateUser({
-      data: {
-        display_name: displayName,
-        dob,
-        height,
-        weight,
-        onboarding_completed: true,
-      },
+    // 1. Update user metadata in Supabase Auth & AuthContext state
+    await updateProfile({
+      displayName,
+      dob,
+      height,
+      weight,
+      onboarding_completed: true,
     })
-    if (authError) throw authError
 
     // 2. Dispatch context actions to update local state immediately
     dispatch({ type: 'ADD_BONUS_POINTS', payload: 15 })
-    dispatch({ type: 'COMPLETE_PROFILE', payload: { dob, height, weight } })
+    dispatch({ type: 'COMPLETE_PROFILE', payload: { displayName, dob, height, weight } })
 
-    // 3. Immediately save the updated state to the user_states database and localStorage so it's not lost on refresh
+    // 3. Fire welcome notification
+    notify('Profile Verified! 🎁', '15 Bonus points successfully claimed.', 'points')
+
+    // 4. Immediately save the updated state to the user_states database and localStorage
     const updatedProfile = {
       ...state.profile,
+      displayName,
       dob,
       height,
       weight,
@@ -483,6 +564,10 @@ export function AppProvider({ children }) {
     uid,
     resetAppState,
     completeProfileOnboarding,
+    // Notification API
+    notify,
+    addNotification,
+    markAllNotificationsRead,
   }
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

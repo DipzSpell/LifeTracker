@@ -175,6 +175,26 @@
     --shadow-glass: 0 4px 30px rgba(34,197,94,0.15);
   }
 
+  /* ── Privacy Screen Blur (shoulder-surf protection) ───────────────────────
+     Applied by AppContext when tab loses focus + settings.privacyBlurEnabled
+     is true. Renders a full-screen frosted overlay over the entire app.        */
+  body.privacy-blurred::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    backdrop-filter: blur(24px) brightness(0.4) saturate(0.3);
+    -webkit-backdrop-filter: blur(24px) brightness(0.4) saturate(0.3);
+    background: rgba(0, 0, 0, 0.55);
+    pointer-events: none;
+    animation: privacyFadeIn 0.15s ease;
+  }
+
+  @keyframes privacyFadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
   * {
     box-sizing: border-box;
     -webkit-tap-highlight-color: transparent;

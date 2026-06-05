@@ -144,7 +144,7 @@ function StatBox({ icon, value, label, color }) {
 export default function Profile() {
   const navigate = useNavigate()
   const { user, logout, updateProfile } = useAuth()
-  const { dispatch, settings, dailyLogs, habits, todos, totalPoints, pointsHistory, fitnessLogs, resetAppState, getHabitStreak } = useApp()
+  const { dispatch, settings, dailyLogs, habits, todos, totalPoints, pointsHistory, fitnessLogs, resetAppState, getHabitStreak, loveTracker, notifications } = useApp()
   const { toasts, addToast, removeToast } = useToast()
   const theme = settings?.theme || 'dark'
 
@@ -360,24 +360,36 @@ export default function Profile() {
   const totalDaysLogged = Object.keys(dailyLogs).length
   const gymDaysTotal = Object.values(dailyLogs).filter(l => l.gymStatus === 'done').length
 
-  // Export full data as JSON
+  // Export full data as JSON — lifenotebook_backup.json
   const exportData = () => {
     const data = {
       exportedAt: new Date().toISOString(),
-      user: { displayName: user?.displayName, email: user?.email },
+      appVersion: '1.0.0',
+      user: {
+        displayName: user?.displayName,
+        email: user?.email,
+        provider: user?.provider,
+        uid: user?.uid ? `${user.uid.slice(0, 8)}…` : null, // masked for safety
+      },
       dailyLogs,
       habits,
       todos,
       fitnessLogs,
       pointsHistory,
       settings,
+      loveTracker: loveTracker || {},
+      earnedBadges: earned,
+      notifications: notifications || [],
     }
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
-    a.download = `lifetracker-backup-${new Date().toISOString().split('T')[0]}.json`
+    a.download = `lifenotebook_backup.json`
+    document.body.appendChild(a)
     a.click()
-    addToast('Data exported successfully! 📦', 'success')
+    document.body.removeChild(a)
+    URL.revokeObjectURL(a.href)
+    addToast('Personal data exported — lifenotebook_backup.json 📦', 'success')
   }
 
   // Export CSV summary
@@ -900,44 +912,131 @@ export default function Profile() {
                     </div>
                   )}
 
-                  {/* ── PRIVACY ── */}
+                  {/* ── PRIVACY & SECURITY ── */}
                   {id === 'privacy' && (
-                    <div className="space-y-1">
-                      <SettingRow
-                        icon={Shield}
-                        label="Privacy Mode"
-                        sublabel="Hide sensitive data on screen"
-                      >
-                        <Toggle
-                          value={settings.privacyMode || false}
-                          onChange={v => {
-                            updateSetting('privacyMode', v)
-                            addToast(v ? 'Privacy mode on 🛡️' : 'Privacy mode off', 'info')
-                          }}
-                          color="bg-emerald-500"
-                        />
-                      </SettingRow>
-                      <SettingRow
-                        icon={Heart}
-                        label="Love Tracker"
-                        sublabel="PIN-protected private space"
-                      >
+                    <div className="space-y-4">
+
+                      {/* Section intro */}
+                      <div className="flex items-start gap-3 p-3 rounded-xl bg-emerald-500/8 border border-emerald-500/20">
+                        <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center flex-shrink-0">
+                          <Shield size={15} className="text-emerald-400" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-emerald-300 leading-tight">Data Sovereignty Mode</p>
+                          <p className="text-[10px] text-white/40 mt-0.5 leading-relaxed">
+                            Your data is encrypted end-to-end via Supabase. Export or wipe it at any time. Nothing is shared with third parties.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* ── 1. Export My Data ── */}
+                      <div>
+                        <p className="text-[10px] font-semibold text-white/40 uppercase tracking-widest mb-2">Data Export</p>
                         <button
-                          onClick={() => navigate('/love')}
-                          className="flex items-center gap-1 text-xs text-pink-400 hover:text-pink-300 transition-colors"
+                          id="privacy-export-json"
+                          onClick={exportData}
+                          className="w-full flex items-center gap-3 p-3.5 rounded-xl
+                                     bg-gradient-to-r from-emerald-500/10 to-teal-500/10
+                                     border border-emerald-500/25 hover:border-emerald-500/50
+                                     hover:from-emerald-500/15 hover:to-teal-500/15
+                                     transition-all duration-200 active:scale-[0.98] group"
                         >
-                          Open <ChevronRight size={12} />
+                          <div className="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center flex-shrink-0 group-hover:bg-emerald-500/30 transition-colors">
+                            <Download size={16} className="text-emerald-400" />
+                          </div>
+                          <div className="text-left flex-1">
+                            <p className="text-sm font-semibold text-white">Export My Personal Data</p>
+                            <p className="text-[10px] text-white/40">
+                              Downloads <span className="text-emerald-400 font-mono">lifenotebook_backup.json</span> — habits, logs, tasks, all
+                            </p>
+                          </div>
+                          <ChevronRight size={14} className="text-white/20 group-hover:text-emerald-400 transition-colors" />
                         </button>
-                      </SettingRow>
-                      <SettingRow
-                        icon={Lock}
-                        label="Change Love Tracker PIN"
-                        sublabel="Default PIN is 0000"
-                      >
-                        <button className="text-xs text-white/40 hover:text-white/70 transition-colors">
-                          Coming soon
-                        </button>
-                      </SettingRow>
+                      </div>
+
+                      {/* ── 2. Privacy Screen Blur ── */}
+                      <div>
+                        <p className="text-[10px] font-semibold text-white/40 uppercase tracking-widest mb-2">Shoulder-Surf Protection</p>
+                        <div className="rounded-xl border border-white/8 overflow-hidden">
+                          <SettingRow
+                            icon={Lock}
+                            label="Privacy Screen Blur"
+                            sublabel="Blurs the app when you switch tabs or minimize"
+                          >
+                            <Toggle
+                              value={settings.privacyBlurEnabled || false}
+                              onChange={v => {
+                                updateSetting('privacyBlurEnabled', v)
+                                addToast(v ? 'Privacy blur active 🔒 Switch tabs to test' : 'Privacy blur disabled', 'info')
+                              }}
+                              color="bg-emerald-500"
+                            />
+                          </SettingRow>
+                        </div>
+                        {settings.privacyBlurEnabled && (
+                          <p className="text-[10px] text-emerald-400/70 mt-1.5 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block" />
+                            Active — switch to another tab to see the blur effect
+                          </p>
+                        )}
+                      </div>
+
+                      {/* ── 3. Session Info + Secure Disconnect ── */}
+                      <div>
+                        <p className="text-[10px] font-semibold text-white/40 uppercase tracking-widest mb-2">Active Session</p>
+                        <div className="rounded-xl border border-white/8 bg-slate-900/60 p-4 space-y-3">
+                          {/* Session identity */}
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-lg flex-shrink-0">
+                              {user?.avatar ? (
+                                <img src={user.avatar} className="w-10 h-10 rounded-xl object-cover" alt="avatar" />
+                              ) : (
+                                <span className="text-lg">{user?.displayName?.[0]?.toUpperCase() || '?'}</span>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold text-white truncate">{user?.displayName || 'User'}</p>
+                              <p className="text-[10px] text-white/40 truncate">
+                                {user?.email
+                                  ? user.email.replace(/(.{2}).+(@.+)/, '$1••••$2')
+                                  : 'No email on file'
+                                }
+                              </p>
+                              <div className="flex items-center gap-1.5 mt-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                <span className="text-[9px] text-emerald-400 font-medium uppercase tracking-wide">Session Active</span>
+                                <span className="text-[9px] text-white/20">·</span>
+                                <span className="text-[9px] text-white/30 capitalize">{user?.provider || 'email'} auth</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Divider */}
+                          <div className="h-px bg-white/5" />
+
+                          {/* Secure Disconnect button */}
+                          <button
+                            id="privacy-secure-logout"
+                            onClick={async () => {
+                              try {
+                                await logout()
+                                addToast('Securely disconnected. See you soon! 🔒', 'success')
+                              } catch (err) {
+                                addToast(err.message || 'Logout failed. Please try again.', 'error')
+                              }
+                            }}
+                            className="w-full flex items-center justify-center gap-2.5 py-2.5 rounded-xl
+                                       border border-red-500/30 bg-red-500/8
+                                       text-red-400 text-xs font-semibold
+                                       hover:bg-red-500/15 hover:border-red-500/50
+                                       transition-all duration-200 active:scale-[0.98] group"
+                          >
+                            <LogOut size={14} className="group-hover:translate-x-[-2px] transition-transform" />
+                            Secure Disconnect
+                          </button>
+                        </div>
+                      </div>
+
                     </div>
                   )}
 
@@ -1044,32 +1143,8 @@ export default function Profile() {
         </div>
       ))}
 
-      {/* ── Logout ── */}
-      <div className="glass-card p-4 border border-red-500/15">
-        <p className="text-xs text-white/30 text-center mb-3">
-          Signed in as <span className="text-white/60 font-medium">{user?.email}</span>
-        </p>
-        <button
-          id="profile-logout"
-          onClick={async () => {
-            try {
-              await logout()
-              addToast('Signed out successfully.', 'success')
-            } catch (err) {
-              addToast(err.message || 'Logout failed. Please try again.', 'error')
-            }
-          }}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl
-                     border border-red-500/30 bg-red-500/10 text-red-400 text-sm font-semibold
-                     hover:bg-red-500/20 transition-all active:scale-95"
-        >
-          <LogOut size={16} />
-          Sign Out
-        </button>
-      </div>
-
       <p className="text-center text-[10px] text-white/15 pb-2">
-        LifeTracker v1.0 · Synced via Supabase 🔐
+        LifeNotebook v1.0 · Secured via Supabase 🔐
       </p>
 
       {/* Danger Zone Confirmation Modal */}

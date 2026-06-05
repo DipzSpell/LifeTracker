@@ -34,7 +34,7 @@ export const POINTS_RULES = {
 export function calculateDayPoints(log, habits = {}, todos = [], fitnessLog = {}) {
   const earned = []
 
-  if (!log) return earned
+  if (!log || !log.date) return earned
 
   // Workout & Gym Points
   const workoutType = fitnessLog.workoutType || log.workoutType
@@ -136,7 +136,7 @@ export function calculateDayPoints(log, habits = {}, todos = [], fitnessLog = {}
   }
 
   // Logged the day
-  earned.push(POINTS_RULES.LOGGED_DAY)
+  if (log.loggedAt) earned.push(POINTS_RULES.LOGGED_DAY)
 
   // Todos completed today
   const completedTodos = todos.filter(t => t.completedDate === log.date && t.status === 'done')

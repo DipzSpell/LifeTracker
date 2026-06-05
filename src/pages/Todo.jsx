@@ -7,10 +7,24 @@ import Modal from '../components/ui/Modal'
 import { Plus, Trash2, CheckCircle2, Clock, RefreshCw } from 'lucide-react'
 
 const PRIORITIES = [
-  { val: 'high', label: 'High', color: 'text-red-400 bg-red-500/15 border-red-500/30' },
-  { val: 'medium', label: 'Medium', color: 'text-yellow-400 bg-yellow-500/15 border-yellow-500/30' },
-  { val: 'low', label: 'Low', color: 'text-emerald-400 bg-emerald-500/15 border-emerald-500/30' },
+  { val: 'high', label: 'High ⚡', color: 'text-red-400 bg-gradient-to-r from-red-500/20 to-pink-500/20 border-red-500/30' },
+  { val: 'medium', label: 'Medium', color: 'text-amber-400 bg-gradient-to-r from-amber-500/20 to-orange-500/20 border-amber-500/30' },
+  { val: 'low', label: 'Low', color: 'text-slate-400 bg-gradient-to-r from-slate-500/20 to-blue-500/20 border-slate-500/20' },
 ]
+
+const PRIORITY_BADGE = {
+  high: 'bg-gradient-to-r from-red-500/20 to-pink-500/20 text-red-400 border border-red-500/30 animate-pulse font-semibold',
+  medium: 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-400 border border-amber-500/30 font-semibold',
+  low: 'bg-gradient-to-r from-slate-500/20 to-blue-500/20 text-slate-400 border border-slate-500/20 font-semibold',
+}
+
+const PRIORITY_DOT = {
+  high: 'bg-red-500 animate-ping shadow-[0_0_8px_rgba(239,68,68,0.6)]',
+  medium: 'bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.4)]',
+  low: 'bg-transparent border border-slate-400/60',
+}
+
+const PRIORITY_POINTS = { high: 20, medium: 10, low: 5 }
 
 const CATEGORIES = ['Personal', 'Work', 'Health', 'Finance', 'Other']
 
@@ -146,7 +160,7 @@ function AddTaskModal({ isOpen, onClose }) {
 }
 
 function TaskCard({ task }) {
-  const { dispatch, settings, recalcPoints } = useApp()
+  const { dispatch, settings, recalcPoints, notify } = useApp()
   const today = format(new Date(), 'yyyy-MM-dd')
   const isOverdue = task.dueDate && isBefore(new Date(task.dueDate), new Date()) && task.status !== 'done'
   const isDueToday = task.dueDate && isToday(new Date(task.dueDate))
@@ -159,19 +173,13 @@ function TaskCard({ task }) {
     })
     setTimeout(recalcPoints, 100)
     if (newStatus === 'done') {
-      if (settings?.soundEffectsEnabled !== false) {
-        playVictorySound()
-      }
+      if (settings?.soundEffectsEnabled !== false) playVictorySound()
+      const pts = PRIORITY_POINTS[task.priority] || 5
+      notify(`Task Mastered! ⚡`, `+${pts} pts earned for “${task.title}”`, 'points')
     }
   }
 
   const deleteTask = () => dispatch({ type: 'DELETE_TODO', payload: task.id })
-
-  const priorityColor = {
-    high: 'bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)]',
-    medium: 'bg-orange-500 shadow-[0_0_6px_rgba(249,115,22,0.4)]',
-    low: 'bg-transparent border border-slate-400/60'
-  }
 
   return (
     <motion.div layout initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}
@@ -186,7 +194,7 @@ function TaskCard({ task }) {
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${priorityColor[task.priority]}`} />
+            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${PRIORITY_DOT[task.priority] || PRIORITY_DOT.low}`} />
             <p className={`text-sm font-semibold ${task.status === 'done' ? 'line-through text-white/40' : 'text-white'}`}>
               {task.title}
             </p>
@@ -205,12 +213,13 @@ function TaskCard({ task }) {
             <span className={`badge text-[10px] ${
               task.category === 'Work' ? 'badge-cyan' : task.category === 'Health' ? 'badge-green' : 'badge-purple'
             }`}>{task.category}</span>
-            <span className={`badge text-[10px] ${
-              task.priority === 'high' ? 'bg-red-500/10 text-red-400 border border-red-500/30 animate-pulse font-semibold' :
-              task.priority === 'medium' ? 'bg-orange-500/10 text-orange-400 border border-orange-500/30 font-semibold' :
-              'bg-slate-500/5 text-slate-400 border border-slate-500/30 font-semibold'
+            {/* Priority badge — gradient + points indicator */}
+            <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full ${
+              PRIORITY_BADGE[task.priority] || PRIORITY_BADGE.low
             }`}>
+              {task.priority === 'high' ? '🔥' : task.priority === 'medium' ? '⚡' : '·'}
               {task.priority}
+              <span className="opacity-60 font-normal">+{PRIORITY_POINTS[task.priority] || 5}pts</span>
             </span>
           </div>
         </div>
