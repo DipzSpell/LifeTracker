@@ -34,6 +34,8 @@ import Todo from './pages/Todo'
 import Stats from './pages/Stats'
 import Profile from './pages/Profile'
 import LoveTracker from './pages/LoveTracker'
+import Journal from './pages/Journal'
+import TradingJournal from './pages/TradingJournal'
 import PageLayout from './components/layout/PageLayout'
 
 
@@ -109,6 +111,8 @@ function AppRoutes() {
                 <Route path="/stats"   element={<Stats />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/love"    element={<LoveTracker />} />
+                <Route path="/journal"          element={<Journal />} />
+                <Route path="/trading-journal" element={<TradingJournal />} />
               </Routes>
             </PageLayout>
           </ProtectedRoute>

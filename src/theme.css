@@ -1,0 +1,110 @@
+/*
+ * theme.css — LifeTracker shared design token layer
+ *
+ * Imported by index.css.
+ * Defines: module accent colours, pastel login palette, keyframes, reduced-motion overrides.
+ * All tokens are CSS custom properties so they layer on top of the existing theme variables
+ * without conflicting with the theme switcher.
+ */
+
+/* ── Google Fonts: IBM Plex Mono ─────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+
+/* ── Module accent colours ───────────────────────────────────────────────── */
+:root {
+  /* Module accents — used for summary card tints & progress rings */
+  --accent-habits:   135 166 140;   /* sage green  #87A68C */
+  --accent-fitness:  232 124 110;   /* coral        #E87C6E */
+  --accent-sleep:    125 184 216;   /* sky blue     #7DB8D8 */
+  --accent-journal:  184 158 220;   /* soft purple  #B89EDC */
+  --accent-trading:  212 168 71;    /* amber        #D4A847 */
+  --accent-mood:     244 184 145;   /* peach        #F4B891 */
+  --accent-todos:    100 180 160;   /* teal-mint    #64B4A0 */
+
+  /* ── Pastel login palette ──────────────────────────────────────────────── */
+  --pastel-sage:     143 188 155;   /* #8FBC9B */
+  --pastel-sky:      135 196 222;   /* #87C4DE */
+  --pastel-coral:    240 156 132;   /* #F09C84 */
+  --pastel-amber:    245 200 120;   /* #F5C878 */
+
+  /* ── Font stacks ───────────────────────────────────────────────────────── */
+  --font-mono: 'IBM Plex Mono', 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+}
+
+/* ── Keyframe animations ─────────────────────────────────────────────────── */
+
+/* Watercolor background — very slow ambient colour shift */
+@keyframes watercolor-shift {
+  0%   { transform: scale(1)    rotate(0deg);   opacity: 0.18; }
+  33%  { transform: scale(1.08) rotate(4deg);   opacity: 0.24; }
+  66%  { transform: scale(0.96) rotate(-3deg);  opacity: 0.20; }
+  100% { transform: scale(1)    rotate(0deg);   opacity: 0.18; }
+}
+
+/* Logo breathing — very subtle scale pulse */
+@keyframes logo-breathe {
+  0%   { transform: scale(1.00); }
+  50%  { transform: scale(1.03); }
+  100% { transform: scale(1.00); }
+}
+
+/* Stagger fade-up for login tiles */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Loading bar fill animation */
+@keyframes bar-fill {
+  0%   { width: 0%; }
+  30%  { width: 45%; }
+  70%  { width: 72%; }
+  90%  { width: 88%; }
+  100% { width: 95%; }
+}
+
+/* ── Animation utility classes ───────────────────────────────────────────── */
+.animate-watercolor {
+  animation: watercolor-shift 18s ease-in-out infinite;
+}
+
+.animate-logo-breathe {
+  animation: logo-breathe 4s ease-in-out infinite;
+}
+
+.animate-fade-up {
+  animation: fade-up 0.5s ease-out both;
+}
+
+.animate-bar-fill {
+  animation: bar-fill 2.5s ease-out both;
+}
+
+/* Stagger delays for fade-up children */
+.fade-up-delay-0  { animation-delay: 0ms; }
+.fade-up-delay-1  { animation-delay: 80ms; }
+.fade-up-delay-2  { animation-delay: 160ms; }
+.fade-up-delay-3  { animation-delay: 240ms; }
+.fade-up-delay-4  { animation-delay: 320ms; }
+.fade-up-delay-5  { animation-delay: 400ms; }
+.fade-up-delay-6  { animation-delay: 480ms; }
+
+/* ── Reduced-motion overrides ────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .animate-watercolor,
+  .animate-logo-breathe {
+    animation: none;
+  }
+
+  /* Keep fade-up but instant — no positional shift */
+  .animate-fade-up {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .animate-bar-fill {
+    animation: none;
+    width: 90%;
+  }
+}

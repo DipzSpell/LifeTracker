@@ -279,6 +279,10 @@ export default function DailyLog() {
       // ─ Celebration logic — strict anti-exploit ─
       if (isFirstLog) {
         // FIRST ever save today — full celebration
+        // Ref is intentionally updated here (event handler) in addition to the
+        // hydration effect above, marking the session "already logged" so a
+        // re-save in the same session is treated as an update, not a first log.
+        // eslint-disable-next-line react-hooks/immutability
         alreadyLoggedRef.current = true
         snapshotHabitsRef.current = new Set(
           goodHabits.filter(h => h.entries?.[today]?.status === 'done').map(h => h.id)
