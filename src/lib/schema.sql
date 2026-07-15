@@ -75,3 +75,42 @@ drop trigger if exists notebooks_set_updated_at on public.notebooks;
 create trigger notebooks_set_updated_at
   before update on public.notebooks
   for each row execute function public.set_updated_at();
+
+-- ──────────────────────────────────────────────────────────────────
+-- 3. journal_entries table
+--    Daily journal entries, one row per user per day.
+--    Columns map exactly to App states: top things, work, trading, gym, mood, tomorrow focus.
+-- ──────────────────────────────────────────────────────────────────
+create table if not exists public.journal_entries (
+  id             uuid primary key default gen_random_uuid(),
+  user_id        uuid references auth.users not null,
+  entry_date     date not null,
+  top_things     text[] default '{}',
+  work_notes     text default '',
+  trading_notes  text default '',
+  gym_notes      text default '',
+  mood_notes     text default '',
+  tomorrow_focus text default '',
+  created_at     timestamptz default now(),
+  updated_at     timestamptz default now(),
+  unique (user_id, entry_date)
+);
+
+-- Index for fast user searches by date
+create index if not exists journal_entries_user_date_idx
+  on public.journal_entries (user_id, entry_date desc);
+
+alter table public.journal_entries enable row level security;
+
+-- Single all-operations policy: user can only touch their own rows
+create policy "journal_entries: all own"
+  on public.journal_entries for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+-- Auto-update updated_at on every row change
+drop trigger if exists journal_entries_set_updated_at on public.journal_entries;
+create trigger journal_entries_set_updated_at
+  before update on public.journal_entries
+  for each row execute function public.set_updated_at();
+

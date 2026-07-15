@@ -14,6 +14,13 @@ export default {
         accent: 'var(--accent)',
         text: 'var(--text)',
         white: 'rgb(var(--color-white) / <alpha-value>)',
+        // Module accent colours (from theme.css tokens)
+        sage:    { DEFAULT: 'rgb(var(--accent-habits) / <alpha-value>)',   50: '#f2f7f3', 100: '#d6e8da', 200: '#b0d1b8', 300: '#87a68c', 400: '#6e9175', 500: '#567560' },
+        coral:   { DEFAULT: 'rgb(var(--accent-fitness) / <alpha-value>)',  50: '#fef4f2', 100: '#fcd9d4', 200: '#f8b3aa', 300: '#e87c6e', 400: '#dc5f50', 500: '#c94535' },
+        skyblue: { DEFAULT: 'rgb(var(--accent-sleep) / <alpha-value>)',    50: '#f0f8fc', 100: '#d2ecf7', 200: '#a8d8ee', 300: '#7db8d8', 400: '#5a9fc5', 500: '#3d85b0' },
+        amber:   { DEFAULT: 'rgb(var(--accent-trading) / <alpha-value>)',  50: '#fdf9ee', 100: '#f8edcc', 200: '#f0d898', 300: '#d4a847', 400: '#c09030', 500: '#a87820' },
+        softpurple: { DEFAULT: 'rgb(var(--accent-journal) / <alpha-value>)', 50: '#f8f4ff', 100: '#ece3fa', 200: '#d5c4f2', 300: '#b89edc', 400: '#a07dcc', 500: '#885fbe' },
+        tealmt:  { DEFAULT: 'rgb(var(--accent-todos) / <alpha-value>)',    50: '#f0faf7', 100: '#ceede6', 200: '#9dd8ca', 300: '#64b4a0', 400: '#47988a', 500: '#307d71' },
         navy: {
           50: 'rgb(var(--color-navy-50) / <alpha-value>)',
           100: 'rgb(var(--color-navy-100) / <alpha-value>)',
@@ -48,6 +55,7 @@ export default {
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
         display: ['Plus Jakarta Sans', 'Inter', 'sans-serif'],
+        mono: ['IBM Plex Mono', 'JetBrains Mono', 'Fira Code', 'ui-monospace', 'monospace'],
       },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
@@ -60,6 +68,10 @@ export default {
         'bounce-gentle': 'bounceGentle 0.6s ease-out',
         'pulse-slow': 'pulse 3s ease-in-out infinite',
         'glow': 'glow 2s ease-in-out infinite alternate',
+        'logo-breathe': 'logoBreathe 4s ease-in-out infinite',
+        'watercolor': 'watercolorShift 18s ease-in-out infinite',
+        'fade-up': 'fadeUp 0.5s ease-out both',
+        'bar-fill': 'barFill 2.5s ease-out both',
       },
       keyframes: {
         fadeIn: {
@@ -81,6 +93,27 @@ export default {
         glow: {
           '0%': { boxShadow: '0 0 5px rgba(34,211,238,0.3)' },
           '100%': { boxShadow: '0 0 20px rgba(34,211,238,0.6), 0 0 40px rgba(34,211,238,0.2)' },
+        },
+        logoBreathe: {
+          '0%, 100%': { transform: 'scale(1.00)' },
+          '50%':       { transform: 'scale(1.03)' },
+        },
+        watercolorShift: {
+          '0%':   { transform: 'scale(1)    rotate(0deg)',   opacity: '0.18' },
+          '33%':  { transform: 'scale(1.08) rotate(4deg)',   opacity: '0.24' },
+          '66%':  { transform: 'scale(0.96) rotate(-3deg)', opacity: '0.20' },
+          '100%': { transform: 'scale(1)    rotate(0deg)',   opacity: '0.18' },
+        },
+        fadeUp: {
+          from: { opacity: '0', transform: 'translateY(14px)' },
+          to:   { opacity: '1', transform: 'translateY(0)' },
+        },
+        barFill: {
+          '0%':   { width: '0%' },
+          '30%':  { width: '45%' },
+          '70%':  { width: '72%' },
+          '90%':  { width: '88%' },
+          '100%': { width: '95%' },
         },
       },
       boxShadow: {

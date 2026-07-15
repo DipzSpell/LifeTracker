@@ -1,880 +1,898 @@
-/**
- * Login.jsx — Premium Life OS authentication page
- *
- * Auth methods:
- *  1. Google OAuth (existing)
- *  2. Phone + OTP via Supabase (new)
- *  3. Email / Password (existing, collapsible)
- *
- * Phone OTP flow:
- *  Step 1: user enters 10-digit number → signInWithOtp({ phone })
- *  Step 2: user enters 6-digit token   → verifyOtp({ phone, token, type:'sms' })
- *  A 30-second countdown controls the resend button.
- */
-import { useState, useEffect, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
-import { supabase } from '../lib/supabase'
-import { playVictorySound } from '../lib/sounds'
-import { Eye, EyeOff, AlertTriangle, ChevronDown, Loader2, Phone, MessageSquare, RefreshCw } from 'lucide-react'
+import { useState, useEffect, useCallback } from "react";
+import { Mail, Loader2, AlertCircle, ArrowRight, X } from "lucide-react";
+import {
+  motion,
+  AnimatePresence,
+  useReducedMotion,
+} from "framer-motion";
+import { supabase } from "../lib/supabase";
 
-// ── Google SVG icon (official brand colors) ────────────────────────────────
-function GoogleIcon({ size = 20 }) {
+/* ─────────────────────────────────────────────
+   BLOB DATA  (position, size, color, duration)
+───────────────────────────────────────────── */
+const BLOBS = [
+  {
+    id: 0,
+    color: "rgba(135,166,140,0.28)", // sage
+    x: "12%",
+    y: "8%",
+    w: 520,
+    h: 420,
+    dur: 22,
+    delay: 0,
+    rx: "60% 40% 55% 45% / 50% 60% 40% 50%",
+    rx2: "45% 55% 40% 60% / 60% 40% 55% 45%",
+  },
+  {
+    id: 1,
+    color: "rgba(125,184,216,0.22)", // sky
+    x: "55%",
+    y: "5%",
+    w: 460,
+    h: 380,
+    dur: 28,
+    delay: -7,
+    rx: "50% 50% 40% 60% / 45% 55% 50% 50%",
+    rx2: "60% 40% 50% 50% / 55% 45% 60% 40%",
+  },
+  {
+    id: 2,
+    color: "rgba(232,124,110,0.18)", // coral
+    x: "70%",
+    y: "55%",
+    w: 400,
+    h: 340,
+    dur: 32,
+    delay: -14,
+    rx: "55% 45% 60% 40% / 40% 60% 50% 50%",
+    rx2: "40% 60% 45% 55% / 50% 50% 45% 55%",
+  },
+  {
+    id: 3,
+    color: "rgba(212,168,71,0.16)", // amber
+    x: "5%",
+    y: "60%",
+    w: 480,
+    h: 360,
+    dur: 26,
+    delay: -20,
+    rx: "45% 55% 50% 50% / 55% 45% 55% 45%",
+    rx2: "55% 45% 60% 40% / 45% 55% 40% 60%",
+  },
+  {
+    id: 4,
+    color: "rgba(135,166,140,0.12)", // sage faint
+    x: "35%",
+    y: "70%",
+    w: 350,
+    h: 300,
+    dur: 36,
+    delay: -5,
+    rx: "60% 40% 45% 55% / 50% 50% 60% 40%",
+    rx2: "50% 50% 55% 45% / 60% 40% 50% 50%",
+  },
+];
+
+/* ── Animated blob ───────────────────────────── */
+function Blob({ blob, reduced }) {
   return (
-    <svg viewBox="0 0 24 24" width={size} height={size} xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
-      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.53z" fill="#EA4335" />
-    </svg>
-  )
+    <motion.div
+      aria-hidden="true"
+      style={{
+        position: "absolute",
+        left: blob.x,
+        top: blob.y,
+        width: blob.w,
+        height: blob.h,
+        background: blob.color,
+        borderRadius: blob.rx,
+        filter: "blur(60px)",
+        willChange: "transform, border-radius",
+        pointerEvents: "none",
+      }}
+      animate={
+        reduced
+          ? {}
+          : {
+              x: [0, 40, -30, 20, -10, 0],
+              y: [0, -25, 35, -15, 20, 0],
+              borderRadius: [blob.rx, blob.rx2, blob.rx, blob.rx2, blob.rx],
+              scale: [1, 1.06, 0.97, 1.04, 1],
+            }
+      }
+      transition={
+        reduced
+          ? {}
+          : {
+              duration: blob.dur,
+              delay: blob.delay,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }
+      }
+    />
+  );
 }
 
-// ── Animated floating particles ────────────────────────────────────────────
-const PARTICLES = Array.from({ length: 20 }, (_, i) => ({
-  id: i,
-  x: Math.random() * 100,
-  y: Math.random() * 100,
-  size: Math.random() * 3 + 1,
-  duration: Math.random() * 8 + 4,
-  delay: Math.random() * 4,
-}))
+/* ── Ripple hook ─────────────────────────────── */
+function useRipple() {
+  const [ripples, setRipples] = useState([]);
 
-function FloatingParticles() {
-  return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden>
-      {PARTICLES.map(p => (
-        <motion.div
-          key={p.id}
-          className="absolute rounded-full bg-cyan-400/20"
-          style={{ left: `${p.x}%`, top: `${p.y}%`, width: p.size, height: p.size }}
-          animate={{ y: [0, -30, 0], opacity: [0, 0.6, 0] }}
-          transition={{ duration: p.duration, delay: p.delay, repeat: Infinity, ease: 'easeInOut' }}
-        />
-      ))}
-    </div>
-  )
+  const addRipple = useCallback((e) => {
+    const btn = e.currentTarget;
+    const rect = btn.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const id = Date.now();
+    setRipples((r) => [...r, { id, x, y }]);
+    setTimeout(() => setRipples((r) => r.filter((rp) => rp.id !== id)), 600);
+  }, []);
+
+  const rippleEls = ripples.map((rp) => (
+    <span
+      key={rp.id}
+      aria-hidden="true"
+      style={{
+        position: "absolute",
+        left: rp.x,
+        top: rp.y,
+        width: 8,
+        height: 8,
+        transform: "translate(-50%,-50%) scale(0)",
+        borderRadius: "50%",
+        background: "rgba(255,255,255,0.3)",
+        pointerEvents: "none",
+        animation: "lifetracker-ripple 0.6s cubic-bezier(0.16,1,0.3,1) forwards",
+      }}
+    />
+  ));
+
+  return { addRipple, rippleEls };
 }
 
-function FeaturePill({ emoji, label }) {
+/* ── Google icon ─────────────────────────────── */
+function GoogleIcon({ size = 18, animated = false, reduced = false }) {
   return (
-    <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-full px-3 py-1.5">
-      <span className="text-sm">{emoji}</span>
-      <span className="text-[11px] text-white/50 font-medium">{label}</span>
-    </div>
-  )
+    <motion.span
+      className="mr-2 flex items-center"
+      whileHover={animated && !reduced ? { rotate: [0, -12, 12, -6, 0], scale: 1.15 } : {}}
+      transition={{ duration: 0.45, ease: "easeInOut" }}
+    >
+      <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden="true">
+        <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.4 29.3 35 24 35c-6.1 0-11-4.9-11-11s4.9-11 11-11c2.8 0 5.3 1 7.3 2.7l5.7-5.7C33.6 6.5 29 4.5 24 4.5 13.2 4.5 4.5 13.2 4.5 24S13.2 43.5 24 43.5 43.5 34.8 43.5 24c0-1.2-.1-2.4-.4-3.5z" />
+        <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 16 18.9 13 24 13c2.8 0 5.3 1 7.3 2.7l5.7-5.7C33.6 6.5 29 4.5 24 4.5c-7.7 0-14.3 4.4-17.7 10.2z" />
+        <path fill="#4CAF50" d="M24 43.5c5 0 9.5-1.9 12.9-5.1l-6-5c-1.9 1.3-4.3 2.1-6.9 2.1-5.3 0-9.7-2.6-11.4-7.1l-6.6 5.1C9.6 39.1 16.2 43.5 24 43.5z" />
+        <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.3 4.1-4.2 5.4l6 5c3.5-3.3 5.9-8.1 5.9-14.4 0-1.2-.1-2.4-.4-3.5z" />
+      </svg>
+    </motion.span>
+  );
 }
 
-// ── OTP digit display (visual dots) ───────────────────────────────────────
-function OtpProgress({ value }) {
+/* ── GitHub icon ─────────────────────────────── */
+function GithubIcon({ size = 18, color = "currentColor", animated = false, reduced = false }) {
   return (
-    <div className="flex justify-center gap-2 mt-1">
-      {Array.from({ length: 6 }, (_, i) => (
-        <div
-          key={i}
-          className={`w-2 h-2 rounded-full transition-all duration-200 ${
-            i < value.length
-              ? 'bg-[var(--primary)] shadow-[0_0_6px_var(--primary)]'
-              : 'bg-white/15'
-          }`}
-        />
-      ))}
-    </div>
-  )
+    <motion.span
+      className="mr-2 flex items-center"
+      whileHover={animated && !reduced ? { y: [-2, 2, -2, 0], scale: 1.15 } : {}}
+      transition={{ duration: 0.4, ease: "easeInOut" }}
+    >
+      <svg viewBox="0 0 24 24" width={size} height={size} fill={color} aria-hidden="true">
+        <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.577.688.479C19.138 20.162 22 16.418 22 12c0-5.523-4.477-10-10-10z" />
+      </svg>
+    </motion.span>
+  );
 }
 
-// ── Resend countdown component ─────────────────────────────────────────────
-function ResendCountdown({ onResend, loading }) {
-  const [seconds, setSeconds] = useState(30)
-  const timerRef = useRef(null)
-
-  useEffect(() => {
-    setSeconds(30)
-    timerRef.current = setInterval(() => {
-      setSeconds(s => {
-        if (s <= 1) { clearInterval(timerRef.current); return 0 }
-        return s - 1
-      })
-    }, 1000)
-    return () => clearInterval(timerRef.current)
-  }, [])
-
-  const handleResend = () => {
-    setSeconds(30)
-    clearInterval(timerRef.current)
-    timerRef.current = setInterval(() => {
-      setSeconds(s => {
-        if (s <= 1) { clearInterval(timerRef.current); return 0 }
-        return s - 1
-      })
-    }, 1000)
-    onResend()
-  }
-
-  return (
-    <div className="text-center">
-      {seconds > 0 ? (
-        <p className="text-[11px] text-white/35">
-          Resend OTP in{' '}
-          <span className="text-[var(--primary)] font-bold tabular-nums">{seconds}s</span>
-        </p>
-      ) : (
-        <button
-          type="button"
-          onClick={handleResend}
-          disabled={loading}
-          className="flex items-center gap-1.5 mx-auto text-[11px] text-[var(--primary)]
-                     hover:text-cyan-300 font-semibold transition-colors disabled:opacity-50"
-        >
-          <RefreshCw size={11} className={loading ? 'animate-spin' : ''} />
-          Resend OTP
-        </button>
-      )}
-    </div>
-  )
-}
-
-// ── Country code options ───────────────────────────────────────────────────
-const COUNTRY_CODES = [
-  { code: '+91', flag: '🇮🇳', label: 'IN' },
-  { code: '+1',  flag: '🇺🇸', label: 'US' },
-  { code: '+44', flag: '🇬🇧', label: 'GB' },
-  { code: '+61', flag: '🇦🇺', label: 'AU' },
-  { code: '+971',flag: '🇦🇪', label: 'AE' },
-]
-
-// ── Main Login component ───────────────────────────────────────────────────
+/* ─────────────────────────────────────────────
+   MAIN COMPONENT
+───────────────────────────────────────────── */
 export default function Login() {
-  const navigate = useNavigate()
-  const { signInWithGoogle, login, signup } = useAuth()
+  const [loadingProvider, setLoadingProvider] = useState(null);
+  const [error, setError] = useState(null);
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [email, setEmail] = useState("");
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
 
-  // ── Auth method tab: 'google' | 'phone' ──────────────────────────────
-  const [authTab, setAuthTab] = useState('google')
+  const shouldReduceMotion = useReducedMotion();
 
-  // ── Google ────────────────────────────────────────────────────────────
-  const [googleLoading, setGoogleLoading] = useState(false)
-
-  // ── Email form ────────────────────────────────────────────────────────
-  const [showEmail, setShowEmail]         = useState(false)
-  const [emailMode, setEmailMode]         = useState('login')
-  const [form, setForm]                   = useState({ name: '', email: '', password: '' })
-  const [showPass, setShowPass]           = useState(false)
-  const [emailLoading, setEmailLoading]   = useState(false)
-  const [signupSuccess, setSignupSuccess] = useState(false)
-
-  // ── Phone OTP ─────────────────────────────────────────────────────────
-  const [countryCode, setCountryCode]     = useState('+91')
-  const [phone, setPhone]                 = useState('')          // 10 digits only
-  const [otpStep, setOtpStep]             = useState('input')    // 'input' | 'verify'
-  const [otpToken, setOtpToken]           = useState('')          // 6 digits
-  const [phoneLoading, setPhoneLoading]   = useState(false)
-  const [otpLoading, setOtpLoading]       = useState(false)
-  const [resendKey, setResendKey]         = useState(0)           // resets countdown
-
-  // ── Global error ──────────────────────────────────────────────────────
-  const [error, setError] = useState('')
-  const [successMsg, setSuccessMsg] = useState('')
-
-  // Parse OAuth redirect errors
+  /* Parse OAuth redirect errors */
   useEffect(() => {
     try {
-      const url = new URL(window.location.href)
-      let oauthError = url.searchParams.get('error_description') || url.searchParams.get('error')
+      const url = new URL(window.location.href);
+      let oauthError =
+        url.searchParams.get("error_description") || url.searchParams.get("error");
       if (!oauthError && window.location.hash) {
-        const hashQuery = window.location.hash.split('?')[1]
-        if (hashQuery) {
-          const params = new URLSearchParams(hashQuery)
-          oauthError = params.get('error_description') || params.get('error')
-        } else if (window.location.hash.startsWith('#error=')) {
-          const params = new URLSearchParams(window.location.hash.substring(1))
-          oauthError = params.get('error_description') || params.get('error')
+        const hq = window.location.hash.split("?")[1];
+        if (hq) {
+          const p = new URLSearchParams(hq);
+          oauthError = p.get("error_description") || p.get("error");
+        } else if (window.location.hash.startsWith("#error=")) {
+          const p = new URLSearchParams(window.location.hash.substring(1));
+          oauthError = p.get("error_description") || p.get("error");
         }
       }
       if (oauthError) {
-        setError(decodeURIComponent(oauthError).replace(/\+/g, ' '))
-        const cleanUrl = window.location.origin + window.location.pathname +
-          (window.location.hash ? window.location.hash.split('?')[0] : '')
-        window.history.replaceState({}, document.title, cleanUrl)
+        setError(decodeURIComponent(oauthError).replace(/\+/g, " "));
+        window.history.replaceState(
+          {},
+          document.title,
+          window.location.origin + window.location.pathname
+        );
       }
     } catch { /* non-critical */ }
-  }, [])
+  }, []);
 
-  const clearMessages = () => { setError(''); setSuccessMsg('') }
-
-  // ── Google OAuth ──────────────────────────────────────────────────────
-  const handleGoogleLogin = async () => {
-    clearMessages()
-    setGoogleLoading(true)
+  const handleOAuth = async (provider) => {
+    setError(null);
+    setLoadingProvider(provider);
     try {
-      await signInWithGoogle()
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: { redirectTo: window.location.origin },
+      });
+      if (error) throw error;
     } catch (err) {
-      setError(
-        err.message?.includes('fetch')
-          ? 'Network error — check your connection and try again.'
-          : err.message || 'Could not sign in with Google. Please try again.'
-      )
-      setGoogleLoading(false)
+      setError(err.message || `Couldn't sign in with ${provider}.`);
+      setLoadingProvider(null);
     }
-  }
+  };
 
-  // ── Email / Password ──────────────────────────────────────────────────
   const handleEmailSubmit = async (e) => {
-    e.preventDefault()
-    clearMessages()
-    if (emailMode === 'signup' && !form.name.trim()) { setError('Please enter your full name.'); return }
-    if (!form.email.trim()) { setError('Please enter your email.'); return }
-    if (form.password.length < 6) { setError('Password must be at least 6 characters.'); return }
-    setEmailLoading(true)
+    e.preventDefault();
+    if (!email.trim()) return;
+    setError(null);
+    setLoadingProvider("email");
     try {
-      if (emailMode === 'login') {
-        await login(form.email, form.password)
-      } else {
-        await signup(form.email, form.password, form.name)
-        setSignupSuccess(true)
-      }
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: window.location.origin },
+      });
+      if (error) throw error;
+      setMagicLinkSent(true);
     } catch (err) {
-      setError(err.message || 'Authentication failed. Check your credentials.')
+      setError(err.message || "Couldn't send the sign-in link.");
     } finally {
-      setEmailLoading(false)
+      setLoadingProvider(null);
     }
-  }
+  };
 
-  // ── Phone: Step 1 — Send OTP ──────────────────────────────────────────
-  const fullPhone = `${countryCode}${phone}`
+  const isLoading = loadingProvider !== null;
 
-  const handleSendOtp = async () => {
-    clearMessages()
-    if (phone.length !== 10) { setError('Please enter a valid 10-digit mobile number.'); return }
-    setPhoneLoading(true)
-    try {
-      const { error: sbError } = await supabase.auth.signInWithOtp({ phone: fullPhone })
-      if (sbError) throw sbError
-      setOtpStep('verify')
-      setResendKey(k => k + 1)
-      setSuccessMsg(`OTP sent to ${countryCode} ${phone}`)
-    } catch (err) {
-      setError(err.message || 'Failed to send OTP. Check the number and try again.')
-    } finally {
-      setPhoneLoading(false)
-    }
-  }
+  /* ── Ripple instances per button ── */
+  const rippleGoogle = useRipple();
+  const rippleGithub = useRipple();
+  const rippleEmail  = useRipple();
+  const rippleMagic  = useRipple();
 
-  // ── Phone: Step 2 — Verify OTP ────────────────────────────────────────
-  const handleVerifyOtp = async () => {
-    clearMessages()
-    if (otpToken.length !== 6) { setError('Please enter the full 6-digit OTP.'); return }
-    setOtpLoading(true)
-    try {
-      const { error: sbError } = await supabase.auth.verifyOtp({
-        phone: fullPhone,
-        token: otpToken,
-        type: 'sms',
-      })
-      if (sbError) throw sbError
-      // Auth state change is handled by onAuthStateChange in AuthContext.
-      // Play victory sound + navigate.
-      playVictorySound()
-      navigate('/dashboard', { replace: true })
-    } catch (err) {
-      setError(err.message || 'Invalid or expired OTP. Please try again.')
-    } finally {
-      setOtpLoading(false)
-    }
-  }
+  /* ── Easing constant ── */
+  const ease = shouldReduceMotion ? "linear" : [0.16, 1, 0.3, 1];
 
-  // Resend OTP (reuses handleSendOtp)
-  const handleResendOtp = async () => {
-    clearMessages()
-    setPhoneLoading(true)
-    try {
-      const { error: sbError } = await supabase.auth.signInWithOtp({ phone: fullPhone })
-      if (sbError) throw sbError
-      setSuccessMsg('New OTP sent!')
-    } catch (err) {
-      setError(err.message || 'Failed to resend OTP.')
-    } finally {
-      setPhoneLoading(false)
-    }
-  }
+  /* ── Container: stagger children ── */
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: shouldReduceMotion ? 0 : 0.09,
+        delayChildren: shouldReduceMotion ? 0 : 0.15,
+      },
+    },
+  };
 
-  const setField = (key) => (e) => setForm(f => ({ ...f, [key]: e.target.value }))
-  const isLoading = googleLoading || emailLoading || phoneLoading || otpLoading
+  /* ── Fade-up item ── */
+  const itemVariants = {
+    hidden: { opacity: 0, y: shouldReduceMotion ? 0 : 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.6, ease },
+    },
+  };
 
-  // ── Dynamic card subtitle ─────────────────────────────────────────────
-  const cardTitle = signupSuccess
-    ? 'Registration Complete'
-    : authTab === 'phone'
-      ? otpStep === 'input' ? 'Enter your mobile number' : 'Verify OTP'
-      : !showEmail
-        ? 'Sign in to continue'
-        : emailMode === 'login' ? 'Sign in with email' : 'Create your account'
+  /* ── Logo (scale-up + fade) ── */
+  const logoVariants = {
+    hidden: { opacity: 0, scale: shouldReduceMotion ? 1 : 0.7 },
+    visible: {
+      opacity: 1,
+      scale: 1,
+      transition: { duration: 0.6, ease },
+    },
+  };
+
+  /* ── Title (fade-up) ── */
+  const titleVariants = {
+    hidden: { opacity: 0, y: shouldReduceMotion ? 0 : 16 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.55, ease },
+    },
+  };
+
+  /* ── Tagline (staggered after title) ── */
+  const taglineVariants = {
+    hidden: { opacity: 0, y: shouldReduceMotion ? 0 : 10 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.5, ease, delay: shouldReduceMotion ? 0 : 0.18 },
+    },
+  };
+
+  /* ── Buttons stagger ── */
+  const buttonContainerVariants = {
+    hidden: {},
+    visible: {
+      transition: { staggerChildren: shouldReduceMotion ? 0 : 0.1, delayChildren: shouldReduceMotion ? 0 : 0.1 },
+    },
+  };
+  const buttonVariants = {
+    hidden: { opacity: 0, y: shouldReduceMotion ? 0 : 22 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.52, ease },
+    },
+  };
 
   return (
-    <div className="min-h-dvh bg-background text-text flex flex-col items-center justify-center px-4 relative overflow-hidden transition-colors duration-300">
+    <>
+      {/* ── Ripple keyframe injection ── */}
+      <style>{`
+        @keyframes lifetracker-ripple {
+          to { transform: translate(-50%,-50%) scale(28); opacity: 0; }
+        }
+        @keyframes lifetracker-glow-pulse {
+          0%, 100% { opacity: 0.55; transform: scale(1); }
+          50%       { opacity: 0.85; transform: scale(1.12); }
+        }
+        @keyframes lifetracker-glow-pulse2 {
+          0%, 100% { opacity: 0.25; transform: scale(1); }
+          50%       { opacity: 0.5;  transform: scale(1.2); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          @keyframes lifetracker-glow-pulse  { 0%,100% { opacity:0.55; transform:scale(1); } }
+          @keyframes lifetracker-glow-pulse2 { 0%,100% { opacity:0.25; transform:scale(1); } }
+        }
+      `}</style>
 
-      {/* ── Ambient Background ── */}
-      <div className="absolute inset-0 pointer-events-none select-none" aria-hidden>
-        <div className="absolute top-[-15%] left-1/2 -translate-x-1/2 w-[700px] h-[700px]
-                        bg-cyan-500/8 rounded-full blur-[140px]" />
-        <div className="absolute bottom-[-5%] left-[-5%] w-96 h-96 bg-emerald-500/6 rounded-full blur-3xl" />
-        <div className="absolute bottom-[-5%] right-[-5%] w-96 h-96 bg-violet-600/6 rounded-full blur-3xl" />
+      <div
+        style={{
+          minHeight: "100svh",
+          width: "100%",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "1rem",
+          position: "relative",
+          overflow: "hidden",
+          background: "#0B1121",
+          color: "#f4f4f5",
+        }}
+      >
+        {/* ── Blob background ── */}
         <div
-          className="absolute inset-0 opacity-[0.025]"
+          aria-hidden="true"
           style={{
-            backgroundImage:
-              'linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px)',
-            backgroundSize: '48px 48px',
+            position: "absolute",
+            inset: 0,
+            overflow: "hidden",
+            pointerEvents: "none",
           }}
-        />
-      </div>
-
-      <FloatingParticles />
-
-      <div className="relative z-10 w-full max-w-sm">
-
-        {/* ── App logo + headline ── */}
-        <motion.div
-          initial={{ opacity: 0, y: -28 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-          className="text-center mb-8"
         >
-          <motion.div
-            whileHover={{ scale: 1.06, rotate: 3 }}
-            transition={{ type: 'spring', stiffness: 400 }}
-            className="w-[76px] h-[76px] rounded-[24px] mx-auto mb-5 overflow-hidden flex items-center justify-center
-                       bg-gradient-to-br from-cyan-400 via-cyan-500 to-emerald-500
-                       shadow-[0_0_40px_rgba(34,211,238,0.35)] ring-1 ring-white/10"
-          >
-            <img src="/logo.png" alt="LifeTracker Logo" className="w-full h-full object-cover" />
+          {BLOBS.map((b) => (
+            <Blob key={b.id} blob={b} reduced={!!shouldReduceMotion} />
+          ))}
+
+          {/* Vignette overlay so blobs don't fight the card */}
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              background:
+                "radial-gradient(ellipse 70% 60% at 50% 50%, transparent 0%, rgba(11,17,33,0.72) 100%)",
+            }}
+          />
+        </div>
+
+        {/* ── Main card ── */}
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+          style={{
+            position: "relative",
+            zIndex: 10,
+            width: "100%",
+            maxWidth: 380,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+          }}
+        >
+          {/* ── Logo ── */}
+          <motion.div variants={logoVariants} style={{ marginBottom: "1.25rem", position: "relative" }}>
+            {/* Outer glow ring */}
+            <div
+              aria-hidden="true"
+              style={{
+                position: "absolute",
+                inset: -14,
+                borderRadius: "50%",
+                background:
+                  "radial-gradient(circle, rgba(135,166,140,0.4) 0%, rgba(125,184,216,0.3) 50%, transparent 70%)",
+                animation: shouldReduceMotion
+                  ? "none"
+                  : "lifetracker-glow-pulse2 3.2s ease-in-out infinite",
+                willChange: "transform, opacity",
+              }}
+            />
+            {/* Inner glow ring */}
+            <div
+              aria-hidden="true"
+              style={{
+                position: "absolute",
+                inset: -7,
+                borderRadius: "50%",
+                background:
+                  "radial-gradient(circle, rgba(135,166,140,0.55) 0%, transparent 70%)",
+                animation: shouldReduceMotion
+                  ? "none"
+                  : "lifetracker-glow-pulse 2.6s ease-in-out infinite",
+                willChange: "transform, opacity",
+              }}
+            />
+            {/* Logo box */}
+            <div
+              style={{
+                position: "relative",
+                width: 52,
+                height: 52,
+                borderRadius: 16,
+                background: "rgba(20,28,48,0.9)",
+                border: "1px solid rgba(135,166,140,0.35)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow:
+                  "0 0 0 1px rgba(135,166,140,0.15), 0 8px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.07)",
+              }}
+            >
+              <img
+                src="/logo.png"
+                alt="LifeTracker Logo"
+                style={{ width: 34, height: 34, objectFit: "contain" }}
+                onError={(e) => { e.currentTarget.style.display = "none"; }}
+              />
+            </div>
           </motion.div>
 
-          <h1 className="text-[2.1rem] font-black tracking-tight gradient-text leading-none mb-1.5">
-            LifeNotebook
-          </h1>
-          <p className="text-white/35 text-[0.8rem] tracking-wide font-medium">
-            Your Personal Life OS ✦
-          </p>
-
-          <div className="flex flex-wrap justify-center gap-2 mt-4">
-            {[['🎯', 'Habits'], ['💪', 'Fitness'], ['📊', 'Analytics'], ['✅', 'Tasks']].map(([emoji, label]) => (
-              <FeaturePill key={label} emoji={emoji} label={label} />
-            ))}
+          {/* ── Titles ── */}
+          <div style={{ textAlign: "center", marginBottom: "2rem" }}>
+            <motion.h1
+              variants={titleVariants}
+              style={{
+                fontSize: "1.5rem",
+                fontWeight: 700,
+                letterSpacing: "-0.03em",
+                color: "#ffffff",
+                margin: 0,
+                lineHeight: 1.2,
+              }}
+            >
+              LifeTracker
+            </motion.h1>
+            <motion.p
+              variants={taglineVariants}
+              style={{
+                fontSize: "0.8rem",
+                color: "rgba(161,161,170,0.85)",
+                marginTop: "0.45rem",
+                lineHeight: 1.6,
+              }}
+            >
+              Your life, structured. Habits, gym, sleep, and tasks.
+            </motion.p>
           </div>
-        </motion.div>
 
-        {/* ── Auth Card ── */}
-        <motion.div
-          initial={{ opacity: 0, y: 28 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.12, ease: [0.22, 1, 0.36, 1] }}
-        >
-          <div className="relative bg-white/[0.04] backdrop-blur-xl border border-white/10
-                          rounded-2xl p-7 shadow-[0_8px_60px_rgba(0,0,0,0.5)] overflow-hidden">
-            {/* Top shimmer */}
-            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r
-                            from-transparent via-cyan-400/40 to-transparent" />
-
-            {/* ── Auth method tabs (Google | Phone) ── */}
-            {!signupSuccess && (
-              <div className="flex bg-white/5 rounded-xl p-1 mb-5">
-                {[
-                  { id: 'google', icon: GoogleIcon, label: 'Google' },
-                  { id: 'phone',  icon: Phone,      label: 'Phone' },
-                ].map(({ id, icon: Icon, label }) => (
-                  <button
-                    key={id}
-                    id={`auth-tab-${id}`}
-                    type="button"
-                    onClick={() => {
-                      setAuthTab(id)
-                      setOtpStep('input')
-                      setPhone('')
-                      setOtpToken('')
-                      clearMessages()
-                    }}
-                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg
-                                text-[12px] font-semibold transition-all duration-200 ${
-                      authTab === id
-                        ? 'bg-[var(--primary)] text-white shadow-md'
-                        : 'text-white/35 hover:text-white/60'
-                    }`}
-                  >
-                    {id === 'google'
-                      ? <><GoogleIcon size={14} />{label}</>
-                      : <><Icon size={13} />{label}</>
-                    }
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Dynamic subtitle */}
-            <p className="text-center text-white/40 text-[11px] font-semibold
-                          uppercase tracking-[0.18em] mb-5">
-              {cardTitle}
-            </p>
-
-            {/* ══════════════════════════════════════════════════════════════
-                  Signup success view
-               ══════════════════════════════════════════════════════════════ */}
-            {signupSuccess ? (
-              <motion.div
-                key="signup-success-view"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.3 }}
-                className="text-center py-4 space-y-4"
-              >
-                <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/30 rounded-full mx-auto flex items-center justify-center text-emerald-400">
-                  <motion.div animate={{ scale: [1, 1.1, 1] }} transition={{ repeat: Infinity, duration: 2 }}>
-                    <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                    </svg>
-                  </motion.div>
-                </div>
-                <h3 className="text-lg font-bold text-white">Verify your email</h3>
-                <p className="text-xs text-white/60 leading-relaxed">
-                  We&apos;ve sent a verification link to <span className="text-cyan-400 font-semibold">{form.email}</span>.
-                  Please check your inbox (and spam folder) to complete registration.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => { setSignupSuccess(false); setEmailMode('login'); setForm({ name: '', email: '', password: '' }) }}
-                  className="btn-cyber-primary btn-primary w-full py-2.5 text-xs font-semibold"
-                >
-                  Back to Sign In
-                </button>
-              </motion.div>
-
-            ) : authTab === 'google' ? (
-              /* ══════════════════════════════════════════════════════════════
-                    GOOGLE + EMAIL TAB
-                 ══════════════════════════════════════════════════════════════ */
-              <>
-                {/* Google button */}
-                <motion.button
-                  id="google-login-btn"
-                  type="button"
-                  disabled={isLoading}
-                  onClick={handleGoogleLogin}
-                  whileHover={!isLoading ? { scale: 1.018, y: -1 } : {}}
-                  whileTap={!isLoading ? { scale: 0.975 } : {}}
-                  aria-label="Continue with Google"
-                  className="w-full relative flex items-center justify-center gap-3 py-3.5 px-5
-                             rounded-xl bg-white text-gray-800 font-semibold text-[0.9rem]
-                             shadow-[0_4px_24px_rgba(0,0,0,0.25)]
-                             hover:bg-gray-50 disabled:opacity-75 disabled:cursor-not-allowed
-                             transition-colors duration-150
-                             focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
-                >
-                  {googleLoading ? (
-                    <><Loader2 size={20} className="animate-spin text-gray-500 flex-shrink-0" /><span>Redirecting to Google…</span></>
-                  ) : (
-                    <><GoogleIcon size={20} /><span>Continue with Google</span></>
-                  )}
-                </motion.button>
-
-                {/* Divider / email toggle */}
-                <div className="flex items-center gap-3 my-5">
-                  <div className="h-px flex-1 bg-white/8" />
-                  <button
-                    type="button"
-                    onClick={() => { setShowEmail(v => !v); clearMessages() }}
-                    className="flex items-center gap-1.5 text-[11px] text-white/30
-                               hover:text-white/55 uppercase tracking-wider font-medium
-                               transition-colors duration-150"
-                  >
-                    or use email
-                    <motion.span animate={{ rotate: showEmail ? 180 : 0 }} transition={{ duration: 0.2 }}>
-                      <ChevronDown size={12} />
-                    </motion.span>
-                  </button>
-                  <div className="h-px flex-1 bg-white/8" />
-                </div>
-
-                {/* Email / Password form (collapsible) */}
-                <AnimatePresence initial={false}>
-                  {showEmail && (
-                    <motion.div
-                      key="email-form"
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-                      className="overflow-hidden"
-                    >
-                      {/* Mode tabs */}
-                      <div className="flex bg-white/5 rounded-xl p-1 mb-4">
-                        {[['login', 'Sign In'], ['signup', 'Sign Up']].map(([m, label]) => (
-                          <button
-                            key={m}
-                            id={`auth-${m}-tab`}
-                            type="button"
-                            onClick={() => { setEmailMode(m); clearMessages() }}
-                            className={`flex-1 py-2 rounded-lg text-[12px] font-semibold
-                                        transition-all duration-200 ${
-                              emailMode === m
-                                ? 'bg-cyan-500 text-white shadow-md shadow-cyan-500/20'
-                                : 'text-white/35 hover:text-white/60'
-                            }`}
-                          >
-                            {label}
-                          </button>
-                        ))}
-                      </div>
-
-                      <form onSubmit={handleEmailSubmit} className="space-y-3">
-                        <AnimatePresence initial={false}>
-                          {emailMode === 'signup' && (
-                            <motion.div
-                              key="name-field"
-                              initial={{ opacity: 0, height: 0 }}
-                              animate={{ opacity: 1, height: 'auto' }}
-                              exit={{ opacity: 0, height: 0 }}
-                              transition={{ duration: 0.2 }}
-                              className="overflow-hidden"
-                            >
-                              <input
-                                id="signup-name"
-                                type="text"
-                                placeholder="Full name"
-                                value={form.name}
-                                onChange={setField('name')}
-                                autoComplete="name"
-                                className="input-cyber text-sm"
-                              />
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-
-                        <input
-                          id="auth-email"
-                          type="email"
-                          placeholder="Email address"
-                          value={form.email}
-                          onChange={setField('email')}
-                          required
-                          autoComplete={emailMode === 'login' ? 'username' : 'email'}
-                          className="input-cyber text-sm"
-                        />
-
-                        <div className="relative">
-                          <input
-                            id="auth-password"
-                            type={showPass ? 'text' : 'password'}
-                            placeholder={emailMode === 'signup' ? 'Create password (6+ chars)' : 'Password'}
-                            value={form.password}
-                            onChange={setField('password')}
-                            required
-                            autoComplete={emailMode === 'login' ? 'current-password' : 'new-password'}
-                            className="input-cyber text-sm pr-11"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowPass(v => !v)}
-                            tabIndex={-1}
-                            aria-label={showPass ? 'Hide password' : 'Show password'}
-                            className="absolute right-3.5 top-1/2 -translate-y-1/2
-                                       text-white/30 hover:text-white/60 transition-colors"
-                          >
-                            {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
-                          </button>
-                        </div>
-
-                        <motion.button
-                          id="auth-submit"
-                          type="submit"
-                          disabled={isLoading}
-                          whileTap={{ scale: 0.97 }}
-                          className="btn-primary w-full flex items-center justify-center gap-2 py-3 text-sm"
-                        >
-                          {emailLoading
-                            ? <Loader2 size={16} className="animate-spin" />
-                            : emailMode === 'login' ? 'Sign In' : 'Create Account'
-                          }
-                        </motion.button>
-                      </form>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                {/* Switcher link */}
-                <div className="mt-6 pt-4 border-t border-white/5 text-center text-xs text-white/40">
-                  {!showEmail ? (
-                    <p>
-                      New to LifeNotebook?{' '}
-                      <button
-                        type="button"
-                        onClick={() => { setShowEmail(true); setEmailMode('signup'); clearMessages() }}
-                        className="text-cyan-400 hover:text-cyan-300 font-semibold transition-colors focus:outline-none"
-                      >
-                        Create an account
-                      </button>
-                    </p>
-                  ) : emailMode === 'login' ? (
-                    <p>
-                      Don&apos;t have an account?{' '}
-                      <button
-                        type="button"
-                        onClick={() => { setEmailMode('signup'); clearMessages() }}
-                        className="text-cyan-400 hover:text-cyan-300 font-semibold transition-colors focus:outline-none"
-                      >
-                        Sign Up
-                      </button>
-                    </p>
-                  ) : (
-                    <p>
-                      Already have an account?{' '}
-                      <button
-                        type="button"
-                        onClick={() => { setEmailMode('login'); clearMessages() }}
-                        className="text-cyan-400 hover:text-cyan-300 font-semibold transition-colors focus:outline-none"
-                      >
-                        Sign In
-                      </button>
-                    </p>
-                  )}
-                </div>
-              </>
-
-            ) : (
-              /* ══════════════════════════════════════════════════════════════
-                    PHONE OTP TAB
-                 ══════════════════════════════════════════════════════════════ */
-              <AnimatePresence mode="wait">
-                {otpStep === 'input' ? (
-                  /* ── Step 1: Phone input ── */
-                  <motion.div
-                    key="phone-input"
-                    initial={{ opacity: 0, x: 24 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -24 }}
-                    transition={{ duration: 0.22, ease: 'easeOut' }}
-                    className="space-y-4"
-                  >
-                    {/* Country code + number row */}
-                    <div>
-                      <label className="text-[10px] text-white/40 font-medium block mb-1.5 uppercase tracking-wider">
-                        Mobile Number
-                      </label>
-                      <div className="flex gap-2">
-                        {/* Country code selector */}
-                        <div className="relative">
-                          <select
-                            id="phone-country-code"
-                            value={countryCode}
-                            onChange={e => setCountryCode(e.target.value)}
-                            className="appearance-none bg-white/5 border border-white/10 rounded-xl
-                                       text-white text-sm font-semibold px-3 py-3 pr-7
-                                       focus:border-[var(--primary)] focus:bg-card outline-none
-                                       transition-all cursor-pointer min-w-[88px]"
-                          >
-                            {COUNTRY_CODES.map(c => (
-                              <option key={c.code} value={c.code} className="bg-slate-900">
-                                {c.flag} {c.code}
-                              </option>
-                            ))}
-                          </select>
-                          <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none" />
-                        </div>
-
-                        {/* Phone digits */}
-                        <input
-                          id="phone-number-input"
-                          type="tel"
-                          inputMode="numeric"
-                          placeholder="10-digit number"
-                          maxLength={10}
-                          value={phone}
-                          onChange={e => {
-                            const digits = e.target.value.replace(/\D/g, '').slice(0, 10)
-                            setPhone(digits)
-                            if (error) setError('')
-                          }}
-                          className="input-cyber text-sm flex-1 tracking-widest"
-                          autoComplete="tel-national"
-                        />
-                      </div>
-
-                      {/* Preview */}
-                      {phone.length > 0 && (
-                        <p className="text-[10px] text-white/30 mt-1.5 font-mono">
-                          Will send to: <span className="text-[var(--primary)]">{countryCode} {phone}</span>
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Send OTP button */}
-                    <motion.button
-                      id="phone-send-otp"
-                      type="button"
-                      disabled={phone.length !== 10 || phoneLoading}
-                      onClick={handleSendOtp}
-                      whileTap={phone.length === 10 ? { scale: 0.97 } : {}}
-                      className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl
-                                 bg-gradient-to-r from-[var(--primary)] to-cyan-400
-                                 text-black font-bold text-sm
-                                 disabled:opacity-40 disabled:cursor-not-allowed
-                                 hover:opacity-90 transition-all duration-200
-                                 shadow-[0_4px_20px_rgba(6,182,212,0.3)]"
-                    >
-                      {phoneLoading
-                        ? <><Loader2 size={16} className="animate-spin" /> Sending…</>
-                        : <><MessageSquare size={15} /> Send OTP</>
-                      }
-                    </motion.button>
-
-                    <p className="text-center text-[10px] text-white/25 leading-relaxed">
-                      A 6-digit one-time password will be sent via SMS.<br />
-                      Standard SMS rates may apply.
-                    </p>
-                  </motion.div>
-
-                ) : (
-                  /* ── Step 2: OTP verification ── */
-                  <motion.div
-                    key="otp-verify"
-                    initial={{ opacity: 0, x: 24 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -24 }}
-                    transition={{ duration: 0.22, ease: 'easeOut' }}
-                    className="space-y-4"
-                  >
-                    {/* Sent-to info */}
-                    <div className="flex items-center justify-between bg-white/5 border border-white/8
-                                    rounded-xl px-3 py-2.5">
-                      <div className="flex items-center gap-2">
-                        <Phone size={13} className="text-[var(--primary)]" />
-                        <span className="text-xs font-mono text-white/70">{countryCode} {phone}</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => { setOtpStep('input'); setOtpToken(''); clearMessages() }}
-                        className="text-[10px] text-[var(--primary)] hover:text-cyan-300 font-semibold transition-colors"
-                      >
-                        Change
-                      </button>
-                    </div>
-
-                    {/* OTP input */}
-                    <div>
-                      <label className="text-[10px] text-white/40 font-medium block mb-1.5 uppercase tracking-wider">
-                        Enter 6-Digit OTP
-                      </label>
-                      <input
-                        id="otp-token-input"
-                        type="tel"
-                        inputMode="numeric"
-                        placeholder="• • • • • •"
-                        maxLength={6}
-                        value={otpToken}
-                        onChange={e => {
-                          const digits = e.target.value.replace(/\D/g, '').slice(0, 6)
-                          setOtpToken(digits)
-                          if (error) setError('')
-                        }}
-                        className="input-cyber text-center text-2xl font-bold tracking-[0.5em] py-4 w-full"
-                        autoComplete="one-time-code"
-                        autoFocus
-                      />
-                      <OtpProgress value={otpToken} />
-                    </div>
-
-                    {/* Verify button */}
-                    <motion.button
-                      id="otp-verify-btn"
-                      type="button"
-                      disabled={otpToken.length !== 6 || otpLoading}
-                      onClick={handleVerifyOtp}
-                      whileTap={otpToken.length === 6 ? { scale: 0.97 } : {}}
-                      className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl
-                                 bg-gradient-to-r from-emerald-500 to-teal-500
-                                 text-white font-bold text-sm
-                                 disabled:opacity-40 disabled:cursor-not-allowed
-                                 hover:opacity-90 transition-all duration-200
-                                 shadow-[0_4px_20px_rgba(16,185,129,0.3)]"
-                    >
-                      {otpLoading
-                        ? <><Loader2 size={16} className="animate-spin" /> Verifying…</>
-                        : '✓ Verify & Sign In'
-                      }
-                    </motion.button>
-
-                    {/* Resend countdown */}
-                    <ResendCountdown
-                      key={resendKey}
-                      onResend={handleResendOtp}
-                      loading={phoneLoading}
-                    />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            )}
-
-            {/* ── Success message ── */}
-            <AnimatePresence>
-              {successMsg && (
-                <motion.div
-                  key="success-msg"
-                  initial={{ opacity: 0, y: -8, height: 0 }}
-                  animate={{ opacity: 1, y: 0, height: 'auto' }}
-                  exit={{ opacity: 0, y: -8, height: 0 }}
-                  transition={{ duration: 0.22 }}
-                  className="mt-3 overflow-hidden"
-                >
-                  <div className="flex gap-2 items-center text-emerald-400 text-xs
-                                  bg-emerald-500/10 border border-emerald-500/25 rounded-xl px-3.5 py-2.5">
-                    <span className="text-base">✅</span>
-                    <p className="font-semibold">{successMsg}</p>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* ── Error banner ── */}
+          {/* ── Glass card ── */}
+          <motion.div
+            variants={itemVariants}
+            style={{
+              width: "100%",
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.09)",
+              borderRadius: 20,
+              padding: "1.35rem",
+              backdropFilter: "blur(20px)",
+              WebkitBackdropFilter: "blur(20px)",
+              boxShadow:
+                "0 4px 6px rgba(0,0,0,0.3), 0 24px 64px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06)",
+            }}
+          >
+            {/* Error banner */}
             <AnimatePresence>
               {error && (
                 <motion.div
-                  key="error-banner"
-                  id="auth-error-banner"
-                  role="alert"
-                  initial={{ opacity: 0, y: -10, height: 0 }}
-                  animate={{ opacity: 1, y: 0, height: 'auto' }}
-                  exit={{ opacity: 0, y: -10, height: 0 }}
-                  transition={{ duration: 0.22 }}
-                  className="mt-4 overflow-hidden"
+                  initial={{ height: 0, opacity: 0, y: -8 }}
+                  animate={{ height: "auto", opacity: 1, y: 0 }}
+                  exit={{ height: 0, opacity: 0, y: -8 }}
+                  transition={{ type: "spring", stiffness: 420, damping: 32 }}
+                  style={{ overflow: "hidden", marginBottom: "1rem" }}
                 >
-                  <div className="flex gap-2.5 items-start text-red-400 text-xs
-                                  bg-red-500/10 border border-red-500/25 rounded-xl px-3.5 py-3">
-                    <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-semibold">Authentication error</p>
-                      <p className="opacity-75 mt-0.5 leading-relaxed">{error}</p>
-                    </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: 8,
+                      background: "rgba(153,27,27,0.3)",
+                      border: "1px solid rgba(185,28,28,0.4)",
+                      borderRadius: 12,
+                      padding: "0.65rem 0.75rem",
+                      color: "#fca5a5",
+                    }}
+                  >
+                    <AlertCircle size={14} style={{ marginTop: 1, flexShrink: 0 }} />
+                    <p style={{ fontSize: "0.72rem", lineHeight: 1.5, flex: 1, margin: 0 }}>{error}</p>
+                    <button
+                      onClick={() => setError(null)}
+                      aria-label="Dismiss error"
+                      style={{ color: "#fca5a5", background: "none", border: "none", cursor: "pointer", padding: 0, flexShrink: 0, display: "flex" }}
+                    >
+                      <X size={13} />
+                    </button>
                   </div>
                 </motion.div>
               )}
             </AnimatePresence>
 
-            {/* Bottom shimmer */}
-            <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r
-                            from-transparent via-white/8 to-transparent" />
-          </div>
+            <AnimatePresence mode="wait">
+              {!emailOpen ? (
+                /* ── Social buttons ── */
+                <motion.div
+                  key="social-flows"
+                  initial={{ opacity: 1 }}
+                  exit={{ opacity: 0, y: shouldReduceMotion ? 0 : -6 }}
+                  transition={{ duration: 0.15 }}
+                >
+                  <motion.div
+                    variants={buttonContainerVariants}
+                    initial="hidden"
+                    animate="visible"
+                    style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}
+                  >
+                    {/* Google */}
+                    <motion.button
+                      id="login-google"
+                      variants={buttonVariants}
+                      onClick={(e) => { rippleGoogle.addRipple(e); handleOAuth("google"); }}
+                      disabled={isLoading}
+                      whileHover={shouldReduceMotion ? {} : { scale: 1.02 }}
+                      whileTap={shouldReduceMotion ? {} : { scale: 0.98 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 28 }}
+                      style={{
+                        position: "relative",
+                        overflow: "hidden",
+                        width: "100%",
+                        height: 46,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        borderRadius: 14,
+                        fontWeight: 600,
+                        fontSize: "0.875rem",
+                        background: "#ffffff",
+                        color: "#111827",
+                        border: "none",
+                        cursor: isLoading ? "not-allowed" : "pointer",
+                        opacity: isLoading ? 0.5 : 1,
+                        letterSpacing: "-0.01em",
+                        boxShadow: "0 1px 3px rgba(0,0,0,0.18), 0 4px 12px rgba(0,0,0,0.12)",
+                      }}
+                    >
+                      {rippleGoogle.rippleEls}
+                      <span
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          opacity: loadingProvider === "google" ? 0 : 1,
+                          transition: "opacity 0.15s",
+                        }}
+                      >
+                        <GoogleIcon size={17} animated reduced={!!shouldReduceMotion} />
+                        Continue with Google
+                      </span>
+                      {loadingProvider === "google" && (
+                        <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <Loader2 size={16} className="animate-spin" style={{ color: "#111827" }} />
+                        </span>
+                      )}
+                    </motion.button>
 
-          {/* Footer */}
+                    {/* GitHub */}
+                    <motion.button
+                      id="login-github"
+                      variants={buttonVariants}
+                      onClick={(e) => { rippleGithub.addRipple(e); handleOAuth("github"); }}
+                      disabled={isLoading}
+                      whileHover={shouldReduceMotion ? {} : { scale: 1.02 }}
+                      whileTap={shouldReduceMotion ? {} : { scale: 0.98 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 28 }}
+                      style={{
+                        position: "relative",
+                        overflow: "hidden",
+                        width: "100%",
+                        height: 46,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        borderRadius: 14,
+                        fontWeight: 500,
+                        fontSize: "0.875rem",
+                        background: "rgba(22,27,34,0.95)",
+                        color: "#e5e7eb",
+                        border: "1px solid rgba(255,255,255,0.12)",
+                        cursor: isLoading ? "not-allowed" : "pointer",
+                        opacity: isLoading ? 0.5 : 1,
+                        letterSpacing: "-0.01em",
+                        boxShadow: "0 1px 3px rgba(0,0,0,0.25)",
+                      }}
+                    >
+                      {rippleGithub.rippleEls}
+                      <span
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          opacity: loadingProvider === "github" ? 0 : 1,
+                          transition: "opacity 0.15s",
+                        }}
+                      >
+                        <GithubIcon size={17} color="currentColor" animated reduced={!!shouldReduceMotion} />
+                        Continue with GitHub
+                      </span>
+                      {loadingProvider === "github" && (
+                        <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <Loader2 size={16} className="animate-spin" style={{ color: "#d1d5db" }} />
+                        </span>
+                      )}
+                    </motion.button>
+
+                    {/* Divider */}
+                    <motion.div
+                      variants={buttonVariants}
+                      style={{ display: "flex", alignItems: "center", gap: "0.65rem", margin: "0.1rem 0" }}
+                    >
+                      <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.08)" }} />
+                      <span style={{ fontSize: "0.68rem", color: "rgba(161,161,170,0.6)", letterSpacing: "0.08em", textTransform: "uppercase" }}>or</span>
+                      <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.08)" }} />
+                    </motion.div>
+
+                    {/* Email */}
+                    <motion.button
+                      id="login-email-open"
+                      variants={buttonVariants}
+                      onClick={(e) => { rippleEmail.addRipple(e); setEmailOpen(true); }}
+                      disabled={isLoading}
+                      whileHover={shouldReduceMotion ? {} : { scale: 1.02 }}
+                      whileTap={shouldReduceMotion ? {} : { scale: 0.98 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 28 }}
+                      style={{
+                        position: "relative",
+                        overflow: "hidden",
+                        width: "100%",
+                        height: 46,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        borderRadius: 14,
+                        fontWeight: 500,
+                        fontSize: "0.875rem",
+                        background: "rgba(135,166,140,0.12)",
+                        color: "#d1fae5",
+                        border: "1px solid rgba(135,166,140,0.28)",
+                        cursor: isLoading ? "not-allowed" : "pointer",
+                        opacity: isLoading ? 0.5 : 1,
+                        letterSpacing: "-0.01em",
+                      }}
+                    >
+                      {rippleEmail.rippleEls}
+                      <span style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <Mail size={16} style={{ marginRight: 8, color: "rgba(135,166,140,0.8)" }} />
+                        Continue with Email
+                      </span>
+                    </motion.button>
+                  </motion.div>
+                </motion.div>
+              ) : magicLinkSent ? (
+                /* ── Magic link sent ── */
+                <motion.div
+                  key="magic-success"
+                  initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.28, ease }}
+                  style={{ textAlign: "center", padding: "1.75rem 0.5rem", display: "flex", flexDirection: "column", alignItems: "center" }}
+                >
+                  <motion.div
+                    initial={{ scale: 0.5, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ type: "spring", stiffness: 380, damping: 22, delay: 0.1 }}
+                    style={{
+                      width: 52,
+                      height: 52,
+                      borderRadius: "50%",
+                      background: "rgba(52,211,153,0.12)",
+                      border: "1px solid rgba(52,211,153,0.28)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "#34d399",
+                      marginBottom: "1rem",
+                    }}
+                  >
+                    <Mail size={22} />
+                  </motion.div>
+                  <h3 style={{ fontSize: "0.9rem", fontWeight: 600, color: "#fff", margin: "0 0 0.4rem" }}>Check your inbox</h3>
+                  <p style={{ fontSize: "0.74rem", color: "rgba(161,161,170,0.85)", lineHeight: 1.65, maxWidth: 280, margin: 0 }}>
+                    We sent a secure magic link to{" "}
+                    <span style={{ color: "#e5e7eb", fontWeight: 500 }}>{email}</span>.
+                    Click it to log in instantly.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => { setEmailOpen(false); setMagicLinkSent(false); }}
+                    style={{
+                      marginTop: "1.5rem",
+                      fontSize: "0.72rem",
+                      color: "rgba(161,161,170,0.6)",
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      textDecoration: "underline",
+                      textUnderlineOffset: 3,
+                    }}
+                  >
+                    Back to sign in
+                  </button>
+                </motion.div>
+              ) : (
+                /* ── Email form ── */
+                <motion.form
+                  key="email-form"
+                  onSubmit={handleEmailSubmit}
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ type: "spring", stiffness: 450, damping: 36 }}
+                  style={{ overflow: "hidden", display: "flex", flexDirection: "column", gap: "1rem" }}
+                >
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <label style={{ fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700, color: "rgba(161,161,170,0.7)" }}>
+                      Email Address
+                    </label>
+                    <input
+                      type="email"
+                      autoFocus
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@example.com"
+                      style={{
+                        width: "100%",
+                        height: 42,
+                        borderRadius: 12,
+                        padding: "0 14px",
+                        fontSize: "0.8rem",
+                        color: "#f4f4f5",
+                        background: "rgba(0,0,0,0.35)",
+                        border: "1px solid rgba(255,255,255,0.1)",
+                        outline: "none",
+                        boxSizing: "border-box",
+                        transition: "border-color 0.2s",
+                      }}
+                      onFocus={(e) => (e.target.style.borderColor = "rgba(135,166,140,0.5)")}
+                      onBlur={(e) => (e.target.style.borderColor = "rgba(255,255,255,0.1)")}
+                    />
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    <motion.button
+                      type="submit"
+                      disabled={isLoading}
+                      onClick={(e) => rippleMagic.addRipple(e)}
+                      whileHover={shouldReduceMotion ? {} : { scale: 1.02 }}
+                      whileTap={shouldReduceMotion ? {} : { scale: 0.98 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 28 }}
+                      style={{
+                        position: "relative",
+                        overflow: "hidden",
+                        width: "100%",
+                        height: 42,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        borderRadius: 12,
+                        fontWeight: 600,
+                        fontSize: "0.82rem",
+                        background: "rgba(135,166,140,0.9)",
+                        color: "#0B1121",
+                        border: "none",
+                        cursor: isLoading ? "not-allowed" : "pointer",
+                        opacity: isLoading ? 0.5 : 1,
+                        letterSpacing: "-0.01em",
+                      }}
+                    >
+                      {rippleMagic.rippleEls}
+                      <span style={{ display: "flex", alignItems: "center", opacity: loadingProvider === "email" ? 0 : 1, transition: "opacity 0.15s" }}>
+                        Send Magic Link
+                        <ArrowRight size={14} style={{ marginLeft: 6 }} />
+                      </span>
+                      {loadingProvider === "email" && (
+                        <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <Loader2 size={15} className="animate-spin" style={{ color: "#0B1121" }} />
+                        </span>
+                      )}
+                    </motion.button>
+
+                    <button
+                      type="button"
+                      onClick={() => setEmailOpen(false)}
+                      style={{
+                        fontSize: "0.72rem",
+                        color: "rgba(161,161,170,0.55)",
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        textAlign: "center",
+                        padding: "0.2rem 0",
+                        transition: "color 0.2s",
+                      }}
+                      onMouseEnter={(e) => (e.target.style.color = "rgba(228,228,231,0.85)")}
+                      onMouseLeave={(e) => (e.target.style.color = "rgba(161,161,170,0.55)")}
+                    >
+                      Back to other options
+                    </button>
+                  </div>
+                </motion.form>
+              )}
+            </AnimatePresence>
+          </motion.div>
+
+          {/* ── Footer ── */}
           <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.7 }}
-            className="text-center text-white/20 text-[11px] mt-5 leading-relaxed"
+            variants={itemVariants}
+            style={{
+              marginTop: "1.75rem",
+              textAlign: "center",
+              fontSize: "0.65rem",
+              color: "rgba(113,113,122,0.7)",
+              lineHeight: 1.7,
+            }}
           >
-            Your data is end-to-end isolated per account.
-            <br />Protected by Supabase Row Level Security 🔐
+            By continuing, you agree to our{" "}
+            <a
+              href="#"
+              style={{ textDecoration: "underline", textUnderlineOffset: 3, color: "inherit", transition: "color 0.2s" }}
+              onMouseEnter={(e) => (e.target.style.color = "rgba(161,161,170,0.9)")}
+              onMouseLeave={(e) => (e.target.style.color = "rgba(113,113,122,0.7)")}
+            >
+              Terms
+            </a>{" "}
+            and{" "}
+            <a
+              href="#"
+              style={{ textDecoration: "underline", textUnderlineOffset: 3, color: "inherit", transition: "color 0.2s" }}
+              onMouseEnter={(e) => (e.target.style.color = "rgba(161,161,170,0.9)")}
+              onMouseLeave={(e) => (e.target.style.color = "rgba(113,113,122,0.7)")}
+            >
+              Privacy Policy
+            </a>.
           </motion.p>
         </motion.div>
       </div>
-    </div>
-  )
+    </>
+  );
 }

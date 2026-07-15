@@ -58,11 +58,6 @@ export default function Fitness() {
     activeMinutes: existing.activeMinutes || '',
   })
 
-  // ── Guard: fitness module disabled ───────────────────────────────────────────
-  if (settings?.fitnessTrackerEnabled === false) {
-    return <Navigate to="/dashboard" replace />
-  }
-
   // ── Derived: is the selected workout type a cardio type? ─────────────────────
   const isCardio = CARDIO_TYPES.has(form.workoutType)
 
@@ -89,6 +84,11 @@ export default function Fitness() {
       setForm(f => ({ ...f, calories: '' }))
     }
   }, [form.workoutType, form.duration, profile?.weight])
+
+  // ── Guard: fitness module disabled ───────────────────────────────────────────
+  if (settings?.fitnessTrackerEnabled === false) {
+    return <Navigate to="/dashboard" replace />
+  }
 
   const handleSave = () => {
     dispatch({

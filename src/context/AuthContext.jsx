@@ -137,6 +137,17 @@ export function AuthProvider({ children }) {
     return data
   }
 
+  const signInWithGithub = async () => {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'github',
+      options: {
+        redirectTo: typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173'
+      },
+    })
+    if (error) throw error
+    return data
+  }
+
   // ── Email / Password Login ────────────────────────────────────────────────────
   const login = async (email, password) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
@@ -182,7 +193,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, login, signup, signInWithGoogle, logout, updateProfile }}
+      value={{ user, loading, login, signup, signInWithGoogle, signInWithGithub, logout, updateProfile }}
     >
       {children}
     </AuthContext.Provider>

@@ -1,16 +1,18 @@
 import { useState, useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Home, BookOpen, BarChart2, CheckSquare, User, Dumbbell } from 'lucide-react'
+import { Home, BookOpen, BarChart2, CheckSquare, User, Dumbbell, BookMarked, LineChart } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 
 const NAV_ITEMS = [
-  { path: '/', icon: Home, label: 'Home' },
-  { path: '/log', icon: BookOpen, label: 'Log' },
-  { path: '/fitness', icon: Dumbbell, label: 'Fitness' },
-  { path: '/stats', icon: BarChart2, label: 'Stats' },
-  { path: '/todo', icon: CheckSquare, label: 'Tasks' },
-  { path: '/profile', icon: User, label: 'Me' },
+  { path: '/',                icon: Home,        label: 'Home'    },
+  { path: '/log',             icon: BookOpen,    label: 'Log'     },
+  { path: '/journal',         icon: BookMarked,  label: 'Journal' },
+  { path: '/trading-journal', icon: LineChart,   label: 'Trades'  },
+  { path: '/fitness',         icon: Dumbbell,    label: 'Fitness' },
+  { path: '/stats',           icon: BarChart2,   label: 'Stats'   },
+  { path: '/todo',            icon: CheckSquare, label: 'Tasks'   },
+  { path: '/profile',         icon: User,        label: 'Me'      },
 ]
 
 export default function BottomNav() {
@@ -88,7 +90,7 @@ export default function BottomNav() {
         style={{ pointerEvents: isVisible ? 'auto' : 'none', willChange: 'transform' }}
         className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-background/90 backdrop-blur-xl pb-safe transition-colors duration-300 transform-gpu"
       >
-        <div className="flex items-center justify-around px-2 pt-2 pb-2 max-w-lg mx-auto">
+        <div className="flex items-center justify-start sm:justify-around px-1 pt-2 pb-2 max-w-lg mx-auto overflow-x-auto no-scrollbar">
           {visibleNavItems.map(({ path, icon: Icon, label }) => {
             const active = path === '/'
               ? (location.pathname === '/' || location.pathname === '/dashboard')
@@ -100,7 +102,7 @@ export default function BottomNav() {
                 onClick={() => navigate(path)}
                 aria-label={label}
                 aria-current={active ? 'page' : undefined}
-                className="relative flex flex-col items-center justify-center gap-0.5 min-h-[48px] min-w-[48px] px-3 rounded-xl transition-all duration-200 active:scale-90 touch-manipulation"
+                className="relative flex flex-shrink-0 flex-col items-center justify-center gap-0.5 min-h-[48px] min-w-[44px] px-0.5 rounded-xl transition-all duration-200 active:scale-90 touch-manipulation"
               >
                 {active && (
                   <motion.div

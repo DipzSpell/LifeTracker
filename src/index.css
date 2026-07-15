@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap');
+@import './theme.css';
 
 @tailwind base;
 @tailwind components;
@@ -277,7 +278,7 @@
   }
 
   .glass-card-hover {
-    @apply glass-card transition-all duration-300 hover:bg-white/8 hover:border-white/20;
+    @apply glass-card transition-all duration-300 hover:bg-white/[0.08] hover:border-white/20;
   }
 
   /* Cyber glow effects */
@@ -331,7 +332,7 @@
   /* Input styles */
   .input-cyber {
     @apply w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30
-           focus:border-cyber-400/60 focus:bg-white/8 transition-all duration-200;
+           focus:border-cyber-400/60 focus:bg-white/[0.08] transition-all duration-200;
   }
 
   /* Button styles */
@@ -418,10 +419,74 @@
 
 
 
-  /* Quick action button */
+  /* Quick action button (legacy) */
   .quick-action {
     @apply flex flex-col items-center gap-1.5 p-3 rounded-2xl glass-card cursor-pointer
            transition-all duration-200 hover:scale-105 active:scale-95 hover:border-cyber-400/30;
+  }
+
+  /* ── New Design System ────────────────────────────────────────────────── */
+
+  /* Sidebar nav item */
+  .sidebar-item {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-xl
+           text-sm font-medium font-mono transition-all duration-150
+           text-white/50 hover:text-white hover:bg-white/[0.06] active:scale-[0.98];
+  }
+
+  .sidebar-item.active {
+    @apply text-white bg-white/10 border border-white/10;
+  }
+
+  /* Quick pill action button */
+  .quick-pill {
+    @apply flex items-center gap-2 px-4 py-2.5 rounded-full
+           text-xs font-semibold font-mono whitespace-nowrap
+           border border-white/10 bg-white/5
+           hover:bg-white/10 hover:border-white/20
+           active:scale-95 transition-all duration-150 cursor-pointer;
+  }
+
+  /* Data table — container */
+  .data-table {
+    @apply w-full text-xs font-mono border-collapse;
+  }
+
+  .data-table thead tr {
+    @apply border-b border-white/10;
+  }
+
+  .data-table thead th {
+    @apply py-2 px-3 text-left text-[10px] font-semibold uppercase tracking-wider
+           text-white/30 font-mono;
+  }
+
+  .data-table tbody tr {
+    @apply border-b border-white/5 last:border-0
+           transition-colors duration-100 hover:bg-white/[0.03];
+  }
+
+  .data-table tbody tr:nth-child(even) {
+    @apply bg-white/[0.02];
+  }
+
+  .data-table tbody td {
+    @apply py-2.5 px-3 text-white/70 font-mono text-xs;
+  }
+
+  /* Auth tile (login page) */
+  .auth-tile {
+    @apply flex items-center gap-3 px-5 py-3.5 rounded-2xl
+           text-sm font-semibold
+           transition-all duration-150
+           hover:-translate-y-0.5 hover:brightness-105
+           active:scale-[0.97];
+  }
+
+  /* Module summary sub-tile */
+  .summary-tile {
+    @apply flex flex-col items-center gap-2 p-3 rounded-xl
+           bg-white/5 border border-white/[0.08];
   }
 }
 
