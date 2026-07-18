@@ -9,7 +9,7 @@ import { todayKey } from '../lib/storage'
 import {
   Shield, Bell, Moon, Target,
   LogOut, ChevronRight, Heart, Zap, Award,
-  Download, Trash2, Lock, Star,
+  Download, Trash2, Star,
   TrendingUp, Activity,
   Database, Info, Sun, Sliders, Volume2,
   Dumbbell, X, Plus
@@ -1117,33 +1117,6 @@ export default function Profile() {
                           </div>
                           <ChevronRight size={14} className="text-white/20 group-hover:text-emerald-400 transition-colors" />
                         </button>
-                      </div>
-
-                      {/* ── 2. Privacy Screen Blur ── */}
-                      <div>
-                        <p className="text-[10px] font-semibold text-white/40 uppercase tracking-widest mb-2">Shoulder-Surf Protection</p>
-                        <div className="rounded-xl border border-white/8 overflow-hidden">
-                          <SettingRow
-                            icon={Lock}
-                            label="Privacy Screen Blur"
-                            sublabel="Blurs the app when you switch tabs or minimize"
-                          >
-                            <Toggle
-                              value={settings.privacyBlurEnabled || false}
-                              onChange={v => {
-                                updateSetting('privacyBlurEnabled', v)
-                                addToast(v ? 'Privacy blur active 🔒 Switch tabs to test' : 'Privacy blur disabled', 'info')
-                              }}
-                              color="bg-emerald-500"
-                            />
-                          </SettingRow>
-                        </div>
-                        {settings.privacyBlurEnabled && (
-                          <p className="text-[10px] text-emerald-400/70 mt-1.5 flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block" />
-                            Active — switch to another tab to see the blur effect
-                          </p>
-                        )}
                       </div>
 
                       {/* ── 3. Session Info + Secure Disconnect ── */}

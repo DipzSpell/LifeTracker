@@ -41,7 +41,6 @@ const getDefaultState = () => ({
     loveTrackerEnabled: true,
     fitnessTrackerEnabled: true,
     soundEffectsEnabled: true,
-    privacyBlurEnabled: false,
     // Workout types: first 4 are cardio, the rest are strength/gym.
     // Persisted via UPDATE_SETTINGS — user can add/remove via Settings.
     workoutTypes: [
@@ -434,34 +433,6 @@ export function AppProvider({ children }) {
       document.documentElement.classList.remove('dark')
     }
   }, [state.settings?.theme])
-
-  // ── Privacy Blur — shoulder-surf protection ───────────────────────────
-  // When privacyBlurEnabled is true, add body class on tab hide / window blur
-  // and remove it instantly when the user returns.
-  useEffect(() => {
-    const privacyEnabled = state.settings?.privacyBlurEnabled
-
-    const blur  = () => { if (privacyEnabled) document.body.classList.add('privacy-blurred') }
-    const focus = () => document.body.classList.remove('privacy-blurred')
-
-    const onVisibility = () => {
-      if (document.hidden) blur()
-      else focus()
-    }
-
-    document.addEventListener('visibilitychange', onVisibility)
-    window.addEventListener('blur', blur)
-    window.addEventListener('focus', focus)
-
-    // If the setting is toggled off, make sure we remove any lingering blur
-    if (!privacyEnabled) document.body.classList.remove('privacy-blurred')
-
-    return () => {
-      document.removeEventListener('visibilitychange', onVisibility)
-      window.removeEventListener('blur', blur)
-      window.removeEventListener('focus', focus)
-    }
-  }, [state.settings?.privacyBlurEnabled])
 
   // Explicit Supabase and local data reset
   const resetAppState = async () => {

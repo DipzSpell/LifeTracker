@@ -1,19 +1,24 @@
 /**
- * TradingJournal.jsx — F&O Options Trading Journal for NSE
+ * TradingJournal.jsx — F&O Options Trading Journal for NSE (design-system UI).
  *
  * Sections:
- *  A) Summary Stats Bar — Monthly P&L, Win Rate, Trade Count, Best/Worst
+ *  A) Summary Stats Bar — Monthly P&L, Win Rate (mini ring), Trades, Best/Worst, Avg R:R
  *  B) Quick Add Trade Form — collapsible, with options-aware fields
- *  C) Trades Table/List — filterable, sortable, expandable rows, close trade
+ *  C) Quick week strip + Trades List — filterable, sortable, expandable glass-card rows
  *  D) Analytics — Cumulative P&L chart, Win/Loss pie, Strategy/Symbol bar charts
+ *
+ * All data logic (Supabase CRUD, P&L calc, lot-size autofill, analytics memos)
+ * is unchanged — presentation only, on src/styles/theme.css tokens.
+ * Color semantics: profit/Long/CE/win = lime · loss/Short/PE = coral ·
+ * open/active/info = cyan · violet only for the break-even pie slice.
  */
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { format, parseISO, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns'
 import {
-  TrendingUp, TrendingDown, Plus, ChevronDown, ChevronUp,
+  TrendingUp, TrendingDown, Plus, Minus, ChevronDown, ChevronUp,
   Loader2, X, Trash2, CheckCircle,
-  Activity, Target, Zap,
+  Activity, Zap, Search, Scale,
 } from 'lucide-react'
 import {
   AreaChart, Area, BarChart, Bar,
@@ -23,30 +28,32 @@ import {
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import Toast, { useToast } from '../components/ui/Toast'
+import ProgressRing from '../components/bevel/ProgressRing'
+import { LOT_SIZES, DEFAULT_LOT_SIZE } from '../lib/lotSizes'
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   CONSTANTS
+   DESIGN-SYSTEM PALETTE (mirrors src/styles/theme.css — see Dashboard.jsx)
 ───────────────────────────────────────────────────────────────────────────── */
-const SAGE  = '#87a68c'
-const SKY   = '#7db8d8'
-const CORAL = '#e87c6e'
-const AMBER = '#d4a847'
+const C = {
+  cyan: '#22D3EE',
+  lime: '#A3E635',
+  violet: '#A78BFA',
+  coral: '#F87171',
+  elevated: '#151A23',
+  borderSubtle: 'rgba(255,255,255,0.08)',
+}
+const MONO = "'JetBrains Mono', ui-monospace, monospace"
 
 const SEGMENTS    = ['Options', 'Futures', 'Equity']
 const STATUSES     = ['Open', 'Closed', 'Stopped Out']
 const STRATEGY_TAGS = ['Breakout', 'Reversal', 'Scalp', 'Swing', 'Positional', 'Hedging', 'Other']
 
-// Standard NSE F&O lot sizes (approximate — user can override quantity)
-const LOT_SIZES = {
-  NIFTY: 75, BANKNIFTY: 30, FINNIFTY: 65, MIDCPNIFTY: 75,
-  RELIANCE: 250, TCS: 150, INFY: 300, HDFCBANK: 550, ICICIBANK: 700,
-  SBIN: 1500, WIPRO: 1500, TATAMOTORS: 1425, ITC: 3200,
-  BAJFINANCE: 125, KOTAKBANK: 400, AXISBANK: 625, LT: 225,
-  ADANIENT: 625, HINDUNILVR: 300, MARUTI: 100,
-}
+// Closed uses a neutral/muted tone (not lime) — the P&L number itself already
+// carries the profit/loss color, so the status pill stays informational only.
+const STATUS_COLOR = { 'Open': C.cyan, 'Closed': '#64748B', 'Stopped Out': C.coral }
 
 const SYMBOL_SUGGESTIONS = [
-  'NIFTY', 'BANKNIFTY', 'FINNIFTY', 'MIDCPNIFTY',
+  'NIFTY', 'BANKNIFTY', 'FINNIFTY', 'MIDCPNIFTY', 'SENSEX',
   'RELIANCE', 'TCS', 'INFY', 'HDFCBANK', 'ICICIBANK',
   'SBIN', 'WIPRO', 'TATAMOTORS', 'ITC', 'BAJFINANCE',
   'KOTAKBANK', 'AXISBANK', 'LT', 'ADANIENT',
@@ -87,14 +94,19 @@ function calcPnl(trade) {
 const fmt = (n) => {
   if (n === null || n === undefined || isNaN(n)) return '—'
   const abs = Math.abs(n)
-  const formatted = abs >= 1_00_000
+  const formatted = abs >= 1_00_00_000
+    ? `₹${(abs / 1_00_00_000).toFixed(2)}Cr`
+    : abs >= 1_00_000
     ? `₹${(abs / 1_00_000).toFixed(2)}L`
     : abs >= 1000
     ? `₹${(abs / 1000).toFixed(1)}K`
     : `₹${abs.toFixed(2)}`
   return n < 0 ? `-${formatted}` : formatted
 }
+// Signed variant for P&L displays — "+₹1.2K" / "-₹850"
+const sfmt = (n) => (n > 0 ? `+${fmt(n)}` : fmt(n))
 const pct = (n) => (n === null || n === undefined || isNaN(n)) ? '—' : `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`
+const pnlColor = (n) => (n >= 0 ? C.lime : C.coral)
 
 /* ─────────────────────────────────────────────────────────────────────────────
    EMPTY FORM STATE
@@ -108,8 +120,10 @@ const EMPTY_FORM = {
   expiry_date:    '',
   trade_type:     'Long',
   entry_price:    '',
-  lot_size:       '',
-  quantity:       '',
+  lots:           1,                  // how many lots (user input, F&O only)
+  lot_size:       DEFAULT_LOT_SIZE,   // units per lot (auto from symbol, editable)
+  quantity:       '',                 // direct input for Equity ONLY — F&O qty is
+                                      // always derived live as lots × lot_size
   stop_loss:      '',
   target:         '',
   strategy_tag:   '',
@@ -121,33 +135,33 @@ const EMPTY_FORM = {
 ───────────────────────────────────────────────────────────────────────────── */
 function Label({ children }) {
   return (
-    <label style={{
-      fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase',
-      letterSpacing: '0.09em', color: 'rgba(255,255,255,0.38)',
-      fontFamily: 'ui-monospace, monospace', display: 'block', marginBottom: 5,
-    }}>
+    <label className="section-label" style={{ display: 'block', marginBottom: 5 }}>
       {children}
     </label>
   )
 }
 
-function Input({ style = {}, ...props }) {
+function Input({ style = {}, className = '', ...props }) {
   return (
     <input
-      className="input-cyber text-xs"
-      style={{ height: 36, fontFamily: 'ui-monospace, monospace', ...style }}
+      className={`glass-input ${className}`}
+      style={{ height: 38, fontFamily: MONO, fontSize: 12.5, ...style }}
       {...props}
     />
   )
 }
 
-function Select({ children, style = {}, ...props }) {
+function Select({ children, style = {}, className = '', active = false, ...props }) {
   return (
     <select
-      className="input-cyber text-xs"
+      className={className}
       style={{
-        height: 36, fontFamily: 'ui-monospace, monospace',
-        background: 'rgba(255,255,255,0.05)',
+        height: 38, fontFamily: MONO, fontSize: 12.5,
+        background: 'var(--bg-elevated)',
+        border: `1px solid ${active ? C.cyan : 'var(--border-subtle)'}`,
+        borderRadius: 10, color: 'var(--text-primary)',
+        padding: '0 0.6rem',
+        transition: 'border-color 0.2s',
         ...style,
       }}
       {...props}
@@ -157,32 +171,43 @@ function Select({ children, style = {}, ...props }) {
   )
 }
 
-function StatCard({ label, value, sub, color = '#fff', icon: Icon }) {
+function StatCard({ label, value, sub, color = 'var(--text-primary)', icon: Icon, ring }) {
   return (
-    <div style={{
-      background: 'rgba(255,255,255,0.04)',
-      border: '1px solid rgba(255,255,255,0.08)',
-      borderRadius: 14, padding: '0.85rem 1rem',
-      display: 'flex', flexDirection: 'column', gap: 6,
+    <div className="glass-card" style={{
+      padding: '0.85rem 1rem', display: 'flex', flexDirection: 'column', gap: 6,
+      minWidth: 0, overflow: 'hidden',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: '0.6rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)', fontFamily: 'ui-monospace, monospace' }}>
-          {label}
-        </span>
-        {Icon && <Icon size={13} style={{ color: 'rgba(255,255,255,0.2)' }} />}
+        <span className="section-label" style={{ whiteSpace: 'nowrap' }}>{label}</span>
+        {ring
+          ? <ProgressRing pct={ring.pct} size={26} stroke={3} from={ring.color} to={ring.color} mini animate={false} trackColor={C.borderSubtle} />
+          : Icon && <Icon size={13} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />}
       </div>
-      <p style={{ fontSize: '1.1rem', fontWeight: 700, color, fontFamily: 'ui-monospace, monospace', margin: 0, lineHeight: 1 }}>
+      {/* Fluid font-size (inline beats .stat-number's fixed sizes) + nowrap so
+          long values like "1:12.5" or "-₹1.24L" shrink instead of overflowing */}
+      <p className="stat-number" style={{
+        color, margin: 0, lineHeight: 1.05,
+        fontSize: 'clamp(20px, 2vw + 8px, 32px)',
+        whiteSpace: 'nowrap',
+      }}>
         {value}
       </p>
-      {sub && <p style={{ fontSize: '0.62rem', color: 'rgba(255,255,255,0.28)', fontFamily: 'ui-monospace, monospace', margin: 0 }}>{sub}</p>}
+      {sub && (
+        <p style={{
+          fontSize: 11, color: 'var(--text-muted)', fontFamily: MONO, margin: 0,
+          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+        }}>
+          {sub}
+        </p>
+      )}
     </div>
   )
 }
 
-function Badge({ children, color = 'rgba(255,255,255,0.15)', textColor = '#fff', style = {} }) {
+function Badge({ children, color = 'rgba(255,255,255,0.15)', textColor = 'var(--text-primary)', style = {} }) {
   return (
     <span style={{
-      fontSize: '0.6rem', fontWeight: 700, fontFamily: 'ui-monospace, monospace',
+      fontSize: 10, fontWeight: 700, fontFamily: MONO,
       padding: '2px 8px', borderRadius: 20,
       background: color, color: textColor,
       border: `1px solid ${color}`,
@@ -218,7 +243,7 @@ function SymbolInput({ value, onChange }) {
       {open && filtered.length > 0 && (
         <div style={{
           position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
-          background: '#0f1829', border: '1px solid rgba(255,255,255,0.12)',
+          background: C.elevated, border: '1px solid var(--border-glass)',
           borderRadius: 10, marginTop: 4, overflow: 'hidden',
         }}>
           {filtered.map(s => (
@@ -228,18 +253,18 @@ function SymbolInput({ value, onChange }) {
               onMouseDown={() => { onChange(s); setOpen(false) }}
               style={{
                 display: 'block', width: '100%', textAlign: 'left',
-                padding: '7px 12px', fontSize: '0.75rem',
-                fontFamily: 'ui-monospace, monospace',
-                color: 'rgba(255,255,255,0.75)',
+                padding: '7px 12px', fontSize: 12,
+                fontFamily: MONO,
+                color: 'var(--text-secondary)',
                 background: 'none', border: 'none', cursor: 'pointer',
-                borderBottom: '1px solid rgba(255,255,255,0.05)',
+                borderBottom: `1px solid ${C.borderSubtle}`,
               }}
               onMouseEnter={e => e.target.style.background = 'rgba(255,255,255,0.06)'}
               onMouseLeave={e => e.target.style.background = 'none'}
             >
               {s}
               {LOT_SIZES[s] && (
-                <span style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.3)', marginLeft: 8 }}>
+                <span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 8 }}>
                   lot: {LOT_SIZES[s]}
                 </span>
               )}
@@ -252,13 +277,14 @@ function SymbolInput({ value, onChange }) {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   SEGMENTED CONTROL (Long / Short toggle)
+   SEGMENTED CONTROL (Long / Short, CE / PE)
 ───────────────────────────────────────────────────────────────────────────── */
 function SegmentedControl({ options, value, onChange }) {
   return (
     <div style={{
-      display: 'flex', background: 'rgba(255,255,255,0.04)',
-      border: '1px solid rgba(255,255,255,0.09)', borderRadius: 10, padding: 3, gap: 3,
+      display: 'flex', background: 'var(--bg-elevated)',
+      border: '1px solid var(--border-subtle)', borderRadius: 10, padding: 3, gap: 3,
+      height: 38,
     }}>
       {options.map(opt => {
         const active = value === opt.value
@@ -268,14 +294,14 @@ function SegmentedControl({ options, value, onChange }) {
             type="button"
             onClick={() => onChange(opt.value)}
             style={{
-              flex: 1, padding: '6px 10px',
-              borderRadius: 8, border: 'none', cursor: 'pointer',
-              fontSize: '0.72rem', fontWeight: 700,
-              fontFamily: 'ui-monospace, monospace',
+              flex: 1, padding: '4px 10px',
+              borderRadius: 8, cursor: 'pointer',
+              fontSize: 11.5, fontWeight: 700,
+              fontFamily: MONO,
               transition: 'all 0.15s',
-              background: active ? opt.bg : 'transparent',
-              color: active ? opt.color : 'rgba(255,255,255,0.3)',
-              boxShadow: active ? `0 2px 8px ${opt.bg}66` : 'none',
+              background: active ? `${opt.color}26` : 'transparent',
+              border: active ? `1px solid ${opt.color}66` : '1px solid transparent',
+              color: active ? opt.color : 'var(--text-muted)',
             }}
           >
             {opt.label}
@@ -315,10 +341,10 @@ function CloseTradeForm({ trade, onClose, onSave }) {
   return (
     <div style={{
       background: 'rgba(0,0,0,0.3)', borderRadius: 12,
-      border: '1px solid rgba(255,255,255,0.1)', padding: '0.85rem',
+      border: `1px solid ${C.borderSubtle}`, padding: '0.85rem',
       display: 'flex', flexDirection: 'column', gap: 10,
     }}>
-      <p style={{ fontSize: '0.7rem', fontWeight: 700, color: 'rgba(255,255,255,0.6)', margin: 0, fontFamily: 'ui-monospace, monospace' }}>
+      <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', margin: 0, fontFamily: MONO }}>
         Close Trade
       </p>
 
@@ -339,35 +365,37 @@ function CloseTradeForm({ trade, onClose, onSave }) {
       {preview && (
         <div style={{
           padding: '6px 10px', borderRadius: 8,
-          background: preview.pnl >= 0 ? `${SAGE}22` : `${CORAL}22`,
-          border: `1px solid ${preview.pnl >= 0 ? SAGE : CORAL}44`,
-          fontSize: '0.72rem', fontFamily: 'ui-monospace, monospace',
-          color: preview.pnl >= 0 ? SAGE : CORAL,
+          background: preview.pnl >= 0 ? 'rgba(163,230,53,0.12)' : 'rgba(248,113,113,0.12)',
+          border: `1px solid ${pnlColor(preview.pnl)}44`,
+          fontSize: 12, fontFamily: MONO,
+          color: pnlColor(preview.pnl),
           display: 'flex', justifyContent: 'space-between',
         }}>
           <span>Estimated P&L:</span>
-          <span style={{ fontWeight: 700 }}>{fmt(preview.pnl)} ({pct(preview.pnl_percent)})</span>
+          <span style={{ fontWeight: 700 }}>{sfmt(preview.pnl)} ({pct(preview.pnl_percent)})</span>
         </div>
       )}
 
       <div>
         <Label>Exit Reason</Label>
         <textarea rows={2} placeholder="Why did you exit?" value={exitReason} onChange={e => setExitReason(e.target.value)}
-          className="input-cyber text-xs resize-none" style={{ fontFamily: 'ui-monospace, monospace', width: '100%' }} />
+          className="glass-input resize-none" style={{ fontFamily: MONO, width: '100%' }} />
       </div>
       <div>
         <Label>Lessons Learned</Label>
         <textarea rows={2} placeholder="What did you learn?" value={lessons} onChange={e => setLessons(e.target.value)}
-          className="input-cyber text-xs resize-none" style={{ fontFamily: 'ui-monospace, monospace', width: '100%' }} />
+          className="glass-input resize-none" style={{ fontFamily: MONO, width: '100%' }} />
       </div>
 
       <div style={{ display: 'flex', gap: 8 }}>
         <button type="button" onClick={onClose}
-          style={{ flex: 1, padding: '8px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}>
+          className="glass-btn"
+          style={{ flex: 1, padding: '8px', fontSize: 12.5, fontWeight: 600, color: 'var(--text-secondary)' }}>
           Cancel
         </button>
         <button type="button" onClick={handleSubmit} disabled={!exitPrice || saving}
-          style={{ flex: 1, padding: '8px', borderRadius: 10, border: 'none', background: `linear-gradient(135deg, ${SAGE}, ${SKY})`, color: '#0B1121', cursor: !exitPrice ? 'not-allowed' : 'pointer', fontSize: '0.75rem', fontWeight: 700, opacity: !exitPrice ? 0.5 : 1 }}>
+          className="glass-btn glass-btn-accent"
+          style={{ flex: 1, padding: '8px', fontSize: 12.5, fontWeight: 700 }}>
           {saving ? '...' : 'Confirm Close'}
         </button>
       </div>
@@ -376,13 +404,13 @@ function CloseTradeForm({ trade, onClose, onSave }) {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   TRADE ROW
+   TRADE ROW — glass-card, cyan left border when open
 ───────────────────────────────────────────────────────────────────────────── */
 function TradeRow({ trade, onDelete, onUpdate }) {
   const [open, setOpen] = useState(false)
   const [showClose, setShowClose] = useState(false)
 
-  const pnlColor = !trade.exit_price ? 'rgba(255,255,255,0.4)' : trade.pnl >= 0 ? SAGE : CORAL
+  const rowPnlColor = !trade.exit_price ? 'var(--text-muted)' : pnlColor(trade.pnl)
   const isClosed = trade.status !== 'Open'
 
   const dateLabel = (() => {
@@ -396,79 +424,78 @@ function TradeRow({ trade, onDelete, onUpdate }) {
   }
 
   return (
-    <div style={{
-      border: '1px solid rgba(255,255,255,0.07)',
-      borderRadius: 12, overflow: 'hidden',
-      background: 'rgba(255,255,255,0.02)',
-      marginBottom: 6,
-    }}>
-      {/* Header row */}
+    <div
+      className="glass-card"
+      style={{
+        padding: 0, overflow: 'hidden', marginBottom: 8,
+        ...(isClosed ? {} : { borderLeft: `3px solid ${C.cyan}` }),
+      }}
+    >
+      {/* Header row — stacked 2-line layout so it reads cleanly on narrow screens */}
       <div
         onClick={() => setOpen(o => !o)}
+        className="touch-manipulation"
         style={{
-          display: 'flex', alignItems: 'center', gap: 10,
-          padding: '0.6rem 0.85rem', cursor: 'pointer',
-          flexWrap: 'wrap',
+          display: 'flex', flexDirection: 'column', gap: 6,
+          padding: '0.75rem 0.85rem', cursor: 'pointer', minHeight: 44,
         }}
       >
-        {/* Date */}
-        <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', fontFamily: 'ui-monospace, monospace', flexShrink: 0, minWidth: 42 }}>
-          {dateLabel}
-        </span>
-
-        {/* Symbol + type */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5, flex: 1, minWidth: 0 }}>
-          <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#fff', fontFamily: 'ui-monospace, monospace' }}>
-            {trade.symbol}
-          </span>
-          {trade.segment === 'Options' && trade.option_type && (
-            <Badge
-              color={trade.option_type === 'CE' ? `${SAGE}22` : `${CORAL}22`}
-              textColor={trade.option_type === 'CE' ? SAGE : CORAL}
-              style={{ border: `1px solid ${trade.option_type === 'CE' ? SAGE : CORAL}44` }}
-            >
-              {trade.option_type}
-            </Badge>
-          )}
-          {trade.strike_price && (
-            <span style={{ fontSize: '0.62rem', color: 'rgba(255,255,255,0.3)', fontFamily: 'ui-monospace, monospace' }}>
-              {trade.strike_price}
+        {/* Line 1: Symbol + segment/option badges + strike ... Long/Short pill + chevron */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, flex: 1, minWidth: 0 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', fontFamily: MONO, flexShrink: 0 }}>
+              {trade.symbol}
             </span>
-          )}
+            <Badge color="rgba(255,255,255,0.07)" textColor="var(--text-secondary)">
+              {trade.segment}
+            </Badge>
+            {trade.segment === 'Options' && trade.option_type && (
+              <Badge
+                color={trade.option_type === 'CE' ? 'rgba(163,230,53,0.14)' : 'rgba(248,113,113,0.14)'}
+                textColor={trade.option_type === 'CE' ? C.lime : C.coral}
+              >
+                {trade.option_type}
+              </Badge>
+            )}
+            {trade.strike_price && (
+              <span style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: MONO, whiteSpace: 'nowrap' }}>
+                {trade.strike_price}
+              </span>
+            )}
+          </div>
+
+          <Badge
+            color={trade.trade_type === 'Long' ? 'rgba(163,230,53,0.14)' : 'rgba(248,113,113,0.14)'}
+            textColor={trade.trade_type === 'Long' ? C.lime : C.coral}
+            style={{ flexShrink: 0 }}
+          >
+            {trade.trade_type === 'Long' ? '↑ Long' : '↓ Short'}
+          </Badge>
+
+          <span style={{ color: 'var(--text-muted)', flexShrink: 0 }}>
+            {open ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+          </span>
         </div>
 
-        {/* Trade type badge */}
-        <Badge
-          color={trade.trade_type === 'Long' ? `${SAGE}22` : `${CORAL}22`}
-          textColor={trade.trade_type === 'Long' ? SAGE : CORAL}
-          style={{ border: `1px solid ${trade.trade_type === 'Long' ? SAGE : CORAL}44` }}
-        >
-          {trade.trade_type === 'Long' ? '↑ Long' : '↓ Short'}
-        </Badge>
-
-        {/* Entry → Exit */}
-        <span style={{ fontSize: '0.68rem', fontFamily: 'ui-monospace, monospace', color: 'rgba(255,255,255,0.55)', flexShrink: 0 }}>
-          ₹{trade.entry_price}
-          {trade.exit_price ? ` → ₹${trade.exit_price}` : ''}
-        </span>
-
-        {/* P&L */}
-        <span style={{ fontSize: '0.78rem', fontWeight: 700, fontFamily: 'ui-monospace, monospace', color: pnlColor, flexShrink: 0, minWidth: 60, textAlign: 'right' }}>
-          {trade.exit_price ? fmt(trade.pnl) : '—'}
-        </span>
-
-        {/* Status badge */}
-        <Badge
-          color={trade.status === 'Open' ? `${AMBER}22` : trade.status === 'Closed' ? `${SAGE}22` : `${CORAL}22`}
-          textColor={trade.status === 'Open' ? AMBER : trade.status === 'Closed' ? SAGE : CORAL}
-        >
-          {trade.status}
-        </Badge>
-
-        {/* Expand chevron */}
-        <span style={{ color: 'rgba(255,255,255,0.3)', flexShrink: 0 }}>
-          {open ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-        </span>
+        {/* Line 2: date · entry→exit · P&L · status — wraps gracefully, never overflows */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 10.5, color: 'var(--text-muted)', fontFamily: MONO, flexShrink: 0 }}>
+            {dateLabel}
+          </span>
+          <span style={{ fontSize: 11, fontFamily: MONO, color: 'var(--text-secondary)', flexShrink: 0 }}>
+            ₹{trade.entry_price}
+            {trade.exit_price ? ` → ₹${trade.exit_price}` : ''}
+          </span>
+          <span style={{ fontSize: 12.5, fontWeight: 700, fontFamily: MONO, color: rowPnlColor, flexShrink: 0, marginLeft: 'auto' }}>
+            {trade.exit_price ? sfmt(trade.pnl) : '—'}
+          </span>
+          <Badge
+            color={`${STATUS_COLOR[trade.status] || C.cyan}22`}
+            textColor={STATUS_COLOR[trade.status] || C.cyan}
+          >
+            {trade.status}
+          </Badge>
+        </div>
       </div>
 
       {/* Expanded detail */}
@@ -482,39 +509,50 @@ function TradeRow({ trade, onDelete, onUpdate }) {
             style={{ overflow: 'hidden' }}
           >
             <div style={{
-              borderTop: '1px solid rgba(255,255,255,0.06)',
+              borderTop: `1px solid ${C.borderSubtle}`,
               padding: '0.75rem 0.85rem',
               background: 'rgba(0,0,0,0.15)',
-              fontSize: '0.72rem', fontFamily: 'ui-monospace, monospace',
-              color: 'rgba(255,255,255,0.65)',
+              fontSize: 11.5, fontFamily: MONO,
+              color: 'var(--text-secondary)',
             }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 8, marginBottom: 10 }}>
                 <DetailField label="Segment" value={trade.segment} />
-                <DetailField label="Lot Size" value={trade.lot_size} />
+                {trade.segment !== 'Equity' && (
+                  <>
+                    <DetailField label="Lot Size" value={trade.lot_size || '—'} />
+                    {/* Lots not stored in DB — derived from qty ÷ lot size.
+                        Guarded so legacy rows (missing/odd lot_size) can't crash. */}
+                    <DetailField label="Lots" value={
+                      trade.lot_size > 0 && trade.quantity > 0
+                        ? Math.max(1, Math.round(trade.quantity / trade.lot_size))
+                        : '—'
+                    } />
+                  </>
+                )}
                 <DetailField label="Quantity" value={trade.quantity} />
                 {trade.expiry_date && <DetailField label="Expiry" value={trade.expiry_date} />}
-                {trade.stop_loss && <DetailField label="SL" value={`₹${trade.stop_loss}`} />}
-                {trade.target && <DetailField label="Target" value={`₹${trade.target}`} />}
-                {trade.strategy_tag && <DetailField label="Strategy" value={trade.strategy_tag} />}
-                {trade.pnl_percent !== 0 && <DetailField label="P&L %" value={pct(trade.pnl_percent)} color={trade.pnl >= 0 ? SAGE : CORAL} />}
+                {trade.stop_loss && <DetailField label="SL" value={`₹${trade.stop_loss}`} color={C.coral} />}
+                {trade.target && <DetailField label="Target" value={`₹${trade.target}`} color={C.lime} />}
+                {trade.strategy_tag && <DetailField label="Strategy" value={trade.strategy_tag} color={C.cyan} />}
+                {trade.pnl_percent !== 0 && <DetailField label="P&L %" value={pct(trade.pnl_percent)} color={pnlColor(trade.pnl)} />}
               </div>
 
               {trade.entry_reason && (
                 <div style={{ marginBottom: 6 }}>
-                  <p style={{ fontSize: '0.58rem', color: `${AMBER}99`, textTransform: 'uppercase', letterSpacing: '0.09em', marginBottom: 3 }}>Entry Reason</p>
-                  <p style={{ paddingLeft: 8, borderLeft: `2px solid ${AMBER}33`, lineHeight: 1.5, margin: 0 }}>{trade.entry_reason}</p>
+                  <p style={{ fontSize: 10, color: `${C.cyan}99`, textTransform: 'uppercase', letterSpacing: '0.09em', marginBottom: 3 }}>Entry Reason</p>
+                  <p style={{ paddingLeft: 8, borderLeft: `2px solid ${C.cyan}33`, lineHeight: 1.5, margin: 0 }}>{trade.entry_reason}</p>
                 </div>
               )}
               {trade.exit_reason && (
                 <div style={{ marginBottom: 6 }}>
-                  <p style={{ fontSize: '0.58rem', color: `${SKY}99`, textTransform: 'uppercase', letterSpacing: '0.09em', marginBottom: 3 }}>Exit Reason</p>
-                  <p style={{ paddingLeft: 8, borderLeft: `2px solid ${SKY}33`, lineHeight: 1.5, margin: 0 }}>{trade.exit_reason}</p>
+                  <p style={{ fontSize: 10, color: `${C.violet}99`, textTransform: 'uppercase', letterSpacing: '0.09em', marginBottom: 3 }}>Exit Reason</p>
+                  <p style={{ paddingLeft: 8, borderLeft: `2px solid ${C.violet}33`, lineHeight: 1.5, margin: 0 }}>{trade.exit_reason}</p>
                 </div>
               )}
               {trade.lessons_learned && (
                 <div style={{ marginBottom: 8 }}>
-                  <p style={{ fontSize: '0.58rem', color: `${SAGE}99`, textTransform: 'uppercase', letterSpacing: '0.09em', marginBottom: 3 }}>Lessons Learned</p>
-                  <p style={{ paddingLeft: 8, borderLeft: `2px solid ${SAGE}33`, lineHeight: 1.5, margin: 0 }}>{trade.lessons_learned}</p>
+                  <p style={{ fontSize: 10, color: `${C.lime}99`, textTransform: 'uppercase', letterSpacing: '0.09em', marginBottom: 3 }}>Lessons Learned</p>
+                  <p style={{ paddingLeft: 8, borderLeft: `2px solid ${C.lime}33`, lineHeight: 1.5, margin: 0 }}>{trade.lessons_learned}</p>
                 </div>
               )}
 
@@ -523,9 +561,9 @@ function TradeRow({ trade, onDelete, onUpdate }) {
                 {!isClosed && (
                   <button type="button" onClick={e => { e.stopPropagation(); setShowClose(s => !s) }}
                     style={{
-                      padding: '6px 14px', borderRadius: 8, border: `1px solid ${SAGE}55`,
-                      background: `${SAGE}22`, color: SAGE, cursor: 'pointer',
-                      fontSize: '0.72rem', fontWeight: 700, fontFamily: 'ui-monospace, monospace',
+                      padding: '8px 14px', minHeight: 40, borderRadius: 8, border: `1px solid ${C.lime}55`,
+                      background: 'rgba(163,230,53,0.12)', color: C.lime, cursor: 'pointer',
+                      fontSize: 11.5, fontWeight: 700, fontFamily: MONO,
                     }}>
                     <CheckCircle size={11} style={{ display: 'inline', marginRight: 4 }} />
                     Close Trade
@@ -533,9 +571,9 @@ function TradeRow({ trade, onDelete, onUpdate }) {
                 )}
                 <button type="button" onClick={e => { e.stopPropagation(); onDelete(trade.id) }}
                   style={{
-                    padding: '6px 12px', borderRadius: 8, border: `1px solid ${CORAL}44`,
-                    background: `${CORAL}15`, color: CORAL, cursor: 'pointer',
-                    fontSize: '0.72rem', fontWeight: 700, fontFamily: 'ui-monospace, monospace',
+                    padding: '8px 12px', minHeight: 40, borderRadius: 8, border: `1px solid ${C.coral}44`,
+                    background: 'rgba(248,113,113,0.10)', color: C.coral, cursor: 'pointer',
+                    fontSize: 11.5, fontWeight: 700, fontFamily: MONO,
                   }}>
                   <Trash2 size={11} style={{ display: 'inline', marginRight: 4 }} />
                   Delete
@@ -561,8 +599,8 @@ function TradeRow({ trade, onDelete, onUpdate }) {
 function DetailField({ label, value, color }) {
   return (
     <div>
-      <p style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.28)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 2px' }}>{label}</p>
-      <p style={{ fontSize: '0.72rem', fontWeight: 600, color: color || 'rgba(255,255,255,0.75)', margin: 0 }}>{value}</p>
+      <p style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 2px' }}>{label}</p>
+      <p style={{ fontSize: 11.5, fontWeight: 600, color: color || 'var(--text-secondary)', margin: 0 }}>{value}</p>
     </div>
   )
 }
@@ -574,14 +612,14 @@ function ChartTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null
   return (
     <div style={{
-      background: 'rgba(11,17,33,0.96)', border: '1px solid rgba(255,255,255,0.12)',
+      background: C.elevated, border: `1px solid ${C.borderSubtle}`,
       borderRadius: 10, padding: '0.55rem 0.85rem',
-      fontSize: '0.7rem', fontFamily: 'ui-monospace, monospace',
-      color: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(8px)',
+      fontSize: 11.5, fontFamily: MONO,
+      color: 'var(--text-secondary)',
     }}>
-      <p style={{ margin: '0 0 4px', fontWeight: 700, color: '#fff' }}>{label}</p>
+      <p style={{ margin: '0 0 4px', fontWeight: 700, color: 'var(--text-primary)' }}>{label}</p>
       {payload.map((p, i) => (
-        <p key={i} style={{ margin: '2px 0', color: p.color || '#fff' }}>
+        <p key={i} style={{ margin: '2px 0', color: p.color || 'var(--text-primary)' }}>
           {p.name}: <strong>{typeof p.value === 'number' ? (p.name.includes('P&L') ? fmt(p.value) : p.value) : p.value}</strong>
         </p>
       ))}
@@ -608,8 +646,14 @@ export default function TradingJournal() {
   // Filters
   const [filterSymbol,   setFilterSymbol]   = useState('')
   const [filterStatus,   setFilterStatus]   = useState('All')
+  const [filterSegment,  setFilterSegment]  = useState('All')
   const [filterStrategy, setFilterStrategy] = useState('All')
   const [sortBy,         setSortBy]         = useState('date_desc')
+
+  const hasActiveFilters = !!filterSymbol || filterStatus !== 'All' || filterSegment !== 'All' || filterStrategy !== 'All'
+  const clearFilters = () => {
+    setFilterSymbol(''); setFilterStatus('All'); setFilterSegment('All'); setFilterStrategy('All')
+  }
 
   const nextExpiries = useMemo(() => getNextExpiries(), [])
 
@@ -631,18 +675,25 @@ export default function TradingJournal() {
 
   useEffect(() => { fetchTrades() }, [fetchTrades])
 
-  // ── Auto lot size when symbol changes ─────────────────────────────────────
+  // ── Auto lot size when symbol changes (mapping se) ─────────────────────────
   useEffect(() => {
-    const ls = LOT_SIZES[form.symbol] || 1
-    const lots = form.lot_size ? parseInt(form.lot_size) : 1
-    setForm(p => ({ ...p, lot_size: ls, quantity: ls * lots }))
-  }, [form.symbol]) // eslint-disable-line react-hooks/exhaustive-deps
+    setForm(p => {
+      if (p.segment === 'Equity') return p
+      return { ...p, lot_size: LOT_SIZES[p.symbol] ?? DEFAULT_LOT_SIZE }
+    })
+  }, [form.symbol])
 
-  // ── Update quantity when lot_size or lots change ───────────────────────────
-  const handleLotsChange = (lots) => {
-    const ls = LOT_SIZES[form.symbol] || parseInt(form.lot_size) || 1
-    setForm(p => ({ ...p, quantity: ls * parseInt(lots || 1) }))
-  }
+  // Lots / Lot Size inputs — quantity is NOT stored for F&O, it's derived
+  // fresh every render below, so it can never go stale or get overwritten.
+  const handleLotsChange = (rawLots) =>
+    setForm(p => ({ ...p, lots: rawLots === '' ? '' : Math.max(1, parseInt(rawLots) || 1) }))
+
+  const handleLotSizeChange = (rawLs) =>
+    setForm(p => ({ ...p, lot_size: rawLs === '' ? '' : Math.max(1, parseInt(rawLs) || 1) }))
+
+  // ── Derived F&O quantity — the single source of truth for display & submit ─
+  const fnoQuantity = Math.max(1,
+    (parseInt(form.lots) || 1) * (parseInt(form.lot_size) || DEFAULT_LOT_SIZE))
 
   // ── Add trade ──────────────────────────────────────────────────────────────
   const handleAddTrade = async (e) => {
@@ -651,6 +702,10 @@ export default function TradingJournal() {
       addToast('Symbol and Entry Price are required.', 'error'); return
     }
     setSaving(true)
+    // Quantity: F&O = derived lots × lot_size; Equity = direct quantity input.
+    const isEquity = form.segment === 'Equity'
+    const lotSize = isEquity ? 1 : (parseInt(form.lot_size) || DEFAULT_LOT_SIZE)
+    const quantity = isEquity ? (parseInt(form.quantity) || 1) : fnoQuantity
     const record = {
       user_id:      uid,
       trade_date:   form.trade_date,
@@ -662,8 +717,8 @@ export default function TradingJournal() {
       trade_type:   form.trade_type,
       entry_price:  parseFloat(form.entry_price),
       exit_price:   null,
-      lot_size:     parseInt(form.lot_size) || 1,
-      quantity:     parseInt(form.quantity) || 1,
+      lot_size:     lotSize,
+      quantity:     quantity,
       stop_loss:    form.stop_loss ? parseFloat(form.stop_loss) : null,
       target:       form.target    ? parseFloat(form.target)    : null,
       pnl:          0,
@@ -703,13 +758,14 @@ export default function TradingJournal() {
     let t = [...trades]
     if (filterSymbol)             t = t.filter(x => x.symbol.includes(filterSymbol.toUpperCase()))
     if (filterStatus !== 'All')   t = t.filter(x => x.status === filterStatus)
+    if (filterSegment !== 'All')  t = t.filter(x => x.segment === filterSegment)
     if (filterStrategy !== 'All') t = t.filter(x => x.strategy_tag === filterStrategy)
     if (sortBy === 'date_desc')   t.sort((a,b) => b.trade_date.localeCompare(a.trade_date))
     if (sortBy === 'date_asc')    t.sort((a,b) => a.trade_date.localeCompare(b.trade_date))
     if (sortBy === 'pnl_desc')    t.sort((a,b) => (b.pnl||0) - (a.pnl||0))
     if (sortBy === 'pnl_asc')     t.sort((a,b) => (a.pnl||0) - (b.pnl||0))
     return t
-  }, [trades, filterSymbol, filterStatus, filterStrategy, sortBy])
+  }, [trades, filterSymbol, filterStatus, filterSegment, filterStrategy, sortBy])
 
   // ── Monthly stats ──────────────────────────────────────────────────────────
   const monthlyStats = useMemo(() => {
@@ -724,7 +780,24 @@ export default function TradingJournal() {
     const winRate = closed.length ? (winners.length / closed.length) * 100 : 0
     const best = closed.length ? Math.max(...closed.map(t => t.pnl || 0)) : 0
     const worst = closed.length ? Math.min(...closed.map(t => t.pnl || 0)) : 0
-    return { totalPnl, winRate, count: thisMonth.length, best, worst }
+    // Avg planned risk:reward — needs both target & SL on the trade
+    const rrTrades = closed.filter(t =>
+      t.target && t.stop_loss && t.entry_price && Math.abs(t.entry_price - t.stop_loss) > 0)
+    const avgRR = rrTrades.length
+      ? rrTrades.reduce((s, t) => s + Math.abs(t.target - t.entry_price) / Math.abs(t.entry_price - t.stop_loss), 0) / rrTrades.length
+      : null
+    return { totalPnl, winRate, count: thisMonth.length, best, worst, avgRR }
+  }, [trades])
+
+  // ── This-week quick stats ──────────────────────────────────────────────────
+  const weekStats = useMemo(() => {
+    const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 6); weekAgo.setHours(0, 0, 0, 0)
+    const wk = trades.filter(t => { try { return parseISO(t.trade_date) >= weekAgo } catch { return false } })
+    const closed = wk.filter(t => t.status !== 'Open')
+    const pnl = closed.reduce((s, t) => s + (t.pnl || 0), 0)
+    const wins = closed.filter(t => (t.pnl || 0) > 0).length
+    const winPct = closed.length ? Math.round((wins / closed.length) * 100) : 0
+    return { count: wk.length, pnl, winPct }
   }, [trades])
 
   // ── Analytics data ─────────────────────────────────────────────────────────
@@ -743,9 +816,9 @@ export default function TradingJournal() {
     const losses = closed.filter(t => (t.pnl || 0) < 0).length
     const breakeven = closed.length - wins - losses
     const winLoss = [
-      { name: 'Win', value: wins,      fill: SAGE  },
-      { name: 'Loss', value: losses,   fill: CORAL },
-      { name: 'BE', value: breakeven,  fill: AMBER },
+      { name: 'Win', value: wins,      fill: C.lime  },
+      { name: 'Loss', value: losses,   fill: C.coral },
+      { name: 'BE', value: breakeven,  fill: C.violet },
     ].filter(d => d.value > 0)
 
     // P&L by strategy
@@ -781,60 +854,60 @@ export default function TradingJournal() {
       {/* ── Page Header ──────────────────────────────────────────── */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
         <div>
-          <h1 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <TrendingUp size={18} style={{ color: SAGE }} />
+          <h1 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <TrendingUp size={18} style={{ color: C.cyan }} />
             Trading Journal
           </h1>
-          <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)', fontFamily: 'ui-monospace, monospace', marginTop: 4 }}>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: MONO, marginTop: 4 }}>
             NSE F&O Options & Futures trade log
           </p>
         </div>
-        <motion.button
+        <button
           onClick={() => setFormOpen(o => !o)}
-          whileTap={{ scale: 0.96 }}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            padding: '8px 16px', borderRadius: 10, border: 'none', cursor: 'pointer',
-            background: `linear-gradient(135deg, ${SAGE}, ${SKY})`,
-            color: '#0B1121', fontWeight: 700, fontSize: '0.8rem',
-            fontFamily: 'ui-monospace, monospace',
-            boxShadow: `0 4px 16px ${SAGE}44`,
-          }}
+          className="glass-btn glass-btn-accent touch-manipulation"
+          style={{ padding: '0.6rem 1.1rem', fontSize: 13, fontWeight: 700, fontFamily: MONO }}
         >
           <Plus size={14} />
           Add Trade
-        </motion.button>
+        </button>
       </div>
 
       {/* ── A) SUMMARY STATS ─────────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10 }}>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
         <StatCard
           label="Monthly P&L"
-          value={fmt(monthlyStats.totalPnl)}
+          value={sfmt(monthlyStats.totalPnl)}
           sub={`${trades.filter(t => t.status !== 'Open').length} closed trades`}
-          color={monthlyStats.totalPnl >= 0 ? SAGE : CORAL}
+          color={pnlColor(monthlyStats.totalPnl)}
           icon={monthlyStats.totalPnl >= 0 ? TrendingUp : TrendingDown}
         />
         <StatCard
           label="Win Rate"
           value={`${monthlyStats.winRate.toFixed(1)}%`}
           sub="This month"
-          color={monthlyStats.winRate >= 50 ? SAGE : CORAL}
-          icon={Target}
+          color={monthlyStats.winRate >= 50 ? C.lime : C.coral}
+          ring={{ pct: monthlyStats.winRate, color: monthlyStats.winRate >= 50 ? C.lime : C.coral }}
         />
         <StatCard
           label="Total Trades"
           value={monthlyStats.count}
           sub="This month"
-          color={SKY}
+          color={C.cyan}
           icon={Activity}
         />
         <StatCard
           label="Best / Worst"
           value={fmt(monthlyStats.best)}
           sub={`Worst: ${fmt(monthlyStats.worst)}`}
-          color={AMBER}
+          color={C.cyan}
           icon={Zap}
+        />
+        <StatCard
+          label="Avg R:R"
+          value={monthlyStats.avgRR !== null ? `1:${monthlyStats.avgRR.toFixed(1)}` : '—'}
+          sub={monthlyStats.avgRR !== null ? 'Planned, closed trades' : 'Needs SL + target'}
+          color={C.violet}
+          icon={Scale}
         />
       </div>
 
@@ -848,23 +921,20 @@ export default function TradingJournal() {
             transition={{ duration: 0.25 }}
             style={{ overflow: 'hidden' }}
           >
-            <form onSubmit={handleAddTrade} style={{
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.09)',
-              borderRadius: 18, padding: '1.1rem 1.2rem',
-            }}>
+            <form onSubmit={handleAddTrade} className="glass-card" style={{ padding: '1.1rem 1.2rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                <h3 style={{ fontSize: '0.82rem', fontWeight: 700, color: 'rgba(255,255,255,0.8)', margin: 0, fontFamily: 'ui-monospace, monospace' }}>
+                <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', margin: 0, fontFamily: MONO }}>
                   New Trade
                 </h3>
                 <button type="button" onClick={() => setFormOpen(false)}
-                  style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer' }}>
+                  className="flex items-center justify-center"
+                  style={{ width: 40, height: 40, background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
                   <X size={16} />
                 </button>
               </div>
 
               {/* ROW 1: Date, Symbol, Segment */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10, marginBottom: 10 }}>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5" style={{ marginBottom: 10 }}>
                 <div>
                   <Label>Trade Date</Label>
                   <Input type="date" value={form.trade_date} onChange={e => setForm(p => ({ ...p, trade_date: e.target.value }))} style={{ width: '100%' }} />
@@ -883,13 +953,13 @@ export default function TradingJournal() {
 
               {/* Options-specific fields */}
               {form.segment === 'Options' && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10, marginBottom: 10, padding: '0.75rem', background: `${SAGE}11`, borderRadius: 10, border: `1px solid ${SAGE}22` }}>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5" style={{ marginBottom: 10, padding: '0.75rem', background: 'rgba(34,211,238,0.05)', borderRadius: 10, border: '1px solid rgba(34,211,238,0.16)' }}>
                   <div>
                     <Label>Option Type</Label>
                     <SegmentedControl
                       options={[
-                        { value: 'CE', label: 'CE', bg: `${SAGE}44`, color: SAGE },
-                        { value: 'PE', label: 'PE', bg: `${CORAL}44`, color: CORAL },
+                        { value: 'CE', label: 'CE', color: C.lime },
+                        { value: 'PE', label: 'PE', color: C.coral },
                       ]}
                       value={form.option_type}
                       onChange={v => setForm(p => ({ ...p, option_type: v }))}
@@ -902,7 +972,7 @@ export default function TradingJournal() {
                   <div>
                     <Label>Expiry Date</Label>
                     <Select value={form.expiry_date} onChange={e => setForm(p => ({ ...p, expiry_date: e.target.value }))} style={{ width: '100%' }}>
-                      <option value="">-- Select --</option>
+                      <option value="">Select expiry</option>
                       {nextExpiries.map(d => <option key={d} value={d}>{format(parseISO(d), 'dd MMM yyyy')}</option>)}
                     </Select>
                   </div>
@@ -913,21 +983,21 @@ export default function TradingJournal() {
               {form.segment === 'Futures' && (
                 <div style={{ marginBottom: 10 }}>
                   <Label>Expiry Date</Label>
-                  <Select value={form.expiry_date} onChange={e => setForm(p => ({ ...p, expiry_date: e.target.value }))} style={{ width: '100%', maxWidth: 200 }}>
-                    <option value="">-- Select --</option>
+                  <Select value={form.expiry_date} onChange={e => setForm(p => ({ ...p, expiry_date: e.target.value }))} className="sm:max-w-[220px]" style={{ width: '100%' }}>
+                    <option value="">Select expiry</option>
                     {nextExpiries.map(d => <option key={d} value={d}>{format(parseISO(d), 'dd MMM yyyy')}</option>)}
                   </Select>
                 </div>
               )}
 
-              {/* ROW 2: Trade type, Entry, Lot size, Qty */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10, marginBottom: 10 }}>
-                <div style={{ gridColumn: '1 / span 1' }}>
+              {/* ROW 2: Trade direction + Entry price */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5" style={{ marginBottom: 10 }}>
+                <div>
                   <Label>Trade Direction *</Label>
                   <SegmentedControl
                     options={[
-                      { value: 'Long',  label: '↑ Long',  bg: `${SAGE}55`,  color: SAGE  },
-                      { value: 'Short', label: '↓ Short', bg: `${CORAL}55`, color: CORAL },
+                      { value: 'Long',  label: '↑ Long',  color: C.lime  },
+                      { value: 'Short', label: '↓ Short', color: C.coral },
                     ]}
                     value={form.trade_type}
                     onChange={v => setForm(p => ({ ...p, trade_type: v }))}
@@ -937,18 +1007,66 @@ export default function TradingJournal() {
                   <Label>Entry Price *</Label>
                   <Input type="number" step="0.05" placeholder="₹" value={form.entry_price} onChange={e => setForm(p => ({ ...p, entry_price: e.target.value }))} style={{ width: '100%' }} />
                 </div>
-                <div>
-                  <Label>Lots</Label>
-                  <Input type="number" min="1" placeholder="1" value={form.lot_size} onChange={e => { setForm(p => ({ ...p, lot_size: e.target.value })); handleLotsChange(e.target.value) }} style={{ width: '100%' }} />
-                </div>
-                <div>
-                  <Label>Quantity (auto)</Label>
-                  <Input type="number" placeholder="Qty" value={form.quantity} onChange={e => setForm(p => ({ ...p, quantity: e.target.value }))} style={{ width: '100%' }} />
-                </div>
               </div>
 
+              {/* ROW 2b: Lots × Lot Size = Quantity (F&O) / direct Quantity (Equity) */}
+              {form.segment === 'Equity' ? (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5" style={{ marginBottom: 10 }}>
+                  <div>
+                    <Label>Quantity *</Label>
+                    <Input type="number" min="1" placeholder="No. of shares" value={form.quantity} onChange={e => setForm(p => ({ ...p, quantity: e.target.value }))} style={{ width: '100%' }} />
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5" style={{ marginBottom: 10 }}>
+                  <div>
+                    <Label>Lots</Label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <button type="button" aria-label="Decrease lots"
+                        onClick={() => handleLotsChange((parseInt(form.lots) || 1) - 1)}
+                        className="glass-btn"
+                        style={{ width: 38, height: 38, minHeight: 38, padding: 0, flexShrink: 0 }}>
+                        <Minus size={14} />
+                      </button>
+                      <Input type="number" min="1" placeholder="1" value={form.lots}
+                        onChange={e => handleLotsChange(e.target.value)}
+                        style={{ width: '100%', textAlign: 'center' }} />
+                      <button type="button" aria-label="Increase lots"
+                        onClick={() => handleLotsChange((parseInt(form.lots) || 1) + 1)}
+                        className="glass-btn"
+                        style={{ width: 38, height: 38, minHeight: 38, padding: 0, flexShrink: 0 }}>
+                        <Plus size={14} />
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <Label>Lot Size</Label>
+                    <Input type="number" min="1" placeholder="Units per lot" value={form.lot_size}
+                      onChange={e => handleLotSizeChange(e.target.value)}
+                      style={{ width: '100%' }} />
+                  </div>
+                  <div>
+                    <label className="section-label" style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
+                      Quantity
+                      <span style={{
+                        fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 8,
+                        background: 'rgba(34,211,238,0.12)', color: C.cyan, letterSpacing: '0.05em',
+                      }}>
+                        AUTO
+                      </span>
+                    </label>
+                    <Input type="number" value={fnoQuantity} readOnly tabIndex={-1}
+                      title="Auto-calculated: lots × lot size"
+                      style={{
+                        width: '100%', color: 'var(--text-secondary)',
+                        background: 'rgba(255,255,255,0.03)', cursor: 'default',
+                      }} />
+                  </div>
+                </div>
+              )}
+
               {/* ROW 3: SL, Target, Strategy */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10, marginBottom: 10 }}>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5" style={{ marginBottom: 10 }}>
                 <div>
                   <Label>Stop Loss</Label>
                   <Input type="number" step="0.05" placeholder="SL ₹" value={form.stop_loss} onChange={e => setForm(p => ({ ...p, stop_loss: e.target.value }))} style={{ width: '100%' }} />
@@ -960,7 +1078,7 @@ export default function TradingJournal() {
                 <div>
                   <Label>Strategy Tag</Label>
                   <Select value={form.strategy_tag} onChange={e => setForm(p => ({ ...p, strategy_tag: e.target.value }))} style={{ width: '100%' }}>
-                    <option value="">-- None --</option>
+                    <option value="">None</option>
                     {STRATEGY_TAGS.map(s => <option key={s}>{s}</option>)}
                   </Select>
                 </div>
@@ -970,48 +1088,83 @@ export default function TradingJournal() {
               <div style={{ marginBottom: '1rem' }}>
                 <Label>Entry Reason</Label>
                 <textarea rows={2} placeholder="Why did you take this trade? Setup, confluence..." value={form.entry_reason} onChange={e => setForm(p => ({ ...p, entry_reason: e.target.value }))}
-                  className="input-cyber text-xs resize-none" style={{ fontFamily: 'ui-monospace, monospace', width: '100%' }} />
+                  className="glass-input resize-none" style={{ fontFamily: MONO, width: '100%' }} />
               </div>
 
               {/* Submit */}
-              <motion.button type="submit" disabled={saving || !form.symbol || !form.entry_price} whileTap={{ scale: 0.97 }}
-                style={{
-                  width: '100%', height: 42, borderRadius: 12, border: 'none', cursor: 'pointer',
-                  background: `linear-gradient(135deg, ${SAGE}, ${SKY})`,
-                  color: '#0B1121', fontWeight: 700, fontSize: '0.85rem',
-                  fontFamily: 'ui-monospace, monospace',
-                  opacity: (!form.symbol || !form.entry_price) ? 0.45 : 1,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-                }}>
+              <button type="submit" disabled={saving || !form.symbol || !form.entry_price}
+                className="glass-btn glass-btn-accent w-full touch-manipulation"
+                style={{ height: 48, fontWeight: 700, fontSize: 14, fontFamily: MONO }}>
                 {saving ? <Loader2 size={16} className="animate-spin" /> : <><Plus size={14} /> Add Trade</>}
-              </motion.button>
+              </button>
             </form>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* ── C) TRADES TABLE ──────────────────────────────────────── */}
-      <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '1rem 1.1rem' }}>
-        {/* Table header + filters */}
-        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: '0.85rem' }}>
-          <p style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)', fontFamily: 'ui-monospace, monospace', margin: 0, flex: 1 }}>
-            Trades ({filteredTrades.length})
-          </p>
-          <Input type="text" placeholder="Symbol filter" value={filterSymbol} onChange={e => setFilterSymbol(e.target.value)} style={{ width: 110, height: 30, fontSize: '0.68rem' }} />
-          <Select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ height: 30, fontSize: '0.68rem', width: 110 }}>
-            <option value="All">All Status</option>
-            {STATUSES.map(s => <option key={s}>{s}</option>)}
-          </Select>
-          <Select value={filterStrategy} onChange={e => setFilterStrategy(e.target.value)} style={{ height: 30, fontSize: '0.68rem', width: 110 }}>
-            <option value="All">All Strategy</option>
-            {STRATEGY_TAGS.map(s => <option key={s}>{s}</option>)}
-          </Select>
-          <Select value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ height: 30, fontSize: '0.68rem', width: 110 }}>
+      {/* ── C) TRADES LIST ───────────────────────────────────────── */}
+      <div className="glass-card" style={{ padding: '1rem 1.1rem' }}>
+        {/* Quick week stats strip */}
+        <p style={{ fontFamily: MONO, fontSize: 12, color: 'var(--text-secondary)', margin: '0 0 12px' }}>
+          This week: {weekStats.count} trades · <span style={{ color: pnlColor(weekStats.pnl), fontWeight: 700 }}>{sfmt(weekStats.pnl)}</span> P&L · {weekStats.winPct}% win
+        </p>
+
+        {/* Header + sort */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
+          <span className="section-label">Trades ({filteredTrades.length})</span>
+          <Select value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ height: 32, fontSize: 11, width: 'auto' }}>
             <option value="date_desc">Date ↓</option>
             <option value="date_asc">Date ↑</option>
             <option value="pnl_desc">P&L ↓</option>
             <option value="pnl_asc">P&L ↑</option>
           </Select>
+        </div>
+
+        {/* Filters — one row desktop, 2x2 grid mobile */}
+        <div style={{ marginBottom: '0.85rem' }}>
+          <div className="grid grid-cols-2 sm:flex gap-2">
+            <div style={{ position: 'relative' }} className="sm:flex-1 sm:min-w-[140px]">
+              <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+              <input
+                type="text"
+                placeholder="Search symbol..."
+                value={filterSymbol}
+                onChange={e => setFilterSymbol(e.target.value)}
+                style={{
+                  width: '100%', height: 38, fontFamily: MONO, fontSize: 12,
+                  background: 'var(--bg-elevated)',
+                  border: `1px solid ${filterSymbol ? C.cyan : 'var(--border-subtle)'}`,
+                  borderRadius: 10, color: 'var(--text-primary)',
+                  padding: '0 0.6rem 0 1.9rem',
+                  transition: 'border-color 0.2s',
+                }}
+              />
+            </div>
+            <Select active={filterStatus !== 'All'} value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="sm:w-[130px]" style={{ width: '100%' }}>
+              <option value="All">All Status</option>
+              {STATUSES.map(s => <option key={s}>{s}</option>)}
+            </Select>
+            <Select active={filterSegment !== 'All'} value={filterSegment} onChange={e => setFilterSegment(e.target.value)} className="sm:w-[130px]" style={{ width: '100%' }}>
+              <option value="All">All Segments</option>
+              {SEGMENTS.map(s => <option key={s}>{s}</option>)}
+            </Select>
+            <Select active={filterStrategy !== 'All'} value={filterStrategy} onChange={e => setFilterStrategy(e.target.value)} className="sm:w-[130px]" style={{ width: '100%' }}>
+              <option value="All">All Strategies</option>
+              {STRATEGY_TAGS.map(s => <option key={s}>{s}</option>)}
+            </Select>
+          </div>
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              style={{
+                marginTop: 6, background: 'none', border: 'none', cursor: 'pointer',
+                fontSize: 11, fontWeight: 600, color: C.cyan, fontFamily: MONO, padding: '2px 0',
+              }}
+            >
+              ✕ Clear filters
+            </button>
+          )}
         </div>
 
         {loading ? (
@@ -1022,17 +1175,25 @@ export default function TradingJournal() {
           </div>
         ) : filteredTrades.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '2.5rem 1rem' }}>
-            <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>📊</div>
-            <p style={{ fontSize: '0.85rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)', margin: 0 }}>
+            <div style={{
+              width: 64, height: 64, borderRadius: '50%', margin: '0 auto 14px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'rgba(34,211,238,0.10)',
+              boxShadow: '0 0 30px var(--accent-glow)',
+            }}>
+              <TrendingUp size={28} style={{ color: C.cyan }} />
+            </div>
+            <p style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text-secondary)', margin: 0 }}>
               {trades.length === 0 ? 'No trades logged yet' : 'No trades match your filters'}
             </p>
-            <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.22)', marginTop: 6 }}>
+            <p style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 6 }}>
               {trades.length === 0 ? 'Click "Add Trade" above to log your first trade!' : 'Try clearing your filters.'}
             </p>
             {trades.length === 0 && (
               <button onClick={() => setFormOpen(true)}
-                style={{ marginTop: 14, padding: '8px 20px', borderRadius: 10, border: `1px solid ${SAGE}55`, background: `${SAGE}22`, color: SAGE, cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, fontFamily: 'ui-monospace, monospace' }}>
-                + Add First Trade
+                className="glass-btn glass-btn-accent"
+                style={{ marginTop: 14, padding: '0.65rem 1.25rem', fontSize: 12.5, fontWeight: 700, fontFamily: MONO }}>
+                <Plus size={14} /> Add First Trade
               </button>
             )}
           </div>
@@ -1048,26 +1209,24 @@ export default function TradingJournal() {
       {/* ── D) ANALYTICS ─────────────────────────────────────────── */}
       {analyticsData.cumulativePnl.length > 1 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <p style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.28)', fontFamily: 'ui-monospace, monospace', margin: 0 }}>
-            Analytics
-          </p>
+          <p className="section-label" style={{ margin: 0 }}>Analytics</p>
 
           {/* Cumulative P&L chart */}
-          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: '1rem' }}>
-            <p style={{ fontSize: '0.68rem', fontWeight: 600, color: 'rgba(255,255,255,0.5)', fontFamily: 'ui-monospace, monospace', marginBottom: 10 }}>Cumulative P&L</p>
+          <div className="glass-card" style={{ padding: '1rem' }}>
+            <p style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--text-secondary)', fontFamily: MONO, marginBottom: 10 }}>Cumulative P&L</p>
             <ResponsiveContainer width="100%" height={140}>
               <AreaChart data={analyticsData.cumulativePnl}>
                 <defs>
                   <linearGradient id="cumGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%"   stopColor={SAGE} stopOpacity={0.4} />
-                    <stop offset="100%" stopColor={SAGE} stopOpacity={0} />
+                    <stop offset="0%"   stopColor={C.lime} stopOpacity={0.35} />
+                    <stop offset="100%" stopColor={C.lime} stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.05)" />
-                <XAxis dataKey="date" tick={{ fill: 'rgba(255,255,255,0.25)', fontSize: 9, fontFamily: 'ui-monospace, monospace' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: 'rgba(255,255,255,0.2)', fontSize: 9, fontFamily: 'ui-monospace, monospace' }} axisLine={false} tickLine={false} tickFormatter={v => fmt(v)} width={55} />
+                <XAxis dataKey="date" tick={{ fill: '#64748B', fontSize: 9, fontFamily: MONO }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: '#64748B', fontSize: 9, fontFamily: MONO }} axisLine={false} tickLine={false} tickFormatter={v => fmt(v)} width={55} />
                 <Tooltip content={<ChartTooltip />} formatter={v => [fmt(v), 'Cum. P&L']} />
-                <Area type="monotone" dataKey="cumPnl" name="Cum. P&L" stroke={SAGE} strokeWidth={2.5} fill="url(#cumGrad)" dot={false} activeDot={{ r: 4, fill: SAGE }} />
+                <Area type="monotone" dataKey="cumPnl" name="Cum. P&L" stroke={C.lime} strokeWidth={2.5} fill="url(#cumGrad)" dot={false} activeDot={{ r: 4, fill: C.lime }} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -1076,15 +1235,15 @@ export default function TradingJournal() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }}>
             {/* Win/Loss Pie */}
             {analyticsData.winLoss.length > 0 && (
-              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: '1rem' }}>
-                <p style={{ fontSize: '0.68rem', fontWeight: 600, color: 'rgba(255,255,255,0.5)', fontFamily: 'ui-monospace, monospace', marginBottom: 8 }}>Win / Loss</p>
+              <div className="glass-card" style={{ padding: '1rem' }}>
+                <p style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--text-secondary)', fontFamily: MONO, marginBottom: 8 }}>Win / Loss</p>
                 <ResponsiveContainer width="100%" height={140}>
                   <PieChart>
                     <Pie data={analyticsData.winLoss} cx="50%" cy="50%" innerRadius={40} outerRadius={60} paddingAngle={3} dataKey="value">
                       {analyticsData.winLoss.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
                     </Pie>
                     <Tooltip content={<ChartTooltip />} />
-                    <Legend formatter={(v) => <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.55)', fontFamily: 'ui-monospace, monospace' }}>{v}</span>} />
+                    <Legend formatter={(v) => <span style={{ fontSize: 11, color: 'var(--text-secondary)', fontFamily: MONO }}>{v}</span>} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -1092,17 +1251,17 @@ export default function TradingJournal() {
 
             {/* P&L by Strategy */}
             {analyticsData.byStrategy.length > 0 && (
-              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: '1rem' }}>
-                <p style={{ fontSize: '0.68rem', fontWeight: 600, color: 'rgba(255,255,255,0.5)', fontFamily: 'ui-monospace, monospace', marginBottom: 8 }}>P&L by Strategy</p>
+              <div className="glass-card" style={{ padding: '1rem' }}>
+                <p style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--text-secondary)', fontFamily: MONO, marginBottom: 8 }}>P&L by Strategy</p>
                 <ResponsiveContainer width="100%" height={140}>
                   <BarChart data={analyticsData.byStrategy} barSize={18}>
                     <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.04)" />
-                    <XAxis dataKey="name" tick={{ fill: 'rgba(255,255,255,0.25)', fontSize: 8, fontFamily: 'ui-monospace, monospace' }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fill: 'rgba(255,255,255,0.2)', fontSize: 9 }} axisLine={false} tickLine={false} tickFormatter={v => fmt(v)} width={48} />
+                    <XAxis dataKey="name" tick={{ fill: '#64748B', fontSize: 8, fontFamily: MONO }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fill: '#64748B', fontSize: 9 }} axisLine={false} tickLine={false} tickFormatter={v => fmt(v)} width={48} />
                     <Tooltip content={<ChartTooltip />} formatter={(v) => [fmt(v), 'P&L']} />
                     <Bar dataKey="pnl" name="P&L" radius={[4, 4, 0, 0]}>
                       {analyticsData.byStrategy.map((entry, i) => (
-                        <Cell key={i} fill={entry.pnl >= 0 ? SAGE : CORAL} />
+                        <Cell key={i} fill={entry.pnl >= 0 ? C.lime : C.coral} />
                       ))}
                     </Bar>
                   </BarChart>
@@ -1112,17 +1271,17 @@ export default function TradingJournal() {
 
             {/* P&L by Symbol */}
             {analyticsData.bySymbol.length > 0 && (
-              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: '1rem' }}>
-                <p style={{ fontSize: '0.68rem', fontWeight: 600, color: 'rgba(255,255,255,0.5)', fontFamily: 'ui-monospace, monospace', marginBottom: 8 }}>P&L by Symbol</p>
+              <div className="glass-card" style={{ padding: '1rem' }}>
+                <p style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--text-secondary)', fontFamily: MONO, marginBottom: 8 }}>P&L by Symbol</p>
                 <ResponsiveContainer width="100%" height={140}>
                   <BarChart data={analyticsData.bySymbol} barSize={18}>
                     <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.04)" />
-                    <XAxis dataKey="name" tick={{ fill: 'rgba(255,255,255,0.25)', fontSize: 8, fontFamily: 'ui-monospace, monospace' }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fill: 'rgba(255,255,255,0.2)', fontSize: 9 }} axisLine={false} tickLine={false} tickFormatter={v => fmt(v)} width={48} />
+                    <XAxis dataKey="name" tick={{ fill: '#64748B', fontSize: 8, fontFamily: MONO }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fill: '#64748B', fontSize: 9 }} axisLine={false} tickLine={false} tickFormatter={v => fmt(v)} width={48} />
                     <Tooltip content={<ChartTooltip />} formatter={(v) => [fmt(v), 'P&L']} />
                     <Bar dataKey="pnl" name="P&L" radius={[4, 4, 0, 0]}>
                       {analyticsData.bySymbol.map((entry, i) => (
-                        <Cell key={i} fill={entry.pnl >= 0 ? SKY : CORAL} />
+                        <Cell key={i} fill={entry.pnl >= 0 ? C.cyan : C.coral} />
                       ))}
                     </Bar>
                   </BarChart>

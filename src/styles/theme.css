@@ -1,0 +1,164 @@
+/*
+ * theme.css — the design system single source of truth.
+ * Imported globally via index.css. .glass-btn / .glass-card here are the
+ * only definitions of those classes in the app (old duplicates removed
+ * from src/theme.css and index.css).
+ *
+ * Note: --accent below is shadowed by the legacy per-theme --accent
+ * defined in index.css's [data-theme] blocks (emerald/pink/gold depending
+ * on theme) — that variable is still live across charts/progress rings
+ * and intentionally left alone. Anything here that needs the cyan hero
+ * color uses the literal hex instead of var(--accent) to avoid resolving
+ * to the wrong color.
+ */
+
+/* JetBrains Mono — used by .stat-number and mono numerals */
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700&display=swap');
+
+:root {
+  --bg-base: #0B0E14;
+  --bg-elevated: #151A23;
+  --bg-glass: rgba(255, 255, 255, 0.06);
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-glass: rgba(255, 255, 255, 0.14);
+  --accent: #22D3EE;
+  --accent-glow: rgba(34, 211, 238, 0.25);
+  --success: #A3E635;
+  --danger: #F87171;
+  --special: #A78BFA;
+  --text-primary: #F1F5F9;
+  --text-secondary: #94A3B8;
+  --text-muted: #64748B;
+}
+
+/* ── Background blobs ─────────────────────────────────────────────────────
+   Two fixed, heavily-blurred radial gradients pinned behind all content.
+   Add a `.theme-bg-blobs` element (or apply the class to a fixed full-bleed
+   div) once this system is wired in. */
+.theme-bg-blobs {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.theme-bg-blobs::before,
+.theme-bg-blobs::after {
+  content: '';
+  position: absolute;
+  width: 60vw;
+  height: 60vw;
+  border-radius: 50%;
+  filter: blur(120px);
+}
+
+.theme-bg-blobs::before {
+  top: -10%;
+  right: -10%;
+  background: var(--accent);
+  opacity: 0.07;
+}
+
+.theme-bg-blobs::after {
+  bottom: -10%;
+  left: -10%;
+  background: var(--special);
+  opacity: 0.06;
+}
+
+/* ── Glass button ─────────────────────────────────────────────────────── */
+.glass-btn {
+  /* display/align/gap/min-height kept from the prior system: several
+     buttons (e.g. InfoCard's CTA) rely on this being a flex container
+     for `justify-between` to work — dropping it breaks their layout. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  background: var(--bg-glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-glass);
+  border-radius: 14px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.glass-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  transform: translateY(-1px);
+}
+
+.glass-btn:active {
+  transform: scale(0.98);
+}
+
+.glass-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.glass-btn-accent {
+  background: rgba(34, 211, 238, 0.15);
+  border: 1px solid #22D3EE;
+  box-shadow: 0 0 16px var(--accent-glow);
+}
+
+.glass-btn-accent:hover {
+  background: rgba(34, 211, 238, 0.22);
+}
+
+/* ── Glass input — textareas & text fields ────────────────────────────── */
+.glass-input {
+  width: 100%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 0.6rem 0.75rem;
+  font-size: 13px;
+  color: var(--text-primary);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.glass-input::placeholder {
+  color: var(--text-muted);
+}
+
+.glass-input:focus {
+  outline: none;
+  border-color: #22D3EE;
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.15);
+}
+
+/* ── Glass card ───────────────────────────────────────────────────────── */
+.glass-card {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-subtle);
+  border-radius: 20px;
+}
+
+/* ── Typography utilities ─────────────────────────────────────────────── */
+.stat-number {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-weight: 700;
+  font-size: 36px;
+}
+
+@media (max-width: 640px) {
+  .stat-number {
+    font-size: 30px;
+  }
+}
+
+.section-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+}

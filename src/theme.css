@@ -108,3 +108,134 @@
     width: 90%;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   BEVEL DESIGN SYSTEM — dark premium fitness-tracker style (Bevel / Whoop
+   mobile app), NOT the lavender marketing-site look. Scoped via CSS custom
+   properties + the `.bevel-page` wrapper class so it layers on top of the
+   existing theme without breaking pages that haven't been redesigned yet.
+   Rolled out page-by-page (Dashboard first); every page will eventually
+   adopt this palette.
+───────────────────────────────────────────────────────────────────────── */
+:root {
+  --bevel-bg-start:   #0D1220;
+  --bevel-bg-end:     #131A2E;
+  --bevel-card:       #1A2138;
+  --bevel-card-alt:   #212A45;
+  --bevel-shadow:     0 8px 24px rgba(0,0,0,0.35);
+  --bevel-shadow-lg:  0 16px 40px rgba(0,0,0,0.45);
+  --bevel-border:     rgba(255,255,255,0.06);
+  --bevel-text:       #FFFFFF;
+  --bevel-text-muted: #8A93B2;
+
+  /* Accent palette — the ONLY four accent colors used across the app.
+     green/teal = success, blue = info, purple = special, coral = danger. */
+  --bevel-green:  #22C55E;
+  --bevel-orange: #F97316;
+  --bevel-blue:   #3B82F6;
+  --bevel-purple: #A855F7;
+  --bevel-red:    #FF6B5B; /* coral — "danger", softer than pure alarm-red on dark glass */
+
+  /* ── Glassmorphism tokens ────────────────────────────────────────────── */
+  --glass-btn-bg:          rgba(255,255,255,0.08);
+  --glass-btn-bg-hover:    rgba(255,255,255,0.14);
+  --glass-btn-border:      rgba(255,255,255,0.15);
+  --glass-btn-border-hover:rgba(255,255,255,0.25);
+  --glass-panel-bg:        rgba(255,255,255,0.05);
+  --glass-panel-border:    rgba(255,255,255,0.08);
+  --glass-panel-border-hover: rgba(255,255,255,0.16);
+  --glass-blur-btn:   blur(12px) saturate(150%);
+  --glass-blur-panel: blur(16px) saturate(150%);
+}
+
+.bevel-page {
+  color: var(--bevel-text);
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+.bevel-page .bevel-mono {
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* Full-bleed background painted behind a Bevel page, above the app
+   shell's own background but below its own content. Three low-opacity
+   colored radial blobs (purple / blue / teal, one per corner) sit under
+   the base navy gradient — backdrop-filter blur is invisible over a flat
+   color, so the glass cards need this texture behind them to actually
+   read as "glass". */
+.bevel-bg-fill {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 12% 18%, rgba(168,85,247,0.18), transparent 42%),
+    radial-gradient(circle at 88% 12%, rgba(59,130,246,0.16), transparent 40%),
+    radial-gradient(circle at 82% 92%, rgba(34,197,94,0.15), transparent 45%),
+    linear-gradient(180deg, var(--bevel-bg-start), var(--bevel-bg-end));
+  pointer-events: none;
+}
+
+/* ── Glass button accent variants ────────────────────────────────────────
+   Base .glass-btn now lives in src/styles/theme.css (single source of
+   truth). These 4 variants only override background/border-color and
+   layer on top of that base. */
+.glass-btn-success { background: rgba(34,197,94,0.16);  border-color: rgba(34,197,94,0.4); }
+.glass-btn-success:hover { background: rgba(34,197,94,0.24); border-color: rgba(34,197,94,0.55); }
+
+.glass-btn-info { background: rgba(59,130,246,0.16); border-color: rgba(59,130,246,0.4); }
+.glass-btn-info:hover { background: rgba(59,130,246,0.24); border-color: rgba(59,130,246,0.55); }
+
+.glass-btn-special { background: rgba(168,85,247,0.16); border-color: rgba(168,85,247,0.4); }
+.glass-btn-special:hover { background: rgba(168,85,247,0.24); border-color: rgba(168,85,247,0.55); }
+
+.glass-btn-danger { background: rgba(255,107,91,0.16); border-color: rgba(255,107,91,0.4); }
+.glass-btn-danger:hover { background: rgba(255,107,91,0.24); border-color: rgba(255,107,91,0.55); }
+
+/* ── Glass panels (cards) ─────────────────────────────────────────────── */
+.glass-panel {
+  background: var(--glass-panel-bg);
+  backdrop-filter: var(--glass-blur-panel);
+  -webkit-backdrop-filter: var(--glass-blur-panel);
+  border: 1px solid var(--glass-panel-border);
+  border-radius: 20px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), var(--bevel-shadow);
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+
+.glass-panel-interactive {
+  cursor: pointer;
+}
+
+.glass-panel-interactive:hover {
+  border-color: var(--glass-panel-border-hover);
+  background: rgba(255,255,255,0.07);
+}
+
+@keyframes bevel-heartbeat {
+  0%, 100% { transform: scale(1); }
+  15%      { transform: scale(1.22); }
+  30%      { transform: scale(1); }
+  45%      { transform: scale(1.15); }
+  60%      { transform: scale(1); }
+}
+
+.bevel-heartbeat {
+  animation: bevel-heartbeat 1.1s ease-in-out infinite;
+  transform-origin: center;
+}
+
+@keyframes bevel-pulse-ring {
+  0%   { transform: scale(0.9); opacity: 0.6; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+.bevel-pulse-ring {
+  animation: bevel-pulse-ring 1.6s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bevel-heartbeat,
+  .bevel-pulse-ring {
+    animation: none;
+  }
+}

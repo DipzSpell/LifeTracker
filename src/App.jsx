@@ -36,6 +36,7 @@ import Profile from './pages/Profile'
 import LoveTracker from './pages/LoveTracker'
 import Journal from './pages/Journal'
 import TradingJournal from './pages/TradingJournal'
+import HealthSync from './pages/HealthSync'
 import PageLayout from './components/layout/PageLayout'
 
 
@@ -113,6 +114,7 @@ function AppRoutes() {
                 <Route path="/love"    element={<LoveTracker />} />
                 <Route path="/journal"          element={<Journal />} />
                 <Route path="/trading-journal" element={<TradingJournal />} />
+                <Route path="/health-sync"     element={<HealthSync />} />
               </Routes>
             </PageLayout>
           </ProtectedRoute>
@@ -125,12 +127,15 @@ function AppRoutes() {
 // ── Root ──────────────────────────────────────────────────────────────────────
 export default function App() {
   return (
-    <HashRouter>
-      <ThemeProvider>
-        <AuthProvider>
-          <AppRoutes />
-        </AuthProvider>
-      </ThemeProvider>
-    </HashRouter>
+    <>
+      <div className="theme-bg-blobs" />
+      <HashRouter>
+        <ThemeProvider>
+          <AuthProvider>
+            <AppRoutes />
+          </AuthProvider>
+        </ThemeProvider>
+      </HashRouter>
+    </>
   )
 }

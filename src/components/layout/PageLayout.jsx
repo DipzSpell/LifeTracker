@@ -34,7 +34,7 @@ export default function PageLayout({ children }) {
           - Mobile:  full width, standard padding
           - Desktop: offset by sidebar width (220px) */}
       <main
-        className="flex-1 relative z-10 pb-24 lg:pb-6 lg:ml-[220px]"
+        className="flex-1 relative z-10 pb-28 lg:pb-6 lg:ml-[220px]"
         style={{ touchAction: 'manipulation' }}
       >
         <div className="max-w-3xl mx-auto px-4 py-4 lg:py-6">
