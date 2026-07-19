@@ -1,40 +1,186 @@
 /*
  * theme.css — the design system single source of truth.
- * Imported globally via index.css. .glass-btn / .glass-card here are the
- * only definitions of those classes in the app (old duplicates removed
- * from src/theme.css and index.css).
+ * Imported globally via index.css (before @tailwind base). .glass-btn /
+ * .glass-card / .glass-input here are the only definitions of those classes
+ * in the app (old duplicates removed from src/theme.css and index.css).
  *
- * Note: --accent below is shadowed by the legacy per-theme --accent
- * defined in index.css's [data-theme] blocks (emerald/pink/gold depending
- * on theme) — that variable is still live across charts/progress rings
- * and intentionally left alone. Anything here that needs the cyan hero
- * color uses the literal hex instead of var(--accent) to avoid resolving
- * to the wrong color.
+ * MULTI-THEME TOKENS
+ * Every token below is redefined per [data-theme="..."] block — there is
+ * no bare :root fallback for the palette (only the font-family constant
+ * lives at :root). This is deliberate: a :root default plus per-theme
+ * overrides is exactly the pattern that caused the old bug where some
+ * components picked up the :root value and others picked up the theme
+ * value depending on CSS source order. One block per theme, one value per
+ * token, no ambiguity.
+ *
+ * --accent used to collide with a legacy per-theme --accent defined in
+ * index.css (emerald/pink/gold depending on theme) — that legacy variable
+ * has been removed from index.css; this file is now the only place --accent
+ * is set, for every theme. Components should always reference var(--accent)
+ * (or the useThemeColors() hook in JS) rather than a literal hex, so theme
+ * switches propagate everywhere without a rebuild.
+ *
+ * JS-side (recharts, SVG gradients, inline styles): use the useThemeColors()
+ * hook (src/hooks/useThemeColors.js) instead of hardcoded hex — it reads
+ * these exact custom properties live off the DOM and re-reads on theme
+ * change, so a chart's stroke/fill always matches the active theme.
  */
 
-/* JetBrains Mono — used by .stat-number and mono numerals */
+/* JetBrains Mono — used by .stat-number and mono numerals, theme-independent */
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700&display=swap');
 
-:root {
+/* ── DARK (default) — cyan hero accent, lime success ────────────────────── */
+:root,
+[data-theme="dark"] {
   --bg-base: #0B0E14;
   --bg-elevated: #151A23;
   --bg-glass: rgba(255, 255, 255, 0.06);
   --border-subtle: rgba(255, 255, 255, 0.08);
   --border-glass: rgba(255, 255, 255, 0.14);
+
   --accent: #22D3EE;
   --accent-glow: rgba(34, 211, 238, 0.25);
   --success: #A3E635;
   --danger: #F87171;
   --special: #A78BFA;
+
   --text-primary: #F1F5F9;
   --text-secondary: #94A3B8;
   --text-muted: #64748B;
+
+  --chart-line: var(--accent);
+  --chart-fill-from: rgba(34, 211, 238, 0.30);
+  --chart-fill-to: rgba(34, 211, 238, 0);
+
+  --heat-0: rgba(255, 255, 255, 0.04);
+  --heat-1: rgba(163, 230, 53, 0.20);
+  --heat-2: rgba(163, 230, 53, 0.35);
+  --heat-3: rgba(163, 230, 53, 0.55);
+  --heat-4: rgba(163, 230, 53, 0.80);
+}
+
+/* ── LIGHT — soft white bases, darker hues for contrast on white ────────── */
+[data-theme="light"],
+[data-theme="frost"] {
+  --bg-base: #F8FAFC;
+  --bg-elevated: #FFFFFF;
+  --bg-glass: rgba(15, 23, 42, 0.04);
+  --border-subtle: rgba(15, 23, 42, 0.08);
+  --border-glass: rgba(15, 23, 42, 0.16);
+
+  --accent: #0891B2;
+  --accent-glow: rgba(8, 145, 178, 0.18);
+  --success: #65A30D;
+  --danger: #DC2626;
+  --special: #7C3AED;
+
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #94A3B8;
+
+  --chart-line: var(--accent);
+  --chart-fill-from: rgba(8, 145, 178, 0.22);
+  --chart-fill-to: rgba(8, 145, 178, 0);
+
+  --heat-0: rgba(15, 23, 42, 0.04);
+  --heat-1: rgba(101, 163, 13, 0.18);
+  --heat-2: rgba(101, 163, 13, 0.32);
+  --heat-3: rgba(101, 163, 13, 0.50);
+  --heat-4: rgba(101, 163, 13, 0.75);
+}
+
+/* ── SYNTHWAVE — deep purple bases, hot pink/magenta accent ─────────────── */
+[data-theme="synthwave"],
+[data-theme="cyberpunk"] {
+  --bg-base: #1E0B36;
+  --bg-elevated: #2D0F54;
+  --bg-glass: rgba(255, 255, 255, 0.06);
+  --border-subtle: rgba(255, 255, 255, 0.10);
+  --border-glass: rgba(236, 72, 153, 0.28);
+
+  --accent: #EC4899;
+  --accent-glow: rgba(236, 72, 153, 0.32);
+  --success: #A3E635;
+  --danger: #FF6B81;
+  --special: #38BDF8;
+
+  --text-primary: #FFFFFF;
+  --text-secondary: rgba(255, 255, 255, 0.65);
+  --text-muted: rgba(255, 255, 255, 0.40);
+
+  --chart-line: var(--accent);
+  --chart-fill-from: rgba(236, 72, 153, 0.30);
+  --chart-fill-to: rgba(236, 72, 153, 0);
+
+  --heat-0: rgba(255, 255, 255, 0.05);
+  --heat-1: rgba(163, 230, 53, 0.20);
+  --heat-2: rgba(163, 230, 53, 0.38);
+  --heat-3: rgba(163, 230, 53, 0.58);
+  --heat-4: rgba(163, 230, 53, 0.85);
+}
+
+/* ── MIDNIGHT — near-black bases, ice-blue accent ───────────────────────── */
+[data-theme="midnight"] {
+  --bg-base: #05070C;
+  --bg-elevated: #0D1220;
+  --bg-glass: rgba(255, 255, 255, 0.05);
+  --border-subtle: rgba(255, 255, 255, 0.07);
+  --border-glass: rgba(125, 211, 252, 0.22);
+
+  --accent: #7DD3FC;
+  --accent-glow: rgba(125, 211, 252, 0.28);
+  --success: #A3E635;
+  --danger: #F87171;
+  --special: #A78BFA;
+
+  --text-primary: #F8FAFC;
+  --text-secondary: rgba(248, 250, 252, 0.65);
+  --text-muted: rgba(248, 250, 252, 0.38);
+
+  --chart-line: var(--accent);
+  --chart-fill-from: rgba(125, 211, 252, 0.28);
+  --chart-fill-to: rgba(125, 211, 252, 0);
+
+  --heat-0: rgba(255, 255, 255, 0.04);
+  --heat-1: rgba(163, 230, 53, 0.20);
+  --heat-2: rgba(163, 230, 53, 0.35);
+  --heat-3: rgba(163, 230, 53, 0.55);
+  --heat-4: rgba(163, 230, 53, 0.80);
+}
+
+/* ── MATRIX — near-black green-tinted bases, terminal-green accent ──────── */
+[data-theme="matrix"] {
+  --bg-base: #050805;
+  --bg-elevated: #0D140D;
+  --bg-glass: rgba(74, 222, 128, 0.05);
+  --border-subtle: rgba(74, 222, 128, 0.10);
+  --border-glass: rgba(74, 222, 128, 0.24);
+
+  --accent: #22C55E;
+  --accent-glow: rgba(34, 197, 94, 0.30);
+  --success: #84CC16;
+  --danger: #F87171;
+  --special: #22D3EE;
+
+  --text-primary: #E7FFE9;
+  --text-secondary: rgba(180, 255, 190, 0.65);
+  --text-muted: rgba(150, 255, 160, 0.42);
+
+  --chart-line: var(--accent);
+  --chart-fill-from: rgba(34, 197, 94, 0.30);
+  --chart-fill-to: rgba(34, 197, 94, 0);
+
+  --heat-0: rgba(74, 222, 128, 0.05);
+  --heat-1: rgba(132, 204, 22, 0.22);
+  --heat-2: rgba(132, 204, 22, 0.38);
+  --heat-3: rgba(132, 204, 22, 0.58);
+  --heat-4: rgba(132, 204, 22, 0.85);
 }
 
 /* ── Background blobs ─────────────────────────────────────────────────────
    Two fixed, heavily-blurred radial gradients pinned behind all content.
-   Add a `.theme-bg-blobs` element (or apply the class to a fixed full-bleed
-   div) once this system is wired in. */
+   Colors come from --accent / --special, so every theme gets its own
+   blob tint automatically. */
 .theme-bg-blobs {
   position: fixed;
   inset: 0;
@@ -88,7 +234,7 @@
 }
 
 .glass-btn:hover {
-  background: rgba(255, 255, 255, 0.14);
+  background: var(--border-glass);
   transform: translateY(-1px);
 }
 
@@ -103,13 +249,13 @@
 }
 
 .glass-btn-accent {
-  background: rgba(34, 211, 238, 0.15);
-  border: 1px solid #22D3EE;
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border: 1px solid var(--accent);
   box-shadow: 0 0 16px var(--accent-glow);
 }
 
 .glass-btn-accent:hover {
-  background: rgba(34, 211, 238, 0.22);
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
 /* ── Glass input — textareas & text fields ────────────────────────────── */
@@ -130,13 +276,13 @@
 
 .glass-input:focus {
   outline: none;
-  border-color: #22D3EE;
-  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.15);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
 /* ── Glass card ───────────────────────────────────────────────────────── */
 .glass-card {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--bg-glass);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border-subtle);

@@ -52,14 +52,14 @@ export default function BottomNav() {
                 className="relative flex flex-col items-center justify-center gap-1 flex-1 min-w-0
                            min-h-[44px] active:scale-90 transition-transform duration-150 touch-manipulation"
               >
-                <Icon size={21} className={active ? 'text-cyber-400' : 'text-white/40'} />
-                <span className={`text-[10px] font-medium leading-none truncate max-w-full px-0.5 ${active ? 'text-cyber-400' : 'text-white/35'}`}>
+                <Icon size={21} className={active ? 'text-cyan-400' : 'text-white/40'} />
+                <span className={`text-[10px] font-medium leading-none truncate max-w-full px-0.5 ${active ? 'text-cyan-400' : 'text-white/35'}`}>
                   {label}
                 </span>
                 {active && (
                   <motion.div
                     layoutId="bottomnav-active-dot"
-                    className="absolute top-0.5 w-1 h-1 rounded-full bg-cyber-400 shadow-[0_0_6px_rgba(34,211,238,0.8)]"
+                    className="absolute top-0.5 w-1 h-1 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.8)]"
                     transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                   />
                 )}
@@ -76,14 +76,14 @@ export default function BottomNav() {
             className="relative flex flex-col items-center justify-center gap-1 flex-1 min-w-0
                        min-h-[44px] active:scale-90 transition-transform duration-150 touch-manipulation"
           >
-            <Menu size={21} className={moreActive ? 'text-cyber-400' : 'text-white/40'} />
-            <span className={`text-[10px] font-medium leading-none ${moreActive ? 'text-cyber-400' : 'text-white/35'}`}>
+            <Menu size={21} className={moreActive ? 'text-cyan-400' : 'text-white/40'} />
+            <span className={`text-[10px] font-medium leading-none ${moreActive ? 'text-cyan-400' : 'text-white/35'}`}>
               More
             </span>
             {moreActive && (
               <motion.div
                 layoutId="bottomnav-active-dot"
-                className="absolute top-0.5 w-1 h-1 rounded-full bg-cyber-400 shadow-[0_0_6px_rgba(34,211,238,0.8)]"
+                className="absolute top-0.5 w-1 h-1 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.8)]"
                 transition={{ type: 'spring', stiffness: 400, damping: 30 }}
               />
             )}

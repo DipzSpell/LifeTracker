@@ -75,8 +75,8 @@ export default function MoreSheet({ isOpen, onClose }) {
                   className="flex flex-col items-start gap-2 p-3.5 rounded-2xl bg-white/5 border border-white/8
                              min-h-[88px] active:scale-95 transition-transform duration-150 text-left"
                 >
-                  <div className="w-9 h-9 rounded-xl bg-cyber-500/15 flex items-center justify-center flex-shrink-0">
-                    <Icon size={17} className="text-cyber-400" />
+                  <div className="w-9 h-9 rounded-xl bg-cyan-400/15 flex items-center justify-center flex-shrink-0">
+                    <Icon size={17} className="text-cyan-400" />
                   </div>
                   <div>
                     <p className="text-xs font-semibold text-white leading-tight">{label}</p>

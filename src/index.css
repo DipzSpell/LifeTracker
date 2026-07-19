@@ -8,11 +8,17 @@
 
 @layer base {
   :root, [data-theme="dark"] {
-    --background: var(--bg-base); /* design system bg-base — #0B0E14 */
-    --card: #1e293b; /* slate-800 */
-    --text: #f8fafc; /* slate-50 */
+    /* --background/--card/--text alias the design-system tokens (single
+       source of truth — src/styles/theme.css) so Tailwind's bg-background /
+       bg-card / text-text classes stay in sync with every theme automatically.
+       --accent is NOT redefined here anymore — it collided with the design
+       system's --accent (styles/theme.css) and caused the "some panels keep
+       the old theme's color" bug; styles/theme.css is now the only place
+       --accent is set, for every theme. */
+    --background: var(--bg-base);
+    --card: var(--bg-elevated);
+    --text: var(--text-primary);
     --primary: #06b6d4; /* cyan-500 */
-    --accent: #10b981; /* emerald-500 */
 
     --color-white: 255 255 255;
     --color-navy-50: 240 244 255;
@@ -42,11 +48,10 @@
   }
 
   [data-theme="light"], [data-theme="frost"] {
-    --background: #f8fafc; /* slate-50 */
-    --card: #ffffff; /* white */
-    --text: #334155; /* slate-700 */
+    --background: var(--bg-base);
+    --card: var(--bg-elevated);
+    --text: var(--text-primary);
     --primary: #3b82f6; /* blue-500 */
-    --accent: #64748b; /* slate-500 */
 
     --color-white: 15 23 42; /* slate-900 */
     --color-navy-50: 241 245 249;
@@ -76,11 +81,10 @@
   }
 
   [data-theme="synthwave"], [data-theme="cyberpunk"] {
-    --background: #1e0b36; /* deep purple background */
-    --card: #2d0f54; /* deep purple card */
-    --text: #ffffff; /* white */
+    --background: var(--bg-base);
+    --card: var(--bg-elevated);
+    --text: var(--text-primary);
     --primary: #facc15; /* toxic bright yellow */
-    --accent: #ec4899; /* laser pink */
 
     --color-white: 255 255 255;
     --color-navy-50: 253 250 255;
@@ -110,11 +114,10 @@
   }
 
   [data-theme="midnight"] {
-    --background: #0b0f19; /* deep royal blue-black */
-    --card: #161e31; /* elegant card */
-    --text: #ffffff; /* white */
+    --background: var(--bg-base);
+    --card: var(--bg-elevated);
+    --text: var(--text-primary);
     --primary: #f59e0b; /* elegant gold */
-    --accent: #fbbf24; /* lighter gold */
 
     --color-white: 255 255 255;
     --color-navy-50: 240 244 255;
@@ -144,11 +147,10 @@
   }
 
   [data-theme="matrix"] {
-    --background: #000000; /* pitch black */
-    --card: #121212; /* charcoal black */
-    --text: #22c55e; /* neon green */
+    --background: var(--bg-base);
+    --card: var(--bg-elevated);
+    --text: var(--text-primary);
     --primary: #22c55e; /* neon terminal green */
-    --accent: #4ade80; /* lighter green */
 
     --color-white: 34 197 94; /* neon green text mapping */
     --color-navy-50: 20 20 20;
@@ -414,7 +416,8 @@
 
   .progress-fill {
     @apply h-full rounded-full transition-all duration-700 ease-out;
-    background: linear-gradient(90deg, #22d3ee, #10b981);
+    /* Design-system hero gradient: cyan → lime */
+    background: linear-gradient(90deg, #22D3EE, #A3E635);
   }
 
   /* Mood emoji scale */

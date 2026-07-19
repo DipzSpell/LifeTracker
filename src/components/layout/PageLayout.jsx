@@ -15,12 +15,8 @@ export default function PageLayout({ children }) {
 
   return (
     <div className="min-h-dvh bg-background flex flex-col text-text transition-colors duration-300">
-      {/* Background gradient orbs — rendered on GPU */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
-        <div className="absolute -top-40 -right-40 w-96 h-96 bg-cyber-600/10 rounded-full blur-3xl transform-gpu will-change-transform" />
-        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-emerald-500/8 rounded-full blur-3xl transform-gpu will-change-transform" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-purple-600/5 rounded-full blur-3xl transform-gpu will-change-transform" />
-      </div>
+      {/* Background blobs come from the global .theme-bg-blobs element in
+          App.jsx (cyan top-right + violet bottom-left) — no local orbs. */}
 
       {/* Desktop: fixed sidebar */}
       <Sidebar />

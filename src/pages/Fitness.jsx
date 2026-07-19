@@ -1,10 +1,26 @@
+/**
+ * Fitness.jsx — Fitness & Health page (design-system restyle).
+ *
+ * Logic preserved: MET calorie estimation, cardio/strength type buckets,
+ * SAVE_FITNESS_LOG + SAVE_DAILY_LOG sync, recalcPoints, module-disabled guard.
+ * Steps section gets the cyan→lime intensity ring; sections are glass-cards
+ * with section-label headers. Accents: steps/water=cyan, strength=lime,
+ * vitals=coral, weight=violet.
+ */
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Navigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
 import { todayKey, getLast7Days } from '../lib/storage'
 import Toast, { useToast } from '../components/ui/Toast'
+import ProgressRing from '../components/bevel/ProgressRing'
 import { Save, Dumbbell, Droplets, Scale, Map, Flame, Ruler } from 'lucide-react'
+
+const CYAN = '#22D3EE'
+const LIME = '#A3E635'
+const VIOLET = '#A78BFA'
+const CORAL = '#F87171'
+const MONO = "'JetBrains Mono', ui-monospace, monospace"
 
 // ── Metabolic Equivalent of Task (MET) Matrix ──────────────────────────────────
 const MET_MATRIX = {
@@ -26,14 +42,34 @@ const DEFAULT_WORKOUT_TYPES = [
   'Full Body', 'HIIT', 'Yoga', 'Push', 'Pull', 'Mix',
 ]
 
-const Section = ({ icon: Icon, color, title, children }) => (
+const Section = ({ icon: Icon, accent, title, children }) => (
   <div className="glass-card p-4">
-    <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-4">
-      <Icon size={16} className={color} />{title}
-    </h3>
+    <div className="flex items-center gap-2 mb-4">
+      <div style={{ padding: 6, borderRadius: 8, background: `${accent}1A`, display: 'flex' }}>
+        <Icon size={14} style={{ color: accent }} />
+      </div>
+      <span className="section-label">{title}</span>
+    </div>
     {children}
   </div>
 )
+
+/* Workout-type chip */
+function TypeChip({ id, label, active, color, onClick }) {
+  return (
+    <motion.button
+      id={id}
+      whileTap={{ scale: 0.92 }}
+      onClick={onClick}
+      className="px-4 py-2.5 min-h-[48px] min-w-[48px] flex items-center justify-center rounded-xl text-xs font-semibold transition-all"
+      style={active
+        ? { border: `1px solid ${color}66`, background: `${color}1F`, color }
+        : { border: '1px solid var(--border-subtle)', background: 'var(--bg-glass)', color: 'var(--text-muted)' }}
+    >
+      {label}
+    </motion.button>
+  )
+}
 
 export default function Fitness() {
   const { dispatch, fitnessLogs, dailyLogs, settings, recalcPoints, profile } = useApp()
@@ -145,51 +181,49 @@ export default function Fitness() {
 
       {/* Header */}
       <div>
-        <h1 className="text-xl font-display font-bold text-white">Fitness & Health</h1>
-        <p className="text-xs text-white/40">Track your physical progress</p>
+        <h1 className="text-xl font-display font-bold" style={{ color: 'var(--text-primary)' }}>Fitness & Health</h1>
+        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Track your physical progress</p>
       </div>
 
-      {/* ── Steps Progress ── */}
-      <Section icon={Map} color="text-cyan-400" title="Steps Today">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-2xl font-bold gradient-text">{stepsToday.toLocaleString()}</span>
-          <span className="text-xs text-white/40">Goal: {stepGoal.toLocaleString()}</span>
-        </div>
-        <div className="progress-bar mb-3">
-          <motion.div className="progress-fill" initial={{ width: 0 }}
-            animate={{ width: `${stepPct}%` }} transition={{ duration: 1, ease: 'easeOut' }} />
+      {/* ── Steps Progress — cyan→lime intensity ring ── */}
+      <Section icon={Map} accent={CYAN} title="Steps Today">
+        <div className="flex items-center gap-4 mb-3">
+          <ProgressRing pct={stepPct} size={72} stroke={7} from={CYAN} to={LIME} mini
+            trackColor="var(--border-subtle)"
+            center={<span style={{ fontSize: 13, fontWeight: 700, fontFamily: MONO, color: 'var(--text-primary)' }}>{stepPct}%</span>} />
+          <div className="flex-1">
+            <span className="stat-number" style={{ fontSize: 26, color: 'var(--text-primary)', lineHeight: 1.1 }}>
+              {stepsToday.toLocaleString()}
+            </span>
+            <p className="text-xs" style={{ color: 'var(--text-muted)', fontFamily: MONO, margin: '2px 0 0' }}>
+              Goal: {stepGoal.toLocaleString()}
+            </p>
+          </div>
         </div>
         <input id="fitness-steps" type="number" placeholder="Enter steps"
           value={form.steps} onChange={e => setForm(f => ({ ...f, steps: e.target.value }))}
-          className="input-cyber text-sm" />
+          className="glass-input" />
       </Section>
 
       {/* ── Workout Log ── */}
-      <Section icon={Dumbbell} color="text-orange-400" title="Workout Log">
+      <Section icon={Dumbbell} accent={LIME} title="Workout Log">
 
         {/* Type picker — grouped into Cardio + Strength rows */}
-        <label className="text-xs text-white/40 block mb-1.5">Workout Type</label>
-
         {cardioList.length > 0 && (
           <div className="mb-3">
-            <p className="text-[10px] uppercase tracking-wider text-cyan-400/60 font-semibold mb-2">
+            <p className="section-label mb-2" style={{ color: `${CYAN}99` }}>
               🏃 Cardio
             </p>
             <div className="flex flex-wrap gap-2">
               {cardioList.map(t => (
-                <motion.button
+                <TypeChip
                   key={t}
                   id={`fitness-workout-${t.toLowerCase().replace(/\s+/g, '-')}`}
-                  whileTap={{ scale: 0.92 }}
+                  label={t}
+                  color={CYAN}
+                  active={form.workoutType === t}
                   onClick={() => setForm(f => ({ ...f, workoutType: t, distance: f.distance }))}
-                  className={`px-4 py-2.5 min-h-[48px] min-w-[48px] flex items-center justify-center rounded-xl text-xs font-semibold border transition-all ${
-                    form.workoutType === t
-                      ? 'border-cyan-400/60 bg-cyan-500/15 text-cyan-300'
-                      : 'border-white/10 bg-white/5 text-white/40'
-                  }`}
-                >
-                  {t}
-                </motion.button>
+                />
               ))}
             </div>
           </div>
@@ -197,28 +231,23 @@ export default function Fitness() {
 
         {strengthList.length > 0 && (
           <div className="mb-4">
-            <p className="text-[10px] uppercase tracking-wider text-orange-400/60 font-semibold mb-2">
+            <p className="section-label mb-2" style={{ color: `${LIME}99` }}>
               🏋️ Strength / Gym
             </p>
             <div className="flex flex-wrap gap-2">
               {strengthList.map(t => (
-                <motion.button
+                <TypeChip
                   key={t}
                   id={`fitness-workout-${t.toLowerCase().replace(/\s+/g, '-')}`}
-                  whileTap={{ scale: 0.92 }}
+                  label={t}
+                  color={LIME}
+                  active={form.workoutType === t}
                   onClick={() => setForm(f => ({
                     ...f,
                     workoutType: t,
                     distance: '',  // clear distance when switching to strength
                   }))}
-                  className={`px-4 py-2.5 min-h-[48px] min-w-[48px] flex items-center justify-center rounded-xl text-xs font-semibold border transition-all ${
-                    form.workoutType === t
-                      ? 'border-orange-400/50 bg-orange-500/15 text-orange-300'
-                      : 'border-white/10 bg-white/5 text-white/40'
-                  }`}
-                >
-                  {t}
-                </motion.button>
+                />
               ))}
             </div>
           </div>
@@ -239,8 +268,8 @@ export default function Fitness() {
                 className="overflow-hidden"
               >
                 <div className="pt-1">
-                  <label className="text-xs text-white/40 block mb-1 flex items-center gap-1.5">
-                    <Ruler size={11} className="text-cyan-400" />
+                  <label className="text-xs mb-1 flex items-center gap-1.5" style={{ color: 'var(--text-muted)' }}>
+                    <Ruler size={11} style={{ color: CYAN }} />
                     Distance (km)
                   </label>
                   <input
@@ -250,7 +279,7 @@ export default function Fitness() {
                     placeholder="0.0"
                     value={form.distance}
                     onChange={e => setForm(f => ({ ...f, distance: e.target.value }))}
-                    className="input-cyber text-sm"
+                    className="glass-input"
                   />
                 </div>
               </motion.div>
@@ -259,92 +288,92 @@ export default function Fitness() {
 
           {/* Duration — always visible */}
           <div>
-            <label className="text-xs text-white/40 block mb-1">Duration (mins)</label>
+            <label className="text-xs block mb-1" style={{ color: 'var(--text-muted)' }}>Duration (mins)</label>
             <input id="fitness-duration" type="number" placeholder="0"
               value={form.duration} onChange={e => setForm(f => ({ ...f, duration: e.target.value }))}
-              className="input-cyber text-sm" />
+              className="glass-input" />
           </div>
 
           {/* Calories */}
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="text-xs text-white/40">Estimated Calories</label>
+              <label className="text-xs" style={{ color: 'var(--text-muted)' }}>Estimated Calories</label>
               <button
                 type="button"
                 onClick={estimateCalories}
-                className="text-[10px] text-cyber-400 hover:underline"
+                className="text-[10px] hover:underline"
+                style={{ color: CYAN, background: 'none', border: 'none', cursor: 'pointer' }}
               >
                 Auto-estimate
               </button>
             </div>
             <div className="relative">
-              <Flame size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-orange-400" />
+              <Flame size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: CORAL }} />
               <input id="fitness-calories" type="number" placeholder="0"
                 value={form.calories} onChange={e => setForm(f => ({ ...f, calories: e.target.value }))}
-                className="input-cyber text-sm pl-10" />
+                className="glass-input pl-10" />
             </div>
           </div>
         </div>
       </Section>
 
       {/* ── Vitals ── */}
-      <Section icon={Flame} color="text-red-400" title="Vitals">
+      <Section icon={Flame} accent={CORAL} title="Vitals">
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="text-xs text-white/40 block mb-1">Heart Rate (bpm)</label>
+            <label className="text-xs block mb-1" style={{ color: 'var(--text-muted)' }}>Heart Rate (bpm)</label>
             <input id="fitness-hr" type="number" placeholder="72"
               value={form.heartRate} onChange={e => setForm(f => ({ ...f, heartRate: e.target.value }))}
-              className="input-cyber text-sm" />
+              className="glass-input" />
           </div>
           <div>
-            <label className="text-xs text-white/40 block mb-1">Active Minutes</label>
+            <label className="text-xs block mb-1" style={{ color: 'var(--text-muted)' }}>Active Minutes</label>
             <input id="fitness-active" type="number" placeholder="30"
               value={form.activeMinutes} onChange={e => setForm(f => ({ ...f, activeMinutes: e.target.value }))}
-              className="input-cyber text-sm" />
+              className="glass-input" />
           </div>
         </div>
       </Section>
 
       {/* ── Water ── */}
-      <Section icon={Droplets} color="text-cyber-400" title="Water Intake">
+      <Section icon={Droplets} accent={CYAN} title="Water Intake">
         <div className="flex items-center gap-2 flex-wrap mb-2">
           {Array.from({ length: 10 }).map((_, i) => (
             <button key={i} id={`fitness-water-${i + 1}`}
               onClick={() => setForm(f => ({ ...f, waterGlasses: i + 1 }))}
-              className={`w-9 h-9 rounded-xl text-base transition-all ${
-                i < form.waterGlasses
-                  ? 'bg-cyber-500/40 border border-cyber-500/60'
-                  : 'bg-white/5 border border-white/10 opacity-40'
-              }`}>
+              className="w-9 h-9 rounded-xl text-base transition-all"
+              style={i < form.waterGlasses
+                ? { background: 'rgba(34,211,238,0.20)', border: '1px solid rgba(34,211,238,0.5)' }
+                : { background: 'var(--bg-glass)', border: '1px solid var(--border-subtle)', opacity: 0.4 }}>
               💧
             </button>
           ))}
         </div>
-        <p className="text-sm font-bold text-cyber-400">{form.waterGlasses} / 8 glasses</p>
+        <p className="text-sm font-bold" style={{ color: CYAN, fontFamily: MONO }}>{form.waterGlasses} / 8 glasses</p>
       </Section>
 
       {/* ── Weight Log ── */}
-      <Section icon={Scale} color="text-purple-400" title="Weight Log">
+      <Section icon={Scale} accent={VIOLET} title="Weight Log">
         <div className="flex items-center gap-3">
           <div className="flex-1">
-            <label className="text-xs text-white/40 block mb-1">Today's Weight (kg)</label>
+            <label className="text-xs block mb-1" style={{ color: 'var(--text-muted)' }}>Today's Weight (kg)</label>
             <input id="fitness-weight" type="number" step="0.1" placeholder="e.g. 72.5"
               value={form.weight} onChange={e => setForm(f => ({ ...f, weight: e.target.value }))}
-              className="input-cyber text-sm" />
+              className="glass-input" />
           </div>
           {latestWeight && (
             <div className="text-right">
-              <p className="text-xs text-white/40">Last logged</p>
-              <p className="text-lg font-bold text-purple-400">{latestWeight} kg</p>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Last logged</p>
+              <p className="text-lg font-bold" style={{ color: VIOLET, fontFamily: MONO }}>{latestWeight} kg</p>
             </div>
           )}
         </div>
       </Section>
 
       {/* Google Fit note */}
-      <div className="glass-card p-4 border-cyber-500/20">
-        <p className="text-xs font-semibold text-cyber-400 mb-1">📱 Smartwatch / Google Fit Sync</p>
-        <p className="text-xs text-white/40 leading-relaxed">
+      <div className="glass-card p-4" style={{ borderColor: 'rgba(34,211,238,0.2)' }}>
+        <p className="text-xs font-semibold mb-1" style={{ color: CYAN }}>📱 Smartwatch / Google Fit Sync</p>
+        <p className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
           To auto-sync steps, heart rate, and calories from your Fastrack or any Google Fit-compatible watch:
           <br />1. Open Google Fit app on your phone
           <br />2. Ensure your watch is paired and syncing
@@ -353,7 +382,8 @@ export default function Fitness() {
       </div>
 
       <button id="fitness-save" onClick={handleSave}
-        className="btn-primary w-full flex items-center justify-center gap-2 mb-4">
+        className="glass-btn glass-btn-accent w-full mb-4"
+        style={{ padding: '0.75rem', fontSize: 14, fontWeight: 700 }}>
         <Save size={16} /> Save Fitness Log
       </button>
     </div>

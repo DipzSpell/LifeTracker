@@ -3,13 +3,10 @@
  *
  * Presentation only: all data hooks, derived state, and handlers are unchanged
  * from the previous version. Uses .glass-card / .glass-btn / .stat-number /
- * .section-label utilities and the system palette (cyan / lime / violet / coral).
- *
- * NOTE on colors in JS: the CSS variable --accent is shadowed by the legacy
- * per-theme --accent in index.css, so cyan is referenced by literal hex here.
- * The other tokens (--success/--special/--danger/--text-*) are safe as vars,
- * but recharts + SVG props need literals anyway, so the palette is mirrored
- * in the C constant below — keep it in sync with src/styles/theme.css.
+ * .section-label utilities for CSS-driven colors, and useThemeColors() for
+ * every JS-side color (recharts stroke/fill, SVG gradient stops, ProgressRing
+ * props) — no hardcoded hex. Switching theme (Profile → Appearance) updates
+ * every color on this page instantly, no reload.
  */
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -25,29 +22,15 @@ import {
 } from 'recharts'
 import { useApp } from '../context/AppContext'
 import { useAuth } from '../context/AuthContext'
-import { todayKey, dateKey, getLast7Days } from '../lib/storage'
+import { todayKey, getLast7Days } from '../lib/storage'
+import { useThemeColors } from '../hooks/useThemeColors'
 import QuickLogModal from '../components/QuickLogModal'
 import Toast, { useToast } from '../components/ui/Toast'
 import { playVictorySound } from '../lib/sounds'
 import { generateDailyInsight } from '../components/AIMorningBrief'
 import ProgressRing from '../components/bevel/ProgressRing'
 import { Dot } from '../components/bevel/BevelUI'
-import ActivityHeatmap from '../components/ActivityHeatmap'
-
-/* ─────────────────────────────────────────────────────────────────────────
-   PALETTE — mirrors src/styles/theme.css tokens for JS/SVG/recharts use
-───────────────────────────────────────────────────────────────────────── */
-const C = {
-  cyan: '#22D3EE',
-  lime: '#A3E635',
-  violet: '#A78BFA',
-  coral: '#F87171',
-  text: '#F1F5F9',
-  secondary: '#94A3B8',
-  muted: '#64748B',
-  elevated: '#151A23',
-  borderSubtle: 'rgba(255,255,255,0.08)',
-}
+import MonthlyHeatmap from '../components/MonthlyHeatmap'
 
 const MONO = "'JetBrains Mono', ui-monospace, monospace"
 
@@ -66,17 +49,15 @@ function calculateSleepDuration(sleepTime, wakeTime) {
   } catch { return '' }
 }
 
-const PRIORITY_COLOR = { high: C.coral, medium: C.cyan, low: C.lime }
-
 /* ─────────────────────────────────────────────────────────────────────────
-   HERO RING — big cyan→lime progress ring with soft glow
+   HERO RING — big accent→success progress ring with soft glow
 ───────────────────────────────────────────────────────────────────────── */
 const RING_VB = 160          // SVG viewBox size; CSS scales it 140/160px
 const RING_STROKE = 12
 const RING_R = (RING_VB - RING_STROKE) / 2
 const RING_CIRC = 2 * Math.PI * RING_R
 
-function HeroRingCard({ dayScore }) {
+function HeroRingCard({ dayScore, T }) {
   const pct = Math.min(Math.max(dayScore, 0), 100)
   const dash = (pct / 100) * RING_CIRC
 
@@ -88,7 +69,7 @@ function HeroRingCard({ dayScore }) {
       </h2>
 
       <div className="relative flex items-center justify-center w-[140px] h-[140px] sm:w-[160px] sm:h-[160px]">
-        {/* Soft cyan glow behind the ring */}
+        {/* Soft accent glow behind the ring */}
         <div
           aria-hidden
           style={{
@@ -100,12 +81,12 @@ function HeroRingCard({ dayScore }) {
         <svg width="100%" height="100%" viewBox={`0 0 ${RING_VB} ${RING_VB}`} style={{ transform: 'rotate(-90deg)', position: 'relative' }}>
           <defs>
             <linearGradient id="heroRingGrad" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor={C.cyan} />
-              <stop offset="100%" stopColor={C.lime} />
+              <stop offset="0%" stopColor={T.accent} />
+              <stop offset="100%" stopColor={T.success} />
             </linearGradient>
           </defs>
           {/* Faint track — visible even at 0% */}
-          <circle cx={RING_VB / 2} cy={RING_VB / 2} r={RING_R} fill="none" stroke={C.borderSubtle} strokeWidth={RING_STROKE} />
+          <circle cx={RING_VB / 2} cy={RING_VB / 2} r={RING_R} fill="none" stroke={T.borderSubtle} strokeWidth={RING_STROKE} />
           <motion.circle
             cx={RING_VB / 2} cy={RING_VB / 2} r={RING_R}
             fill="none" stroke="url(#heroRingGrad)" strokeWidth={RING_STROKE} strokeLinecap="round"
@@ -133,21 +114,21 @@ function HeroRingCard({ dayScore }) {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
-   AI INSIGHT — dark glass + violet left accent border
+   AI INSIGHT — dark glass + special left accent border
 ───────────────────────────────────────────────────────────────────────── */
-function InsightCard({ insight, onRefresh, refreshing }) {
+function InsightCard({ insight, onRefresh, refreshing, T }) {
   return (
-    <div className="glass-card" style={{ padding: '1rem 1.1rem', borderLeft: `3px solid ${C.violet}` }}>
+    <div className="glass-card" style={{ padding: '1rem 1.1rem', borderLeft: `3px solid ${T.special}` }}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2 min-w-0">
-          <Sparkles size={15} style={{ color: C.violet, flexShrink: 0 }} />
+          <Sparkles size={15} style={{ color: T.special, flexShrink: 0 }} />
           <p style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text-primary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {insight.title}
           </p>
           {insight.tag && (
             <span style={{
               fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, flexShrink: 0,
-              background: 'rgba(167,139,250,0.14)', color: C.violet,
+              background: `${T.special}24`, color: T.special,
             }}>
               {insight.tag}
             </span>
@@ -181,11 +162,11 @@ function InsightCard({ insight, onRefresh, refreshing }) {
 /* ─────────────────────────────────────────────────────────────────────────
    STAT GRID — glass cards with mini progress arc in the corner
 ───────────────────────────────────────────────────────────────────────── */
-function StatTile({ icon: Icon, label, value, pct, color }) {
+function StatTile({ icon: Icon, label, value, pct, color, trackColor }) {
   return (
     <div className="glass-card relative" style={{ padding: '0.9rem 1rem' }}>
       <div className="absolute" style={{ top: 12, right: 12 }}>
-        <ProgressRing pct={pct} size={28} stroke={3} from={color} to={color} mini animate={false} trackColor={C.borderSubtle} />
+        <ProgressRing pct={pct} size={28} stroke={3} from={color} to={color} mini animate={false} trackColor={trackColor} />
       </div>
       <Icon size={16} style={{ color }} />
       <div className="stat-number" style={{ color: 'var(--text-primary)', lineHeight: 1.15, margin: '10px 0 2px' }}>
@@ -199,7 +180,7 @@ function StatTile({ icon: Icon, label, value, pct, color }) {
 /* ─────────────────────────────────────────────────────────────────────────
    7-DAY HISTORY — compact rows: date + habit dots + points (mono)
 ───────────────────────────────────────────────────────────────────────── */
-function HistoryCard({ rows }) {
+function HistoryCard({ rows, T }) {
   return (
     <div className="glass-card" style={{ padding: '1.1rem' }}>
       <span className="section-label block" style={{ marginBottom: 12 }}>7-Day History</span>
@@ -213,7 +194,7 @@ function HistoryCard({ rows }) {
               className="flex items-center gap-3"
               style={{
                 padding: '0.55rem 0.15rem',
-                borderBottom: i < rows.length - 1 ? `1px solid ${C.borderSubtle}` : 'none',
+                borderBottom: i < rows.length - 1 ? '1px solid var(--border-subtle)' : 'none',
               }}
             >
               <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-secondary)', width: 52, flexShrink: 0 }}>
@@ -225,7 +206,7 @@ function HistoryCard({ rows }) {
                     key={di}
                     style={{
                       width: 7, height: 7, borderRadius: '50%',
-                      background: di < r.doneCnt ? C.lime : 'rgba(255,255,255,0.10)',
+                      background: di < r.doneCnt ? T.success : 'var(--border-glass)',
                     }}
                   />
                 ))}
@@ -233,7 +214,7 @@ function HistoryCard({ rows }) {
               </div>
               <span style={{
                 fontFamily: MONO, fontSize: 12.5, fontWeight: 700, textAlign: 'right', flexShrink: 0,
-                color: r.pts > 0 ? C.lime : 'var(--text-muted)',
+                color: r.pts > 0 ? T.success : 'var(--text-muted)',
               }}>
                 {r.pts > 0 ? `+${r.pts}` : '—'}
               </span>
@@ -248,22 +229,22 @@ function HistoryCard({ rows }) {
 /* ─────────────────────────────────────────────────────────────────────────
    WEEKLY TREND CHART
 ───────────────────────────────────────────────────────────────────────── */
-function CustomAreaTooltip({ active, payload, label }) {
+function CustomAreaTooltip({ active, payload, label, T }) {
   if (!active || !payload?.length) return null
   const d = payload[0]?.payload
   return (
     <div style={{
-      background: C.elevated, border: `1px solid ${C.borderSubtle}`, borderRadius: 12,
+      background: T.bgElevated, border: `1px solid ${T.borderSubtle}`, borderRadius: 12,
       padding: '0.55rem 0.85rem', fontSize: 12, color: 'var(--text-primary)', boxShadow: '0 16px 40px rgba(0,0,0,0.45)',
     }}>
       <p style={{ margin: 0, fontWeight: 700 }}>{d?.fullDate || label}</p>
-      <p style={{ margin: '2px 0', color: C.cyan }}>Points: <strong>{d?.pts ?? 0}</strong></p>
-      <p style={{ margin: '2px 0', color: C.lime }}>Habits: <strong>{d?.habitsStr ?? '—'}</strong></p>
+      <p style={{ margin: '2px 0', color: T.accent }}>Points: <strong>{d?.pts ?? 0}</strong></p>
+      <p style={{ margin: '2px 0', color: T.success }}>Habits: <strong>{d?.habitsStr ?? '—'}</strong></p>
     </div>
   )
 }
 
-function WeeklyTrendChart({ pointsHistory, habits, last7 }) {
+function WeeklyTrendChart({ pointsHistory, habits, last7, T }) {
   const weekData = useMemo(() => {
     const allHabits = Object.values(habits).filter(h => h.type === 'good')
     return last7.map(d => {
@@ -283,7 +264,7 @@ function WeeklyTrendChart({ pointsHistory, habits, last7 }) {
     <div className="glass-card" style={{ padding: '1.1rem' }}>
       <div className="flex items-center justify-between mb-2">
         <span className="section-label">Weekly Points Trend</span>
-        <span style={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: C.cyan }}>{totalPts} pts</span>
+        <span style={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: T.accent }}>{totalPts} pts</span>
       </div>
       {totalPts === 0 ? (
         <div style={{ textAlign: 'center', padding: '1.5rem 0', color: 'var(--text-muted)', fontSize: 13 }}>
@@ -295,23 +276,23 @@ function WeeklyTrendChart({ pointsHistory, habits, last7 }) {
           <AreaChart data={weekData} margin={{ top: 4, right: 4, left: -28, bottom: 0 }}>
             <defs>
               <linearGradient id="dsPtsGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={C.cyan} stopOpacity={0.3} />
-                <stop offset="100%" stopColor={C.cyan} stopOpacity={0} />
+                <stop offset="0%" stopColor={T.accent} stopOpacity={0.3} />
+                <stop offset="100%" stopColor={T.accent} stopOpacity={0} />
               </linearGradient>
               <linearGradient id="dsLineGrad" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor={C.cyan} />
-                <stop offset="100%" stopColor={C.lime} />
+                <stop offset="0%" stopColor={T.accent} />
+                <stop offset="100%" stopColor={T.success} />
               </linearGradient>
             </defs>
-            <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.06)" />
-            <XAxis dataKey="day" tick={{ fill: C.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fill: C.muted, fontSize: 9 }} axisLine={false} tickLine={false} />
-            <Tooltip content={<CustomAreaTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.15)', strokeWidth: 1 }} />
+            <CartesianGrid vertical={false} stroke={T.borderSubtle} />
+            <XAxis dataKey="day" tick={{ fill: T.textMuted, fontSize: 10 }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fill: T.textMuted, fontSize: 9 }} axisLine={false} tickLine={false} />
+            <Tooltip content={<CustomAreaTooltip T={T} />} cursor={{ stroke: T.borderGlass, strokeWidth: 1 }} />
             <Area
               type="monotone" dataKey="pts" stroke="url(#dsLineGrad)" strokeWidth={2.5}
               fill="url(#dsPtsGrad)"
-              dot={{ fill: C.cyan, strokeWidth: 0, r: 3 }}
-              activeDot={{ fill: '#fff', stroke: C.cyan, strokeWidth: 2, r: 4 }}
+              dot={{ fill: T.accent, strokeWidth: 0, r: 3 }}
+              activeDot={{ fill: T.textPrimary, stroke: T.accent, strokeWidth: 2, r: 4 }}
             />
           </AreaChart>
         </ResponsiveContainer>
@@ -323,7 +304,7 @@ function WeeklyTrendChart({ pointsHistory, habits, last7 }) {
 /* ─────────────────────────────────────────────────────────────────────────
    HABIT BREAKDOWN GRID
 ───────────────────────────────────────────────────────────────────────── */
-function HabitBreakdownGrid({ habits, getHabitStreak, last7 }) {
+function HabitBreakdownGrid({ habits, getHabitStreak, last7, T }) {
   const goodHabits = useMemo(() => Object.values(habits).filter(h => h.type === 'good').slice(0, 6), [habits])
   const loading = !Object.keys(habits).length
 
@@ -347,11 +328,11 @@ function HabitBreakdownGrid({ habits, getHabitStreak, last7 }) {
           const streak = getHabitStreak(h.id)
           const doneDays = last7.filter(d => h.entries?.[d]?.status === 'done').length
           const weekPct = Math.round((doneDays / 7) * 100)
-          const ringColor = weekPct >= 70 ? C.lime : weekPct >= 40 ? C.cyan : C.coral
+          const ringColor = weekPct >= 70 ? T.success : weekPct >= 40 ? T.accent : T.danger
           return (
             <div key={h.id} style={{
-              background: 'rgba(255,255,255,0.04)', borderRadius: 16, padding: '0.7rem',
-              display: 'flex', flexDirection: 'column', gap: 8, border: `1px solid ${C.borderSubtle}`,
+              background: 'var(--bg-glass)', borderRadius: 16, padding: '0.7rem',
+              display: 'flex', flexDirection: 'column', gap: 8, border: `1px solid ${T.borderSubtle}`,
             }}>
               <div className="flex items-center justify-between">
                 <span style={{ fontSize: '1.3rem' }}>{h.icon}</span>
@@ -361,8 +342,8 @@ function HabitBreakdownGrid({ habits, getHabitStreak, last7 }) {
                 {h.name}
               </p>
               <div className="flex items-center gap-1">
-                <Flame size={11} style={{ color: streak > 0 ? C.coral : C.muted }} />
-                <span style={{ fontSize: 11.5, fontWeight: 600, color: streak > 0 ? C.coral : C.muted }}>
+                <Flame size={11} style={{ color: streak > 0 ? T.danger : T.textMuted }} />
+                <span style={{ fontSize: 11.5, fontWeight: 600, color: streak > 0 ? T.danger : T.textMuted }}>
                   {streak > 0 ? `${streak}d streak` : 'No streak'}
                 </span>
               </div>
@@ -377,7 +358,9 @@ function HabitBreakdownGrid({ habits, getHabitStreak, last7 }) {
 /* ─────────────────────────────────────────────────────────────────────────
    UPCOMING TASKS
 ───────────────────────────────────────────────────────────────────────── */
-function UpcomingTasksWidget({ todos, navigate }) {
+function UpcomingTasksWidget({ todos, navigate, T }) {
+  const priorityColor = { high: T.danger, medium: T.accent, low: T.success }
+
   const upcoming = useMemo(() => {
     const now = new Date()
     const cutoff = new Date(); cutoff.setDate(cutoff.getDate() + 3)
@@ -397,7 +380,7 @@ function UpcomingTasksWidget({ todos, navigate }) {
     <div className="glass-card" style={{ padding: '1.1rem' }}>
       <div className="flex items-center justify-between mb-2">
         <span className="section-label">Upcoming Tasks · Next 3 Days</span>
-        <button onClick={() => navigate('/todo')} className="flex items-center gap-1" style={{ fontSize: 11.5, fontWeight: 700, color: C.cyan, background: 'none', border: 'none', cursor: 'pointer' }}>
+        <button onClick={() => navigate('/todo')} className="flex items-center gap-1" style={{ fontSize: 11.5, fontWeight: 700, color: T.accent, background: 'none', border: 'none', cursor: 'pointer' }}>
           View all <ArrowRight size={11} />
         </button>
       </div>
@@ -409,11 +392,11 @@ function UpcomingTasksWidget({ todos, navigate }) {
       ) : (
         <div className="flex flex-col gap-2">
           {upcoming.map(task => {
-            const color = PRIORITY_COLOR[task.priority] || PRIORITY_COLOR.low
+            const color = priorityColor[task.priority] || priorityColor.low
             let dueStr
             try { dueStr = format(new Date(task.dueDate), 'MMM d, h:mm a') } catch { dueStr = 'Soon' }
             return (
-              <div key={task.id} className="flex items-center gap-2.5" style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 14, padding: '0.6rem 0.75rem', border: `1px solid ${C.borderSubtle}` }}>
+              <div key={task.id} className="flex items-center gap-2.5" style={{ background: 'var(--bg-glass)', borderRadius: 14, padding: '0.6rem 0.75rem', border: `1px solid ${T.borderSubtle}` }}>
                 <Dot color={color} size={8} />
                 <div className="flex-1 min-w-0">
                   <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.title}</p>
@@ -434,7 +417,7 @@ function UpcomingTasksWidget({ todos, navigate }) {
 /* ─────────────────────────────────────────────────────────────────────────
    ACTIVE STREAKS STRIP
 ───────────────────────────────────────────────────────────────────────── */
-function StreakStrip({ habits, getHabitStreak }) {
+function StreakStrip({ habits, getHabitStreak, T }) {
   const streaks = useMemo(() =>
     Object.values(habits)
       .map(h => ({ ...h, streak: getHabitStreak(h.id) }))
@@ -466,13 +449,13 @@ function StreakStrip({ habits, getHabitStreak }) {
           return (
             <div key={h.id} className="flex items-center gap-1.5 flex-shrink-0" style={{
               padding: '0.45rem 0.85rem', borderRadius: 999,
-              background: isTop ? 'rgba(34,211,238,0.10)' : 'rgba(255,255,255,0.04)',
-              border: isTop ? '1.5px solid rgba(34,211,238,0.4)' : `1px solid ${C.borderSubtle}`,
+              background: isTop ? `${T.accent}1A` : 'var(--bg-glass)',
+              border: isTop ? `1.5px solid ${T.accent}66` : `1px solid ${T.borderSubtle}`,
             }}>
               <span style={{ fontSize: '1rem' }}>{h.icon}</span>
-              <span style={{ fontSize: 12, fontWeight: 700, color: isTop ? C.cyan : 'var(--text-primary)' }}>{h.name}</span>
-              <Flame size={11} style={{ color: C.coral }} />
-              <span style={{ fontFamily: MONO, fontSize: 12, fontWeight: 700, color: isTop ? C.cyan : C.coral }}>{h.streak}d</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: isTop ? T.accent : 'var(--text-primary)' }}>{h.name}</span>
+              <Flame size={11} style={{ color: T.danger }} />
+              <span style={{ fontFamily: MONO, fontSize: 12, fontWeight: 700, color: isTop ? T.accent : T.danger }}>{h.streak}d</span>
               {isTop && <span style={{ fontSize: 12 }}>🏆</span>}
             </div>
           )
@@ -488,6 +471,7 @@ function StreakStrip({ habits, getHabitStreak }) {
 export default function Dashboard() {
   const navigate = useNavigate()
   const { user } = useAuth()
+  const T = useThemeColors()
   const {
     todos, habits, dailyLogs, fitnessLogs, pointsHistory,
     todayPoints, getHabitStreak, settings,
@@ -593,25 +577,6 @@ export default function Dashboard() {
     }).reverse()
   , [habits, pointsHistory])
 
-  // Last 35 days for the contribution heatmap — same Supabase-backed
-  // pointsHistory/habit entries the rest of the dashboard reads.
-  const heatmapData = useMemo(() => {
-    const allH = Object.values(habits).filter(h => h.type === 'good')
-    const arr = []
-    for (let i = 34; i >= 0; i--) {
-      const d = new Date()
-      d.setDate(d.getDate() - i)
-      const key = dateKey(d)
-      arr.push({
-        date: key,
-        pts: pointsHistory[key] || 0,
-        habitsDone: allH.filter(h => h.entries?.[key]?.status === 'done').length,
-        habitsTotal: allH.length,
-      })
-    }
-    return arr
-  }, [habits, pointsHistory])
-
   const greeting = new Date().getHours() < 12 ? 'Morning' : new Date().getHours() < 17 ? 'Afternoon' : 'Evening'
   const firstName = profile?.displayName?.split(' ')[0] || user?.displayName?.split(' ')[0] || 'there'
 
@@ -629,34 +594,34 @@ export default function Dashboard() {
         </motion.div>
 
         {/* ── Hero ring ──────────────────────────────────────────────── */}
-        <HeroRingCard dayScore={dayScore} />
+        <HeroRingCard dayScore={dayScore} T={T} />
 
         {/* ── AI Insight ─────────────────────────────────────────────── */}
         {insight && (
-          <InsightCard insight={insight} onRefresh={triggerRefresh} refreshing={isRefreshing} />
+          <InsightCard insight={insight} onRefresh={triggerRefresh} refreshing={isRefreshing} T={T} />
         )}
 
         {/* ── Stat grid — 2x2 mobile / 4 across desktop ──────────────── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <StatTile icon={CheckCircle2} label="Habits" value={`${doneToday}/${goodHabits.length}`} pct={habitPct} color={C.lime} />
-          <StatTile icon={Footprints} label="Steps" value={todaySteps.toLocaleString()} pct={stepPct} color={C.cyan} />
-          <StatTile icon={Smile} label="Mood" value={todayLog.mood ? `${todayLog.mood}/10` : '--'} pct={moodPct} color={C.violet} />
-          <StatTile icon={Award} label="Points" value={`+${todayPoints}`} pct={pointsPct} color={C.cyan} />
+          <StatTile icon={CheckCircle2} label="Habits" value={`${doneToday}/${goodHabits.length}`} pct={habitPct} color={T.success} trackColor={T.borderSubtle} />
+          <StatTile icon={Footprints} label="Steps" value={todaySteps.toLocaleString()} pct={stepPct} color={T.accent} trackColor={T.borderSubtle} />
+          <StatTile icon={Smile} label="Mood" value={todayLog.mood ? `${todayLog.mood}/10` : '--'} pct={moodPct} color={T.special} trackColor={T.borderSubtle} />
+          <StatTile icon={Award} label="Points" value={`+${todayPoints}`} pct={pointsPct} color={T.accent} trackColor={T.borderSubtle} />
         </div>
 
         {/* ── Quick actions — row on desktop, 2x2 grid on mobile ─────── */}
         <div className="grid grid-cols-2 sm:flex gap-2">
           <button id="pill-log" onClick={() => setQuickLogOpen(true)} className="glass-btn sm:flex-1" style={{ padding: '0.6rem 1rem', fontSize: 12.5, fontWeight: 700 }}>
-            <ClipboardList size={14} style={{ color: C.lime }} /> Log Today
+            <ClipboardList size={14} style={{ color: T.success }} /> Log Today
           </button>
           <button id="pill-journal" onClick={() => navigate('/journal')} className="glass-btn sm:flex-1" style={{ padding: '0.6rem 1rem', fontSize: 12.5, fontWeight: 700 }}>
-            <BookMarked size={14} style={{ color: C.violet }} /> Journal
+            <BookMarked size={14} style={{ color: T.special }} /> Journal
           </button>
           <button id="pill-habits" onClick={() => navigate('/habits')} className="glass-btn sm:flex-1" style={{ padding: '0.6rem 1rem', fontSize: 12.5, fontWeight: 700 }}>
-            <CheckCircle2 size={14} style={{ color: C.lime }} /> Habits
+            <CheckCircle2 size={14} style={{ color: T.success }} /> Habits
           </button>
           <button id="pill-task" onClick={() => navigate('/todo')} className="glass-btn sm:flex-1" style={{ padding: '0.6rem 1rem', fontSize: 12.5, fontWeight: 700 }}>
-            <Plus size={14} style={{ color: C.cyan }} /> Add Task
+            <Plus size={14} style={{ color: T.accent }} /> Add Task
           </button>
         </div>
 
@@ -670,23 +635,23 @@ export default function Dashboard() {
               padding: '1rem 1.1rem',
               borderStyle: 'dashed',
               borderWidth: 1.5,
-              borderColor: 'rgba(163,230,53,0.35)',
+              borderColor: `${T.success}59`,
               cursor: 'pointer',
             }}
           >
-            <div className="flex items-center justify-center flex-shrink-0" style={{ width: 40, height: 40, borderRadius: 14, background: 'rgba(163,230,53,0.12)' }}>
-              <Plus size={20} style={{ color: C.lime }} />
+            <div className="flex items-center justify-center flex-shrink-0" style={{ width: 40, height: 40, borderRadius: 14, background: `${T.success}1F` }}>
+              <Plus size={20} style={{ color: T.success }} />
             </div>
             <div className="text-left">
               <p style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>Quick Log Today</p>
               <p style={{ fontSize: 11.5, color: 'var(--text-muted)', margin: 0 }}>Tap to log your day in 30 seconds</p>
             </div>
-            <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 800, color: C.lime, background: 'rgba(163,230,53,0.12)', padding: '3px 9px', borderRadius: 20 }}>Today</span>
+            <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 800, color: T.success, background: `${T.success}1F`, padding: '3px 9px', borderRadius: 20 }}>Today</span>
           </button>
         )}
 
         {/* ── 7-day history ──────────────────────────────────────────── */}
-        <HistoryCard rows={historyRows} />
+        <HistoryCard rows={historyRows} T={T} />
 
         {/* ── Welcome Back / Complete Setup banner ───────────────────── */}
         <AnimatePresence>
@@ -701,13 +666,13 @@ export default function Dashboard() {
                 className="glass-card"
                 style={{
                   padding: '1rem 1.1rem',
-                  borderColor: 'rgba(34,211,238,0.4)',
+                  borderColor: `${T.accent}66`,
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
                 }}
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <span className="flex items-center justify-center flex-shrink-0" style={{ width: 34, height: 34, borderRadius: 12, background: 'rgba(34,211,238,0.14)' }}>
-                    <Gift size={17} style={{ color: C.cyan }} />
+                  <span className="flex items-center justify-center flex-shrink-0" style={{ width: 34, height: 34, borderRadius: 12, background: `${T.accent}24` }}>
+                    <Gift size={17} style={{ color: T.accent }} />
                   </span>
                   <div className="min-w-0">
                     <p style={{ fontSize: 13, fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>Welcome Back!</p>
@@ -727,22 +692,19 @@ export default function Dashboard() {
         </AnimatePresence>
 
         {/* ── Weekly trend chart ─────────────────────────────────────── */}
-        <WeeklyTrendChart pointsHistory={pointsHistory} habits={habits} last7={last7} />
+        <WeeklyTrendChart pointsHistory={pointsHistory} habits={habits} last7={last7} T={T} />
 
         {/* ── Habit breakdown ────────────────────────────────────────── */}
-        <HabitBreakdownGrid habits={habits} getHabitStreak={getHabitStreak} last7={last7} />
+        <HabitBreakdownGrid habits={habits} getHabitStreak={getHabitStreak} last7={last7} T={T} />
 
         {/* ── Upcoming tasks ─────────────────────────────────────────── */}
-        <UpcomingTasksWidget todos={todos} navigate={navigate} />
+        <UpcomingTasksWidget todos={todos} navigate={navigate} T={T} />
 
         {/* ── Active streaks ─────────────────────────────────────────── */}
-        <StreakStrip habits={habits} getHabitStreak={getHabitStreak} />
+        <StreakStrip habits={habits} getHabitStreak={getHabitStreak} T={T} />
 
-        {/* ── Activity heatmap — GitHub-style contribution grid ──────── */}
-        <div className="glass-card" style={{ padding: '1.1rem' }}>
-          <span className="section-label block" style={{ marginBottom: 12 }}>Last 35 Days · Activity Heatmap</span>
-          <ActivityHeatmap data={heatmapData} days={35} />
-        </div>
+        {/* ── Monthly calendar heatmap — interactive, with day details ── */}
+        <MonthlyHeatmap habits={habits} pointsHistory={pointsHistory} />
 
         {/* ── Sleep card ──────────────────────────────────────────────── */}
         <AnimatePresence>
@@ -752,8 +714,8 @@ export default function Dashboard() {
               onClick={() => navigate('/log')} className="cursor-pointer"
             >
               <div className="glass-card flex items-center gap-3.5" style={{ padding: '1.1rem' }}>
-                <div className="flex items-center justify-center flex-shrink-0" style={{ width: 44, height: 44, borderRadius: 14, background: 'rgba(167,139,250,0.14)' }}>
-                  <Moon size={20} style={{ color: C.violet }} />
+                <div className="flex items-center justify-center flex-shrink-0" style={{ width: 44, height: 44, borderRadius: 14, background: `${T.special}24` }}>
+                  <Moon size={20} style={{ color: T.special }} />
                 </div>
                 <div className="flex-1">
                   <span className="section-label">Last Night's Sleep</span>
@@ -762,7 +724,7 @@ export default function Dashboard() {
                       {todayLog.sleepTime || '—'} → {todayLog.wakeTime || '—'}
                     </p>
                     {todayLog.sleepTime && todayLog.wakeTime && (
-                      <span style={{ fontSize: 11, fontWeight: 700, color: C.violet, background: 'rgba(167,139,250,0.14)', padding: '2px 9px', borderRadius: 20 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: T.special, background: `${T.special}24`, padding: '2px 9px', borderRadius: 20 }}>
                         {calculateSleepDuration(todayLog.sleepTime, todayLog.wakeTime)}
                       </span>
                     )}
@@ -794,15 +756,15 @@ export default function Dashboard() {
                            rounded-t-3xl sm:rounded-[26px]"
                 style={{ background: 'var(--bg-elevated)', boxShadow: '0 16px 40px rgba(0,0,0,0.45)' }}
               >
-                <div style={{ width: '100%', height: 6, background: 'rgba(255,255,255,0.08)' }}>
+                <div style={{ width: '100%', height: 6, background: 'var(--border-glass)' }}>
                   <motion.div initial={{ width: 0 }} animate={{ width: `${progressPercentage}%` }} transition={{ duration: 0.3 }}
-                    style={{ height: '100%', background: `linear-gradient(90deg, ${C.cyan}, ${C.lime})` }} />
+                    style={{ height: '100%', background: `linear-gradient(90deg, ${T.accent}, ${T.success})` }} />
                 </div>
                 {/* Drag handle — mobile bottom-sheet only */}
                 <div className="sm:hidden flex justify-center pt-2.5 pb-0.5 flex-shrink-0">
-                  <div className="w-10 h-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.2)' }} />
+                  <div className="w-10 h-1.5 rounded-full" style={{ background: 'var(--border-glass)' }} />
                 </div>
-                <div className="flex items-center justify-between flex-shrink-0" style={{ padding: '0.85rem 1.25rem 0.75rem', borderBottom: `1px solid ${C.borderSubtle}` }}>
+                <div className="flex items-center justify-between flex-shrink-0" style={{ padding: '0.85rem 1.25rem 0.75rem', borderBottom: '1px solid var(--border-subtle)' }}>
                   <div>
                     <h2 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>🎁 Complete Your Profile</h2>
                     <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '2px 0 0' }}>Unlock full stats & earn +15 points!</p>
@@ -815,7 +777,7 @@ export default function Dashboard() {
                   <div className="flex-1 overflow-y-auto space-y-3.5" style={{ padding: '1.25rem' }}>
                     <div className="flex items-center justify-between" style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--text-muted)' }}>
                       <span>Profile Completion</span>
-                      <span style={{ color: C.lime, fontWeight: 800 }}>{progressPercentage}%</span>
+                      <span style={{ color: T.success, fontWeight: 800 }}>{progressPercentage}%</span>
                     </div>
                     {[
                       { id: 'display-name-input', label: 'Display Name', type: 'text', value: displayName, onChange: e => setDisplayName(e.target.value), placeholder: 'Your Name' },
@@ -827,16 +789,13 @@ export default function Dashboard() {
                         <label htmlFor={field.id} style={{ fontSize: 11.5, color: 'var(--text-muted)', display: 'block', marginBottom: 4, fontWeight: 600 }}>{field.label}</label>
                         <input
                           id={field.id} {...field} label={undefined} required
-                          className="w-full transition-all focus:outline-none"
-                          style={{
-                            fontSize: 13.5, background: 'rgba(255,255,255,0.05)', border: `1px solid ${C.borderSubtle}`,
-                            borderRadius: 12, padding: '0.6rem 0.75rem', color: 'var(--text-primary)',
-                          }}
+                          className="w-full transition-all focus:outline-none glass-input"
+                          style={{ fontSize: 13.5 }}
                         />
                       </div>
                     ))}
                   </div>
-                  <div className="flex-shrink-0 flex items-center justify-between gap-3 pb-safe" style={{ padding: '1rem 1.25rem', borderTop: `1px solid ${C.borderSubtle}` }}>
+                  <div className="flex-shrink-0 flex items-center justify-between gap-3 pb-safe" style={{ padding: '1rem 1.25rem', borderTop: '1px solid var(--border-subtle)' }}>
                     <button type="button" onClick={() => setProfileModalOpen(false)} className="glass-btn w-1/2"
                       style={{ color: 'var(--text-muted)', fontWeight: 700, padding: '0.65rem 1rem', fontSize: 13 }}>
                       Cancel

@@ -22,14 +22,14 @@ function BadgeCard({ badge, earned, progress }) {
       animate={{ opacity: 1, scale: 1 }}
       className={`p-3.5 rounded-xl border flex flex-col gap-3 transition-all duration-300 ${
         earned
-          ? 'bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border-yellow-500/35 shadow-[0_0_20px_rgba(234,179,8,0.06)]'
+          ? 'bg-amber-400/10 border-amber-400/35 shadow-[0_0_20px_rgba(251,191,36,0.08)]'
           : 'border-white/5 bg-white/3'
       }`}
     >
       <div className="flex items-center gap-3">
         {/* Badge Icon */}
         <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0 transition-colors ${
-          earned ? 'bg-yellow-500/20' : 'bg-white/5'
+          earned ? 'bg-amber-400/20' : 'bg-white/5'
         }`}>
           {badge.icon}
         </div>
@@ -39,7 +39,7 @@ function BadgeCard({ badge, earned, progress }) {
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs font-bold text-white truncate">{badge.name}</p>
             {progress?.today && !earned && (
-              <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-1.5 py-0.5 whitespace-nowrap animate-pulse">
+              <span className="text-[9px] font-bold text-lime-400 bg-lime-400/10 border border-lime-400/20 rounded-full px-1.5 py-0.5 whitespace-nowrap animate-pulse">
                 {progress.today}
               </span>
             )}
@@ -49,8 +49,8 @@ function BadgeCard({ badge, earned, progress }) {
         
         {/* Earned Status Star / Target text */}
         {earned ? (
-          <div className="w-5 h-5 rounded-full bg-yellow-500/20 flex items-center justify-center flex-shrink-0">
-            <Star size={10} className="text-yellow-400" fill="currentColor" />
+          <div className="w-5 h-5 rounded-full bg-amber-400/20 flex items-center justify-center flex-shrink-0">
+            <Star size={10} className="text-amber-400" fill="currentColor" />
           </div>
         ) : (
           <span className="text-[9px] font-semibold text-white/30 whitespace-nowrap">
@@ -63,7 +63,7 @@ function BadgeCard({ badge, earned, progress }) {
       <div className="w-full">
         <div className="flex items-center justify-between text-[9px] text-white/35 mb-1.5">
           <span>Completion Tracker</span>
-          <span className={earned ? 'text-yellow-400 font-medium' : 'text-white/60 font-medium'}>
+          <span className={earned ? 'text-amber-400 font-medium' : 'text-white/60 font-medium'}>
             {earned ? 'Completed' : progress?.text}
           </span>
         </div>
@@ -75,8 +75,8 @@ function BadgeCard({ badge, earned, progress }) {
             transition={{ duration: 0.8, ease: 'easeOut' }}
             className={`h-full rounded-full bg-gradient-to-r ${
               earned 
-                ? 'from-yellow-400 via-orange-400 to-yellow-500' 
-                : 'from-pink-500 via-purple-500 to-indigo-500'
+                ? 'from-amber-400 to-amber-300' 
+                : 'from-cyan-400 to-lime-400'
             }`}
           />
         </div>
@@ -97,11 +97,11 @@ function SectionHeader({ icon: Icon, color, title }) {
 function SettingRow({ icon: Icon, label, sublabel, children, danger }) {
   return (
     <div className={`flex items-center justify-between py-3 border-b last:border-0 ${
-      danger ? 'border-red-500/10' : 'border-white/5'
+      danger ? 'border-red-400/10' : 'border-white/5'
     }`}>
       <div className="flex items-center gap-3">
         <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${
-          danger ? 'bg-red-500/15' : 'bg-white/5'
+          danger ? 'bg-red-400/15' : 'bg-white/5'
         }`}>
           <Icon size={14} className={danger ? 'text-red-400' : 'text-white/40'} />
         </div>
@@ -115,7 +115,7 @@ function SettingRow({ icon: Icon, label, sublabel, children, danger }) {
   )
 }
 
-function Toggle({ value, onChange, color = 'bg-cyber-500' }) {
+function Toggle({ value, onChange, color = 'bg-cyan-400' }) {
   return (
     <button
       onClick={() => onChange(!value)}
@@ -182,7 +182,7 @@ function WorkoutTypeManager({ settings, updateSetting, addToast }) {
     <div className="pt-2 border-t border-white/5 mt-2">
       {/* Section label */}
       <div className="flex items-center gap-2 mb-3">
-        <Dumbbell size={13} className="text-orange-400" />
+        <Dumbbell size={13} className="text-lime-400" />
         <span className="text-xs font-semibold text-white">Manage Workout Types</span>
         <span className="text-[9px] bg-white/8 text-white/40 rounded-full px-1.5 py-0.5 font-medium">
           {types.length} types
@@ -199,7 +199,7 @@ function WorkoutTypeManager({ settings, updateSetting, addToast }) {
           onKeyDown={handleKeyDown}
           placeholder="e.g. Calisthenics, Zumba…"
           maxLength={24}
-          className="input-cyber text-xs flex-1 py-2.5 min-h-[48px]"
+          className="glass-input text-xs flex-1 py-2.5 min-h-[48px]"
         />
         <motion.button
           id="settings-add-workout-type"
@@ -207,8 +207,8 @@ function WorkoutTypeManager({ settings, updateSetting, addToast }) {
           onClick={handleAdd}
           disabled={!newType.trim()}
           className="flex items-center justify-center gap-1.5 px-4 py-2.5 min-h-[48px] min-w-[48px] rounded-xl text-xs font-semibold
-                     bg-orange-500/20 border border-orange-500/30 text-orange-300
-                     hover:bg-orange-500/30 hover:border-orange-500/50
+                     bg-lime-400/20 border border-lime-400/30 text-lime-300
+                     hover:bg-lime-400/30 hover:border-lime-400/50
                      disabled:opacity-40 disabled:cursor-not-allowed
                      transition-all duration-150"
         >
@@ -257,7 +257,7 @@ function WorkoutTypeManager({ settings, updateSetting, addToast }) {
 
       {/* Strength / Gym types */}
       <div>
-        <p className="text-[10px] uppercase tracking-wider text-orange-400/60 font-semibold mb-1.5">
+        <p className="text-[10px] uppercase tracking-wider text-lime-400/60 font-semibold mb-1.5">
           🏋️ Strength / Gym
         </p>
         <div className="flex flex-wrap gap-1.5">
@@ -271,13 +271,13 @@ function WorkoutTypeManager({ settings, updateSetting, addToast }) {
                 exit={{ opacity: 0, scale: 0.7 }}
                 transition={{ duration: 0.18 }}
                 className="flex items-center gap-1 px-3 py-1.5 min-h-[36px] rounded-lg text-xs font-medium
-                           border border-orange-500/30 bg-orange-500/10 text-orange-300"
+                           border border-lime-400/30 bg-lime-400/10 text-lime-300"
               >
                 {type}
                 <button
                   id={`settings-remove-workout-${type.toLowerCase()}`}
                   onClick={() => handleRemove(type)}
-                  className="text-orange-400/50 hover:text-red-400 transition-colors ml-1 p-2 -m-2 flex items-center justify-center min-w-[28px] min-h-[28px]"
+                  className="text-lime-400/50 hover:text-red-400 transition-colors ml-1 p-2 -m-2 flex items-center justify-center min-w-[28px] min-h-[28px]"
                   aria-label={`Remove ${type}`}
                 >
                   <X size={12} />
@@ -575,12 +575,12 @@ export default function Profile() {
   }
 
   const sections = [
-    { id: 'goals', label: 'Personal Goals', icon: Target, color: 'text-cyber-400' },
-    { id: 'appearance', label: 'Appearance & Theme', icon: Moon, color: 'text-pink-400' },
+    { id: 'goals', label: 'Personal Goals', icon: Target, color: 'text-cyan-400' },
+    { id: 'appearance', label: 'Appearance & Theme', icon: Moon, color: 'text-violet-400' },
     { id: 'control-center', label: 'Control Center & Toggles', icon: Sliders, color: 'text-cyan-400' },
-    { id: 'notifications', label: 'Notifications', icon: Bell, color: 'text-yellow-400' },
-    { id: 'privacy', label: 'Privacy & Security', icon: Shield, color: 'text-emerald-400' },
-    { id: 'data', label: 'Data & Export', icon: Database, color: 'text-purple-400' },
+    { id: 'notifications', label: 'Notifications', icon: Bell, color: 'text-amber-400' },
+    { id: 'privacy', label: 'Privacy & Security', icon: Shield, color: 'text-lime-400' },
+    { id: 'data', label: 'Data & Export', icon: Database, color: 'text-violet-400' },
     { id: 'about', label: 'About', icon: Info, color: 'text-white/40' },
   ]
 
@@ -604,12 +604,12 @@ export default function Profile() {
                 }}
               />
             ) : (
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-cyber-400 to-emerald-500
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-400 to-lime-400
                               flex items-center justify-center text-2xl font-bold text-white shadow-lg glow-cyan">
                 {user?.displayName?.[0]?.toUpperCase() || '?'}
               </div>
             )}
-            <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500
+            <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-lime-400
                             border-2 border-navy-950 flex items-center justify-center">
               <div className="w-2 h-2 rounded-full bg-white" />
             </div>
@@ -624,7 +624,7 @@ export default function Profile() {
                   <input
                     value={newName}
                     onChange={e => setNewName(e.target.value)}
-                    className="input-cyber text-xs w-full py-1.5 px-2"
+                    className="glass-input text-xs w-full py-1.5 px-2"
                     placeholder="Display name"
                   />
                 </div>
@@ -633,7 +633,7 @@ export default function Profile() {
                   <input
                     value={newAvatar}
                     onChange={e => setNewAvatar(e.target.value)}
-                    className="input-cyber text-xs w-full py-1.5 px-2"
+                    className="glass-input text-xs w-full py-1.5 px-2"
                     placeholder="https://example.com/avatar.png"
                   />
                 </div>
@@ -648,7 +648,7 @@ export default function Profile() {
                         addToast(err.message || 'Update failed', 'error')
                       }
                     }}
-                    className="btn-primary text-xs px-3 py-1.5 flex-1"
+                    className="glass-btn glass-btn-accent text-xs px-3 py-1.5 flex-1"
                   >
                     Save
                   </button>
@@ -676,7 +676,7 @@ export default function Profile() {
                     setNewAvatar(user?.avatar || '')
                     setEditProfile(true)
                   }}
-                  className="text-[10px] text-cyber-400 hover:underline mt-0.5"
+                  className="text-[10px] text-cyan-400 hover:underline mt-0.5"
                 >
                   ✏️ Edit Profile
                 </button>
@@ -687,10 +687,10 @@ export default function Profile() {
 
         {/* Stats Row */}
         <div className="grid grid-cols-4 gap-2">
-          <StatBox icon="🔥" value={totalPoints.toLocaleString()} label="Total Points" color="text-orange-400" />
-          <StatBox icon="📅" value={thisWeekPts} label="This Week" color="text-cyber-400" />
-          <StatBox icon="🏋️" value={gymDaysTotal} label="Gym Days" color="text-emerald-400" />
-          <StatBox icon="🏅" value={earned.length} label="Badges" color="text-yellow-400" />
+          <StatBox icon="🔥" value={totalPoints.toLocaleString()} label="Total Points" color="text-lime-400" />
+          <StatBox icon="📅" value={thisWeekPts} label="This Week" color="text-cyan-400" />
+          <StatBox icon="🏋️" value={gymDaysTotal} label="Gym Days" color="text-lime-400" />
+          <StatBox icon="🏅" value={earned.length} label="Badges" color="text-amber-400" />
         </div>
 
         {/* Streak info */}
@@ -708,7 +708,7 @@ export default function Profile() {
           className="w-full flex items-center justify-between"
         >
           <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-            <Award size={15} className="text-yellow-400" />
+            <Award size={15} className="text-amber-400" />
             Achievements
             <span className="badge-yellow text-[10px]">{earned.length}/{Object.keys(BADGES).length}</span>
           </h3>
@@ -736,7 +736,7 @@ export default function Profile() {
 
       {/* ── Quick Links ── */}
       <div className="glass-card p-4">
-        <SectionHeader icon={Zap} color="text-cyber-400" title="Quick Access" />
+        <SectionHeader icon={Zap} color="text-cyan-400" title="Quick Access" />
         <div className="grid grid-cols-3 gap-2">
           {[
             { label: 'Daily Log', emoji: '📓', path: '/log' },
@@ -800,7 +800,7 @@ export default function Profile() {
                             updateSetting('stepGoal', parseInt(e.target.value))
                             addToast('Step goal updated!', 'success')
                           }}
-                          className="input-cyber text-sm"
+                          className="glass-input text-sm"
                         />
                       </div>
                       <div>
@@ -813,7 +813,7 @@ export default function Profile() {
                             updateSetting('waterGoal', parseInt(e.target.value))
                             addToast('Water goal updated!', 'success')
                           }}
-                          className="input-cyber text-sm"
+                          className="glass-input text-sm"
                         />
                       </div>
                       <div>
@@ -826,7 +826,7 @@ export default function Profile() {
                             updateSetting('wakeGoal', e.target.value)
                             addToast('Wake goal updated!', 'success')
                           }}
-                          className="input-cyber text-sm"
+                          className="glass-input text-sm"
                         />
                       </div>
                       <div>
@@ -839,7 +839,7 @@ export default function Profile() {
                             updateSetting('sleepGoal', e.target.value)
                             addToast('Sleep goal updated!', 'success')
                           }}
-                          className="input-cyber text-sm"
+                          className="glass-input text-sm"
                         />
                       </div>
                       <div>
@@ -859,7 +859,7 @@ export default function Profile() {
                                 }}
                                 className={`px-4 py-2.5 min-h-[48px] min-w-[48px] flex items-center justify-center rounded-xl text-xs font-semibold border transition-all ${
                                   isSelected
-                                    ? 'border-emerald-500/50 bg-emerald-500/20 text-emerald-300'
+                                    ? 'border-lime-400/50 bg-lime-400/20 text-lime-300'
                                     : 'border-white/10 bg-white/5 text-white/40'
                                 }`}
                               >
@@ -904,11 +904,11 @@ export default function Profile() {
                               }}
                               className={`p-3 rounded-xl border-2 text-left flex flex-col justify-between h-20 transition-all active:scale-[0.98] ${
                                 isSelected
-                                  ? 'border-cyber-400 bg-cyber-500/10'
+                                  ? 'border-cyan-400 bg-cyan-400/10'
                                   : 'border-white/5 bg-white/3 hover:border-white/10'
                               }`}
                             >
-                              <span className={`text-xs font-semibold ${isSelected ? 'text-cyber-300' : 'text-white/80'}`}>{t.label}</span>
+                              <span className={`text-xs font-semibold ${isSelected ? 'text-cyan-300' : 'text-white/80'}`}>{t.label}</span>
                               <div className="flex gap-1.5 mt-2">
                                 {t.val === 'dark' && (
                                   <>
@@ -981,7 +981,7 @@ export default function Profile() {
                             updateSetting('loveTrackerEnabled', v)
                             addToast(v ? 'Love Tracker enabled! 💕' : 'Love Tracker disabled', 'info')
                           }}
-                          color="bg-pink-500"
+                          color="bg-violet-400"
                         />
                       </SettingRow>
                       <SettingRow
@@ -995,7 +995,7 @@ export default function Profile() {
                             updateSetting('fitnessTrackerEnabled', v)
                             addToast(v ? 'Fitness Tracker enabled! 💪' : 'Fitness Tracker disabled', 'info')
                           }}
-                          color="bg-emerald-500"
+                          color="bg-lime-400"
                         />
                       </SettingRow>
                       <SettingRow
@@ -1082,12 +1082,12 @@ export default function Profile() {
                     <div className="space-y-4">
 
                       {/* Section intro */}
-                      <div className="flex items-start gap-3 p-3 rounded-xl bg-emerald-500/8 border border-emerald-500/20">
-                        <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center flex-shrink-0">
-                          <Shield size={15} className="text-emerald-400" />
+                      <div className="flex items-start gap-3 p-3 rounded-xl bg-lime-400/8 border border-lime-400/20">
+                        <div className="w-8 h-8 rounded-xl bg-lime-400/20 border border-lime-400/30 flex items-center justify-center flex-shrink-0">
+                          <Shield size={15} className="text-lime-400" />
                         </div>
                         <div>
-                          <p className="text-xs font-semibold text-emerald-300 leading-tight">Data Sovereignty Mode</p>
+                          <p className="text-xs font-semibold text-lime-300 leading-tight">Data Sovereignty Mode</p>
                           <p className="text-[10px] text-white/40 mt-0.5 leading-relaxed">
                             Your data is encrypted end-to-end via Supabase. Export or wipe it at any time. Nothing is shared with third parties.
                           </p>
@@ -1101,21 +1101,21 @@ export default function Profile() {
                           id="privacy-export-json"
                           onClick={exportData}
                           className="w-full flex items-center gap-3 p-3.5 rounded-xl
-                                     bg-gradient-to-r from-emerald-500/10 to-teal-500/10
-                                     border border-emerald-500/25 hover:border-emerald-500/50
-                                     hover:from-emerald-500/15 hover:to-teal-500/15
+                                     bg-lime-400/10
+                                     border border-lime-400/25 hover:border-lime-400/50
+                                     hover:bg-lime-400/15
                                      transition-all duration-200 active:scale-[0.98] group"
                         >
-                          <div className="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center flex-shrink-0 group-hover:bg-emerald-500/30 transition-colors">
-                            <Download size={16} className="text-emerald-400" />
+                          <div className="w-9 h-9 rounded-xl bg-lime-400/20 border border-lime-400/30 flex items-center justify-center flex-shrink-0 group-hover:bg-lime-400/30 transition-colors">
+                            <Download size={16} className="text-lime-400" />
                           </div>
                           <div className="text-left flex-1">
                             <p className="text-sm font-semibold text-white">Export My Personal Data</p>
                             <p className="text-[10px] text-white/40">
-                              Downloads <span className="text-emerald-400 font-mono">lifenotebook_backup.json</span> — habits, logs, tasks, all
+                              Downloads <span className="text-lime-400 font-mono">lifenotebook_backup.json</span> — habits, logs, tasks, all
                             </p>
                           </div>
-                          <ChevronRight size={14} className="text-white/20 group-hover:text-emerald-400 transition-colors" />
+                          <ChevronRight size={14} className="text-white/20 group-hover:text-lime-400 transition-colors" />
                         </button>
                       </div>
 
@@ -1141,8 +1141,8 @@ export default function Profile() {
                                 }
                               </p>
                               <div className="flex items-center gap-1.5 mt-1">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                                <span className="text-[9px] text-emerald-400 font-medium uppercase tracking-wide">Session Active</span>
+                                <span className="w-1.5 h-1.5 rounded-full bg-lime-400 animate-pulse" />
+                                <span className="text-[9px] text-lime-400 font-medium uppercase tracking-wide">Session Active</span>
                                 <span className="text-[9px] text-white/20">·</span>
                                 <span className="text-[9px] text-white/30 capitalize">{user?.provider || 'email'} auth</span>
                               </div>
@@ -1164,9 +1164,9 @@ export default function Profile() {
                               }
                             }}
                             className="w-full flex items-center justify-center gap-2.5 py-2.5 rounded-xl
-                                       border border-red-500/30 bg-red-500/8
+                                       border border-red-400/30 bg-red-400/8
                                        text-red-400 text-xs font-semibold
-                                       hover:bg-red-500/15 hover:border-red-500/50
+                                       hover:bg-red-400/15 hover:border-red-400/50
                                        transition-all duration-200 active:scale-[0.98] group"
                           >
                             <LogOut size={14} className="group-hover:translate-x-[-2px] transition-transform" />
@@ -1186,10 +1186,10 @@ export default function Profile() {
                       </p>
                       <button
                         onClick={exportData}
-                        className="w-full flex items-center gap-3 p-3 rounded-xl bg-purple-500/10 border border-purple-500/20
-                                   hover:bg-purple-500/20 transition-all active:scale-95"
+                        className="w-full flex items-center gap-3 p-3 rounded-xl bg-violet-400/10 border border-violet-400/20
+                                   hover:bg-violet-400/20 transition-all active:scale-95"
                       >
-                        <Download size={15} className="text-purple-400" />
+                        <Download size={15} className="text-violet-400" />
                         <div className="text-left">
                           <p className="text-sm font-medium text-white">Export Full Backup</p>
                           <p className="text-[10px] text-white/40">JSON format — all data</p>
@@ -1197,10 +1197,10 @@ export default function Profile() {
                       </button>
                       <button
                         onClick={exportCSV}
-                        className="w-full flex items-center gap-3 p-3 rounded-xl bg-cyber-500/10 border border-cyber-500/20
-                                   hover:bg-cyber-500/20 transition-all active:scale-95"
+                        className="w-full flex items-center gap-3 p-3 rounded-xl bg-cyan-400/10 border border-cyan-400/20
+                                   hover:bg-cyan-400/20 transition-all active:scale-95"
                       >
-                        <TrendingUp size={15} className="text-cyber-400" />
+                        <TrendingUp size={15} className="text-cyan-400" />
                         <div className="text-left">
                           <p className="text-sm font-medium text-white">Export CSV Summary</p>
                           <p className="text-[10px] text-white/40">Daily logs in spreadsheet format</p>
@@ -1227,8 +1227,8 @@ export default function Profile() {
 
                       <button
                         onClick={() => setShowClearConfirm(true)}
-                        className="w-full flex items-center gap-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20
-                                   hover:bg-red-500/15 transition-all active:scale-95"
+                        className="w-full flex items-center gap-3 p-3 rounded-xl bg-red-400/10 border border-red-400/20
+                                   hover:bg-red-400/15 transition-all active:scale-95"
                       >
                         <Trash2 size={15} className="text-red-400" />
                         <div className="text-left">
@@ -1243,7 +1243,7 @@ export default function Profile() {
                   {id === 'about' && (
                     <div className="space-y-3">
                       <div className="text-center py-2">
-                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-cyber-400 to-emerald-500
+                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-cyan-400 to-lime-400
                                         mx-auto mb-3 flex items-center justify-center shadow-lg glow-cyan">
                           <Zap size={22} className="text-white" fill="currentColor" />
                         </div>
@@ -1264,8 +1264,8 @@ export default function Profile() {
                           </div>
                         ))}
                       </div>
-                      <div className="bg-cyber-500/10 border border-cyber-500/20 rounded-xl p-3">
-                        <p className="text-xs text-cyber-400 font-medium mb-1">📱 Install as App</p>
+                      <div className="bg-cyan-400/10 border border-cyan-400/20 rounded-xl p-3">
+                        <p className="text-xs text-cyan-400 font-medium mb-1">📱 Install as App</p>
                         <p className="text-[10px] text-white/50 leading-relaxed">
                           On iOS: tap Share → Add to Home Screen{'\n'}
                           On Android: tap Menu → Install App
@@ -1294,11 +1294,11 @@ export default function Profile() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ type: 'spring', duration: 0.3 }}
-              className="w-full max-w-md bg-card border border-red-500/30 rounded-3xl p-6 shadow-[0_0_50px_rgba(239,68,68,0.15)] overflow-hidden relative"
+              className="w-full max-w-md bg-card border border-red-400/30 rounded-3xl p-6 shadow-[0_0_50px_rgba(239,68,68,0.15)] overflow-hidden relative"
             >
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-red-500 to-pink-600 animate-pulse" />
+              <div className="absolute top-0 left-0 right-0 h-1 bg-red-400 animate-pulse" />
               
-              <div className="w-12 h-12 rounded-2xl bg-red-500/20 flex items-center justify-center mx-auto mb-4 border border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.2)]">
+              <div className="w-12 h-12 rounded-2xl bg-red-400/20 flex items-center justify-center mx-auto mb-4 border border-red-400/30 shadow-[0_0_15px_rgba(239,68,68,0.2)]">
                 <Trash2 size={24} className="text-red-400" />
               </div>
               
@@ -1327,7 +1327,7 @@ export default function Profile() {
                       addToast('Failed to reset application data.', 'error')
                     }
                   }}
-                  className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-semibold border border-red-500/30 transition-colors shadow-[0_0_15px_rgba(239,68,68,0.3)]"
+                  className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-semibold border border-red-400/30 transition-colors shadow-[0_0_15px_rgba(239,68,68,0.3)]"
                 >
                   Yes, Reset All
                 </button>

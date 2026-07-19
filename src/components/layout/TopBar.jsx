@@ -163,22 +163,21 @@ export default function TopBar() {
           {/* Live Points */}
           <div
             id="topbar-points"
-            className="flex items-center gap-1.5 bg-gradient-to-r from-orange-500/20 to-yellow-500/20
-                       border border-orange-500/30 rounded-full px-3 py-1.5"
+            className="flex items-center gap-1.5 bg-lime-400/10 border border-lime-400/25 rounded-full px-3 py-1.5"
           >
-            <Flame size={14} className="text-orange-400 streak-fire" />
+            <Flame size={14} className="text-lime-400 streak-fire" />
             <AnimatedNumber
               value={totalPoints}
               duration={800}
-              className="text-sm font-bold text-orange-300"
+              className="text-sm font-bold text-lime-300 tabular-nums"
             />
-            <span className="text-[10px] text-orange-400/60 font-medium">pts</span>
+            <span className="text-[10px] text-lime-400/60 font-medium">pts</span>
           </div>
 
           {/* Today's points mini badge */}
           {todayPoints > 0 && (
-            <div className="hidden sm:flex items-center gap-1 bg-cyber-500/15 border border-cyber-500/30 rounded-full px-2 py-1">
-              <span className="text-[10px] text-cyber-400 font-semibold">+{todayPoints} today</span>
+            <div className="hidden sm:flex items-center gap-1 bg-cyan-400/12 border border-cyan-400/30 rounded-full px-2 py-1">
+              <span className="text-[10px] text-cyan-400 font-semibold">+{todayPoints} today</span>
             </div>
           )}
 
