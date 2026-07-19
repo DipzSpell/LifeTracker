@@ -10,11 +10,11 @@ import ProgressRing from './ProgressRing'
 import { TrendingUp, TrendingDown } from 'lucide-react'
 
 const COLOR_HEX = {
-  green:  '#22C55E',
-  blue:   '#3B82F6',
-  orange: '#F97316',
-  red:    '#FF6B5B',
-  purple: '#A855F7',
+  green:  'var(--success)',
+  blue:   'var(--accent)',
+  orange: 'var(--warning)',
+  red:    'var(--danger)',
+  purple: 'var(--special)',
 }
 
 export default function StatCard({
@@ -41,13 +41,13 @@ export default function StatCard({
     >
       <div className="flex items-start justify-between mb-2">
         <div className="flex items-center gap-1.5">
-          {Icon && <Icon size={13} style={{ color: '#8A93B2' }} />}
-          <span style={{ fontSize: 12.5, fontWeight: 600, color: '#8A93B2' }}>{label}</span>
+          {Icon && <Icon size={13} style={{ color: 'var(--text-muted)' }} />}
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-muted)' }}>{label}</span>
         </div>
         <ProgressRing pct={pct ?? 0} size={ringSize} stroke={4} from={hex} to={hex} mini />
       </div>
 
-      <p style={{ fontSize: 27, fontWeight: 700, color: '#fff', margin: 0, lineHeight: 1.1 }}>
+      <p style={{ fontSize: 27, fontWeight: 700, color: 'var(--text-primary)', margin: 0, lineHeight: 1.1 }}>
         {value}
       </p>
 
@@ -60,7 +60,7 @@ export default function StatCard({
         {trend !== undefined && trend !== null && trend !== 0 && (
           <span style={{
             display: 'inline-flex', alignItems: 'center', gap: 2, fontSize: 11.5, fontWeight: 700,
-            color: trend > 0 ? '#22C55E' : '#FF6B5B',
+            color: trend > 0 ? 'var(--success)' : 'var(--danger)',
           }}>
             {trend > 0 ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
             {Math.abs(trend)}

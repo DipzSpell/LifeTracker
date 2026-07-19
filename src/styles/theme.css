@@ -24,6 +24,20 @@
  * hook (src/hooks/useThemeColors.js) instead of hardcoded hex — it reads
  * these exact custom properties live off the DOM and re-reads on theme
  * change, so a chart's stroke/fill always matches the active theme.
+ *
+ * --warning is the 4th semantic accent (amber/caution — "skipped", not yet
+ * "danger") alongside --success/--danger/--special; added because several
+ * components had their own hardcoded amber literal for this exact state.
+ *
+ * --accent-rgb/--success-rgb/--danger-rgb are "R G B" triplet copies of the
+ * same three hex tokens, added so tailwind.config.js can remap the stock
+ * Tailwind `cyan`/`lime`/`red`/`emerald` color scales to
+ * rgb(var(--x-rgb) / <alpha-value>) — that's what makes Tailwind's opacity
+ * modifiers (bg-cyan-400/10 etc.) still work. Those Tailwind names were
+ * used all over the app as a stand-in for accent/success/danger (their
+ * default hex happens to equal this theme's values by coincidence), which
+ * is exactly why those elements stayed frozen on the old theme after a
+ * switch — the classes were never actually reading a theme token before.
  */
 
 /* JetBrains Mono — used by .stat-number and mono numerals, theme-independent */
@@ -39,10 +53,16 @@
   --border-glass: rgba(255, 255, 255, 0.14);
 
   --accent: #22D3EE;
+  --accent-rgb: 34, 211, 238;
   --accent-glow: rgba(34, 211, 238, 0.25);
   --success: #A3E635;
+  --success-rgb: 163, 230, 53;
   --danger: #F87171;
+  --danger-rgb: 248, 113, 113;
   --special: #A78BFA;
+  --special-rgb: 167, 139, 250;
+  --warning: #FBBF24;
+  --warning-rgb: 251, 191, 36;
 
   --text-primary: #F1F5F9;
   --text-secondary: #94A3B8;
@@ -68,19 +88,25 @@
   --border-subtle: rgba(15, 23, 42, 0.08);
   --border-glass: rgba(15, 23, 42, 0.16);
 
-  --accent: #0891B2;
-  --accent-glow: rgba(8, 145, 178, 0.18);
+  --accent: #0284C7;
+  --accent-rgb: 2, 132, 199;
+  --accent-glow: rgba(2, 132, 199, 0.18);
   --success: #65A30D;
+  --success-rgb: 101, 163, 13;
   --danger: #DC2626;
+  --danger-rgb: 220, 38, 38;
   --special: #7C3AED;
+  --special-rgb: 124, 58, 237;
+  --warning: #D97706;
+  --warning-rgb: 217, 119, 6;
 
   --text-primary: #0F172A;
   --text-secondary: #475569;
   --text-muted: #94A3B8;
 
   --chart-line: var(--accent);
-  --chart-fill-from: rgba(8, 145, 178, 0.22);
-  --chart-fill-to: rgba(8, 145, 178, 0);
+  --chart-fill-from: rgba(2, 132, 199, 0.22);
+  --chart-fill-to: rgba(2, 132, 199, 0);
 
   --heat-0: rgba(15, 23, 42, 0.04);
   --heat-1: rgba(101, 163, 13, 0.18);
@@ -99,10 +125,16 @@
   --border-glass: rgba(236, 72, 153, 0.28);
 
   --accent: #EC4899;
+  --accent-rgb: 236, 72, 153;
   --accent-glow: rgba(236, 72, 153, 0.32);
   --success: #A3E635;
+  --success-rgb: 163, 230, 53;
   --danger: #FF6B81;
+  --danger-rgb: 255, 107, 129;
   --special: #38BDF8;
+  --special-rgb: 56, 189, 248;
+  --warning: #FDE047;
+  --warning-rgb: 253, 224, 71;
 
   --text-primary: #FFFFFF;
   --text-secondary: rgba(255, 255, 255, 0.65);
@@ -119,29 +151,35 @@
   --heat-4: rgba(163, 230, 53, 0.85);
 }
 
-/* ── MIDNIGHT — near-black bases, ice-blue accent ───────────────────────── */
+/* ── MIDNIGHT GOLD — warm near-black bases, rich gold accent ────────────── */
 [data-theme="midnight"] {
-  --bg-base: #05070C;
-  --bg-elevated: #0D1220;
-  --bg-glass: rgba(255, 255, 255, 0.05);
-  --border-subtle: rgba(255, 255, 255, 0.07);
-  --border-glass: rgba(125, 211, 252, 0.22);
+  --bg-base: #16110B;
+  --bg-elevated: #201811;
+  --bg-glass: rgba(255, 220, 150, 0.05);
+  --border-subtle: rgba(255, 210, 140, 0.08);
+  --border-glass: rgba(240, 180, 41, 0.24);
 
-  --accent: #7DD3FC;
-  --accent-glow: rgba(125, 211, 252, 0.28);
+  --accent: #F0B429;
+  --accent-rgb: 240, 180, 41;
+  --accent-glow: rgba(240, 180, 41, 0.28);
   --success: #A3E635;
+  --success-rgb: 163, 230, 53;
   --danger: #F87171;
-  --special: #A78BFA;
+  --danger-rgb: 248, 113, 113;
+  --special: #34D399;
+  --special-rgb: 52, 211, 153;
+  --warning: #F97316;
+  --warning-rgb: 249, 115, 22;
 
-  --text-primary: #F8FAFC;
-  --text-secondary: rgba(248, 250, 252, 0.65);
-  --text-muted: rgba(248, 250, 252, 0.38);
+  --text-primary: #FBF3E7;
+  --text-secondary: rgba(251, 243, 231, 0.65);
+  --text-muted: rgba(251, 243, 231, 0.40);
 
   --chart-line: var(--accent);
-  --chart-fill-from: rgba(125, 211, 252, 0.28);
-  --chart-fill-to: rgba(125, 211, 252, 0);
+  --chart-fill-from: rgba(240, 180, 41, 0.28);
+  --chart-fill-to: rgba(240, 180, 41, 0);
 
-  --heat-0: rgba(255, 255, 255, 0.04);
+  --heat-0: rgba(255, 220, 150, 0.05);
   --heat-1: rgba(163, 230, 53, 0.20);
   --heat-2: rgba(163, 230, 53, 0.35);
   --heat-3: rgba(163, 230, 53, 0.55);
@@ -157,10 +195,16 @@
   --border-glass: rgba(74, 222, 128, 0.24);
 
   --accent: #22C55E;
+  --accent-rgb: 34, 197, 94;
   --accent-glow: rgba(34, 197, 94, 0.30);
   --success: #84CC16;
+  --success-rgb: 132, 204, 22;
   --danger: #F87171;
+  --danger-rgb: 248, 113, 113;
   --special: #22D3EE;
+  --special-rgb: 34, 211, 238;
+  --warning: #EAB308;
+  --warning-rgb: 234, 179, 8;
 
   --text-primary: #E7FFE9;
   --text-secondary: rgba(180, 255, 190, 0.65);

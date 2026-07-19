@@ -9,11 +9,11 @@ import { motion } from 'framer-motion'
 import { ArrowRight, RefreshCw } from 'lucide-react'
 
 const ACCENT_HEX = {
-  green:  '#22C55E',
-  blue:   '#3B82F6',
-  orange: '#F97316',
-  red:    '#FF6B5B',
-  purple: '#A855F7',
+  green:  'var(--success)',
+  blue:   'var(--accent)',
+  orange: 'var(--warning)',
+  red:    'var(--danger)',
+  purple: 'var(--special)',
 }
 
 export default function InfoCard({
@@ -40,13 +40,13 @@ export default function InfoCard({
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex items-center gap-2 min-w-0 flex-wrap">
           {Icon && (
-            <span className="flex items-center justify-center flex-shrink-0" style={{ width: 26, height: 26, borderRadius: 9, background: `${hex}1F` }}>
+            <span className="flex items-center justify-center flex-shrink-0" style={{ width: 26, height: 26, borderRadius: 9, background: `color-mix(in srgb, ${hex} 12%, transparent)` }}>
               <Icon size={14} style={{ color: hex }} />
             </span>
           )}
-          <span style={{ fontSize: 14.5, fontWeight: 700, color: '#fff' }}>{title}</span>
+          <span style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--text-primary)' }}>{title}</span>
           {badge && (
-            <span style={{ fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 20, background: `${hex}1F`, color: hex }}>
+            <span style={{ fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 20, background: `color-mix(in srgb, ${hex} 12%, transparent)`, color: hex }}>
               {badge}
             </span>
           )}
@@ -60,7 +60,7 @@ export default function InfoCard({
             style={{ width: 34, height: 34, minHeight: 34, padding: 0, borderRadius: 10 }}
           >
             <motion.span animate={{ rotate: refreshing ? 360 : 0 }} transition={{ duration: 0.7 }}>
-              <RefreshCw size={12} style={{ color: '#8A93B2' }} />
+              <RefreshCw size={12} style={{ color: 'var(--text-muted)' }} />
             </motion.span>
           </button>
         )}
@@ -71,7 +71,7 @@ export default function InfoCard({
         initial={{ opacity: 0, y: 4 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        style={{ fontSize: 13, lineHeight: 1.65, color: '#B4BBD0', margin: 0 }}
+        style={{ fontSize: 13, lineHeight: 1.65, color: 'var(--text-secondary)', margin: 0 }}
       >
         {description}
       </motion.p>
@@ -82,8 +82,8 @@ export default function InfoCard({
           className="glass-btn w-full justify-between"
           style={{ marginTop: 12, padding: '0.65rem 0.9rem' }}
         >
-          <span style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>{cta}</span>
-          <ArrowRight size={14} style={{ color: '#8A93B2' }} />
+          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{cta}</span>
+          <ArrowRight size={14} style={{ color: 'var(--text-muted)' }} />
         </button>
       )}
     </motion.div>

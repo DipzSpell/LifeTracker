@@ -3,8 +3,10 @@
  *
  * Reusable: Dashboard now, Stats later. Layout revives the old app's calendar
  * heatmap (month navigation, habit filter, tappable day cells, selected-day
- * details) on theme.css tokens: glass cards, lime intensity ramp, cyan today
- * ring, coral misses.
+ * details) on theme.css tokens via useThemeColors() — glass cards, the
+ * --heat-0..4 intensity ramp, --accent today ring, --danger misses — so the
+ * whole heatmap re-colors with the rest of the app on theme switch instead
+ * of carrying its own frozen cyan/lime/coral palette.
  *
  * Data: seeded from `habits` / `pointsHistory` props (AppContext state), and
  * silently re-fetched from Supabase user_states on month navigation — same
@@ -18,11 +20,8 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { dateKey } from '../lib/storage'
+import { useThemeColors } from '../hooks/useThemeColors'
 
-const CYAN = '#22D3EE'
-const LIME = '#A3E635'
-const CORAL = '#F87171'
-const AMBER = '#FBBF24'
 const MONO = "'JetBrains Mono', ui-monospace, monospace"
 
 const MONTH_NAMES = [
@@ -30,16 +29,15 @@ const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ]
 
-/* Completion level → cell style (lime ramp per design spec) */
-function levelStyle(pct) {
-  if (pct <= 0) return { background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-subtle)' }
-  if (pct <= 25) return { background: 'rgba(163,230,53,0.20)' }
-  if (pct <= 50) return { background: 'rgba(163,230,53,0.35)' }
-  if (pct <= 75) return { background: 'rgba(163,230,53,0.55)' }
-  return { background: 'rgba(163,230,53,0.80)', boxShadow: '0 0 10px rgba(163,230,53,0.35)' }
+/* Completion level → cell style, driven by the active theme's --heat-0..4
+   ramp (so e.g. synthwave/matrix get their own ramp, not a hardcoded lime). */
+function levelStyle(pct, heat) {
+  if (pct <= 0) return { background: heat.heat0, border: '1px solid var(--border-subtle)' }
+  if (pct <= 25) return { background: heat.heat1 }
+  if (pct <= 50) return { background: heat.heat2 }
+  if (pct <= 75) return { background: heat.heat3 }
+  return { background: heat.heat4, boxShadow: `0 0 10px ${heat.heat3}` }
 }
-
-const LEGEND_RAMP = [0, 20, 40, 65, 90].map(levelStyle)
 
 function StatusPill({ color, children }) {
   return (
@@ -55,6 +53,8 @@ function StatusPill({ color, children }) {
 
 export default function MonthlyHeatmap({ habits: habitsProp = {}, pointsHistory: pointsProp = {} }) {
   const { user } = useAuth()
+  const T = useThemeColors()
+  const LEGEND_RAMP = useMemo(() => [0, 20, 40, 65, 90].map(p => levelStyle(p, T)), [T])
 
   const todayDate = new Date()
   const todayK = dateKey(todayDate)
@@ -130,20 +130,20 @@ export default function MonthlyHeatmap({ habits: habitsProp = {}, pointsHistory:
 
   /* ── Cell styling ──────────────────────────────────────────────────── */
   const cellStyleFor = (dk, isFuture) => {
-    if (isFuture) return { background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }
+    if (isFuture) return { background: T.heat0, border: '1px solid var(--border-subtle)' }
     if (filter === 'all') {
-      if (!goodHabits.length) return levelStyle(0)
+      if (!goodHabits.length) return levelStyle(0, T)
       const done = goodHabits.filter(h => h.entries?.[dk]?.status === 'done').length
-      return levelStyle((done / goodHabits.length) * 100)
+      return levelStyle((done / goodHabits.length) * 100, T)
     }
     const h = localHabits[filter]
-    if (!h) return levelStyle(0)
+    if (!h) return levelStyle(0, T)
     const status = h.entries?.[dk]?.status
-    const success = h.type === 'good' ? status === 'done' : status === 'clean'
-    const missed = h.type === 'good' ? status === 'failed' : status === 'done'
-    if (success) return { background: 'rgba(163,230,53,0.55)' }
-    if (missed) return { background: 'rgba(248,113,113,0.15)', border: '1px solid rgba(248,113,113,0.25)' }
-    return levelStyle(0)
+    const isSuccess = h.type === 'good' ? status === 'done' : status === 'clean'
+    const isMissed = h.type === 'good' ? status === 'failed' : status === 'done'
+    if (isSuccess) return { background: `${T.success}8C` }
+    if (isMissed) return { background: `${T.danger}26`, border: `1px solid ${T.danger}40` }
+    return levelStyle(0, T)
   }
 
   /* ── Monthly summary ───────────────────────────────────────────────── */
@@ -168,12 +168,12 @@ export default function MonthlyHeatmap({ habits: habitsProp = {}, pointsHistory:
   const statusBadge = (habit) => {
     const status = habit.entries?.[selectedDate]?.status
     if (habit.type === 'good') {
-      if (status === 'done') return <StatusPill color={LIME}>Done</StatusPill>
-      if (status === 'failed') return <StatusPill color={CORAL}>Missed</StatusPill>
-      if (status === 'skipped') return <StatusPill color={AMBER}>Skipped</StatusPill>
+      if (status === 'done') return <StatusPill color={T.success}>Done</StatusPill>
+      if (status === 'failed') return <StatusPill color={T.danger}>Missed</StatusPill>
+      if (status === 'skipped') return <StatusPill color={T.warning}>Skipped</StatusPill>
     } else {
-      if (status === 'clean') return <StatusPill color={LIME}>Resisted</StatusPill>
-      if (status === 'done') return <StatusPill color={CORAL}>Slipped</StatusPill>
+      if (status === 'clean') return <StatusPill color={T.success}>Resisted</StatusPill>
+      if (status === 'done') return <StatusPill color={T.danger}>Slipped</StatusPill>
     }
     return <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: MONO }}>—</span>
   }
@@ -218,7 +218,7 @@ export default function MonthlyHeatmap({ habits: habitsProp = {}, pointsHistory:
             {MONTH_NAMES[currentMonth]} {currentYear}
           </span>
           {fetching && (
-            <span className="w-3 h-3 rounded-full border border-t-transparent border-cyan-400 animate-spin" />
+            <span className="w-3 h-3 rounded-full border border-t-transparent animate-spin" style={{ borderColor: T.accent, borderTopColor: 'transparent' }} />
           )}
         </div>
         <button onClick={goNext} disabled={!canGoNext} aria-label="Next month"
@@ -262,9 +262,9 @@ export default function MonthlyHeatmap({ habits: habitsProp = {}, pointsHistory:
                   cursor: isFuture ? 'default' : 'pointer',
                   ...cellStyleFor(dk, isFuture),
                   ...(isToday
-                    ? { boxShadow: `0 0 0 2px ${CYAN}`, color: 'var(--text-primary)' }
+                    ? { boxShadow: `0 0 0 2px ${T.accent}`, color: 'var(--text-primary)' }
                     : isSelected
-                      ? { boxShadow: '0 0 0 1.5px rgba(241,245,249,0.6)', color: 'var(--text-primary)' }
+                      ? { boxShadow: `0 0 0 1.5px ${T.textPrimary}99`, color: 'var(--text-primary)' }
                       : {}),
                   ...(isSelected ? { transform: 'scale(1.05)' } : {}),
                 }}
@@ -296,18 +296,18 @@ export default function MonthlyHeatmap({ habits: habitsProp = {}, pointsHistory:
             transition={{ duration: 0.25, ease: 'easeInOut' }}
             style={{ overflow: 'hidden' }}
           >
-            <div className="glass-card" style={{ padding: '0.9rem 1rem', marginTop: 14, background: 'rgba(255,255,255,0.03)' }}>
+            <div className="glass-card" style={{ padding: '0.9rem 1rem', marginTop: 14, background: 'var(--bg-glass)' }}>
               <div className="flex items-center justify-between gap-2 flex-wrap" style={{ paddingBottom: 8, marginBottom: 10, borderBottom: '1px solid var(--border-subtle)' }}>
                 <div>
-                  <p style={{ fontSize: 12.5, fontWeight: 600, color: CYAN, margin: 0 }}>
+                  <p style={{ fontSize: 12.5, fontWeight: 600, color: T.accent, margin: 0 }}>
                     {format(new Date(currentYear, currentMonth, parseInt(selectedDate.slice(-2), 10)), 'EEEE, MMM d, yyyy')}
                   </p>
-                  <p style={{ fontFamily: MONO, fontSize: 11.5, color: (localPoints[selectedDate] || 0) > 0 ? LIME : 'var(--text-muted)', margin: '3px 0 0' }}>
+                  <p style={{ fontFamily: MONO, fontSize: 11.5, color: (localPoints[selectedDate] || 0) > 0 ? T.success : 'var(--text-muted)', margin: '3px 0 0' }}>
                     {(localPoints[selectedDate] || 0) > 0 ? `+${localPoints[selectedDate]} pts` : '0 pts'}
                   </p>
                 </div>
                 {!selectedHabit && goodHabits.length > 0 && (
-                  <StatusPill color={LIME}>{selectedDoneCount}/{goodHabits.length} Done</StatusPill>
+                  <StatusPill color={T.success}>{selectedDoneCount}/{goodHabits.length} Done</StatusPill>
                 )}
               </div>
 

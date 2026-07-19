@@ -34,13 +34,14 @@ import { LOT_SIZES, DEFAULT_LOT_SIZE } from '../lib/lotSizes'
 /* ─────────────────────────────────────────────────────────────────────────────
    DESIGN-SYSTEM PALETTE (mirrors src/styles/theme.css — see Dashboard.jsx)
 ───────────────────────────────────────────────────────────────────────────── */
+/* CSS-var strings, not hex, so they re-resolve live on theme switch */
 const C = {
-  cyan: '#22D3EE',
-  lime: '#A3E635',
-  violet: '#A78BFA',
-  coral: '#F87171',
-  elevated: '#151A23',
-  borderSubtle: 'rgba(255,255,255,0.08)',
+  cyan: 'var(--accent)',
+  lime: 'var(--success)',
+  violet: 'var(--special)',
+  coral: 'var(--danger)',
+  elevated: 'var(--bg-elevated)',
+  borderSubtle: 'var(--border-subtle)',
 }
 const MONO = "'JetBrains Mono', ui-monospace, monospace"
 
@@ -50,7 +51,7 @@ const STRATEGY_TAGS = ['Breakout', 'Reversal', 'Scalp', 'Swing', 'Positional', '
 
 // Closed uses a neutral/muted tone (not lime) — the P&L number itself already
 // carries the profit/loss color, so the status pill stays informational only.
-const STATUS_COLOR = { 'Open': C.cyan, 'Closed': '#64748B', 'Stopped Out': C.coral }
+const STATUS_COLOR = { 'Open': C.cyan, 'Closed': 'var(--text-muted)', 'Stopped Out': C.coral }
 
 const SYMBOL_SUGGESTIONS = [
   'NIFTY', 'BANKNIFTY', 'FINNIFTY', 'MIDCPNIFTY', 'SENSEX',
@@ -204,7 +205,7 @@ function StatCard({ label, value, sub, color = 'var(--text-primary)', icon: Icon
   )
 }
 
-function Badge({ children, color = 'rgba(255,255,255,0.15)', textColor = 'var(--text-primary)', style = {} }) {
+function Badge({ children, color = 'var(--border-glass)', textColor = 'var(--text-primary)', style = {} }) {
   return (
     <span style={{
       fontSize: 10, fontWeight: 700, fontFamily: MONO,
@@ -259,7 +260,7 @@ function SymbolInput({ value, onChange }) {
                 background: 'none', border: 'none', cursor: 'pointer',
                 borderBottom: `1px solid ${C.borderSubtle}`,
               }}
-              onMouseEnter={e => e.target.style.background = 'rgba(255,255,255,0.06)'}
+              onMouseEnter={e => e.target.style.background = 'var(--bg-glass)'}
               onMouseLeave={e => e.target.style.background = 'none'}
             >
               {s}
@@ -340,7 +341,7 @@ function CloseTradeForm({ trade, onClose, onSave }) {
 
   return (
     <div style={{
-      background: 'rgba(0,0,0,0.3)', borderRadius: 12,
+      background: 'color-mix(in srgb, var(--bg-base) 55%, transparent)', borderRadius: 12,
       border: `1px solid ${C.borderSubtle}`, padding: '0.85rem',
       display: 'flex', flexDirection: 'column', gap: 10,
     }}>
@@ -365,7 +366,7 @@ function CloseTradeForm({ trade, onClose, onSave }) {
       {preview && (
         <div style={{
           padding: '6px 10px', borderRadius: 8,
-          background: preview.pnl >= 0 ? 'rgba(163,230,53,0.12)' : 'rgba(248,113,113,0.12)',
+          background: preview.pnl >= 0 ? 'rgb(var(--success-rgb)/0.12)' : 'rgb(var(--danger-rgb)/0.12)',
           border: `1px solid ${pnlColor(preview.pnl)}44`,
           fontSize: 12, fontFamily: MONO,
           color: pnlColor(preview.pnl),
@@ -446,12 +447,12 @@ function TradeRow({ trade, onDelete, onUpdate }) {
             <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', fontFamily: MONO, flexShrink: 0 }}>
               {trade.symbol}
             </span>
-            <Badge color="rgba(255,255,255,0.07)" textColor="var(--text-secondary)">
+            <Badge color="var(--bg-glass)" textColor="var(--text-secondary)">
               {trade.segment}
             </Badge>
             {trade.segment === 'Options' && trade.option_type && (
               <Badge
-                color={trade.option_type === 'CE' ? 'rgba(163,230,53,0.14)' : 'rgba(248,113,113,0.14)'}
+                color={trade.option_type === 'CE' ? 'rgb(var(--success-rgb)/0.14)' : 'rgb(var(--danger-rgb)/0.14)'}
                 textColor={trade.option_type === 'CE' ? C.lime : C.coral}
               >
                 {trade.option_type}
@@ -465,7 +466,7 @@ function TradeRow({ trade, onDelete, onUpdate }) {
           </div>
 
           <Badge
-            color={trade.trade_type === 'Long' ? 'rgba(163,230,53,0.14)' : 'rgba(248,113,113,0.14)'}
+            color={trade.trade_type === 'Long' ? 'rgb(var(--success-rgb)/0.14)' : 'rgb(var(--danger-rgb)/0.14)'}
             textColor={trade.trade_type === 'Long' ? C.lime : C.coral}
             style={{ flexShrink: 0 }}
           >
@@ -511,7 +512,7 @@ function TradeRow({ trade, onDelete, onUpdate }) {
             <div style={{
               borderTop: `1px solid ${C.borderSubtle}`,
               padding: '0.75rem 0.85rem',
-              background: 'rgba(0,0,0,0.15)',
+              background: 'color-mix(in srgb, var(--bg-base) 40%, transparent)',
               fontSize: 11.5, fontFamily: MONO,
               color: 'var(--text-secondary)',
             }}>
@@ -562,7 +563,7 @@ function TradeRow({ trade, onDelete, onUpdate }) {
                   <button type="button" onClick={e => { e.stopPropagation(); setShowClose(s => !s) }}
                     style={{
                       padding: '8px 14px', minHeight: 40, borderRadius: 8, border: `1px solid ${C.lime}55`,
-                      background: 'rgba(163,230,53,0.12)', color: C.lime, cursor: 'pointer',
+                      background: 'rgb(var(--success-rgb)/0.12)', color: C.lime, cursor: 'pointer',
                       fontSize: 11.5, fontWeight: 700, fontFamily: MONO,
                     }}>
                     <CheckCircle size={11} style={{ display: 'inline', marginRight: 4 }} />
@@ -572,7 +573,7 @@ function TradeRow({ trade, onDelete, onUpdate }) {
                 <button type="button" onClick={e => { e.stopPropagation(); onDelete(trade.id) }}
                   style={{
                     padding: '8px 12px', minHeight: 40, borderRadius: 8, border: `1px solid ${C.coral}44`,
-                    background: 'rgba(248,113,113,0.10)', color: C.coral, cursor: 'pointer',
+                    background: 'rgb(var(--danger-rgb)/0.10)', color: C.coral, cursor: 'pointer',
                     fontSize: 11.5, fontWeight: 700, fontFamily: MONO,
                   }}>
                   <Trash2 size={11} style={{ display: 'inline', marginRight: 4 }} />
@@ -953,7 +954,7 @@ export default function TradingJournal() {
 
               {/* Options-specific fields */}
               {form.segment === 'Options' && (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5" style={{ marginBottom: 10, padding: '0.75rem', background: 'rgba(34,211,238,0.05)', borderRadius: 10, border: '1px solid rgba(34,211,238,0.16)' }}>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5" style={{ marginBottom: 10, padding: '0.75rem', background: 'rgb(var(--accent-rgb)/0.05)', borderRadius: 10, border: '1px solid rgb(var(--accent-rgb)/0.16)' }}>
                   <div>
                     <Label>Option Type</Label>
                     <SegmentedControl
@@ -1050,7 +1051,7 @@ export default function TradingJournal() {
                       Quantity
                       <span style={{
                         fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 8,
-                        background: 'rgba(34,211,238,0.12)', color: C.cyan, letterSpacing: '0.05em',
+                        background: 'rgb(var(--accent-rgb)/0.12)', color: C.cyan, letterSpacing: '0.05em',
                       }}>
                         AUTO
                       </span>
@@ -1059,7 +1060,7 @@ export default function TradingJournal() {
                       title="Auto-calculated: lots × lot size"
                       style={{
                         width: '100%', color: 'var(--text-secondary)',
-                        background: 'rgba(255,255,255,0.03)', cursor: 'default',
+                        background: 'var(--bg-glass)', cursor: 'default',
                       }} />
                   </div>
                 </div>
@@ -1170,7 +1171,7 @@ export default function TradingJournal() {
         {loading ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {[...Array(4)].map((_, i) => (
-              <div key={i} style={{ height: 44, borderRadius: 10, background: 'rgba(255,255,255,0.05)', animation: 'dash-pulse 1.4s ease-in-out infinite' }} />
+              <div key={i} style={{ height: 44, borderRadius: 10, background: 'var(--bg-glass)', animation: 'dash-pulse 1.4s ease-in-out infinite' }} />
             ))}
           </div>
         ) : filteredTrades.length === 0 ? (
@@ -1178,7 +1179,7 @@ export default function TradingJournal() {
             <div style={{
               width: 64, height: 64, borderRadius: '50%', margin: '0 auto 14px',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: 'rgba(34,211,238,0.10)',
+              background: 'rgb(var(--accent-rgb)/0.10)',
               boxShadow: '0 0 30px var(--accent-glow)',
             }}>
               <TrendingUp size={28} style={{ color: C.cyan }} />
@@ -1222,9 +1223,9 @@ export default function TradingJournal() {
                     <stop offset="100%" stopColor={C.lime} stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.05)" />
-                <XAxis dataKey="date" tick={{ fill: '#64748B', fontSize: 9, fontFamily: MONO }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: '#64748B', fontSize: 9, fontFamily: MONO }} axisLine={false} tickLine={false} tickFormatter={v => fmt(v)} width={55} />
+                <CartesianGrid vertical={false} stroke="var(--border-subtle)" />
+                <XAxis dataKey="date" tick={{ fill: 'var(--text-muted)', fontSize: 9, fontFamily: MONO }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 9, fontFamily: MONO }} axisLine={false} tickLine={false} tickFormatter={v => fmt(v)} width={55} />
                 <Tooltip content={<ChartTooltip />} formatter={v => [fmt(v), 'Cum. P&L']} />
                 <Area type="monotone" dataKey="cumPnl" name="Cum. P&L" stroke={C.lime} strokeWidth={2.5} fill="url(#cumGrad)" dot={false} activeDot={{ r: 4, fill: C.lime }} />
               </AreaChart>
@@ -1255,9 +1256,9 @@ export default function TradingJournal() {
                 <p style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--text-secondary)', fontFamily: MONO, marginBottom: 8 }}>P&L by Strategy</p>
                 <ResponsiveContainer width="100%" height={140}>
                   <BarChart data={analyticsData.byStrategy} barSize={18}>
-                    <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.04)" />
-                    <XAxis dataKey="name" tick={{ fill: '#64748B', fontSize: 8, fontFamily: MONO }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fill: '#64748B', fontSize: 9 }} axisLine={false} tickLine={false} tickFormatter={v => fmt(v)} width={48} />
+                    <CartesianGrid vertical={false} stroke="var(--border-subtle)" />
+                    <XAxis dataKey="name" tick={{ fill: 'var(--text-muted)', fontSize: 8, fontFamily: MONO }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 9 }} axisLine={false} tickLine={false} tickFormatter={v => fmt(v)} width={48} />
                     <Tooltip content={<ChartTooltip />} formatter={(v) => [fmt(v), 'P&L']} />
                     <Bar dataKey="pnl" name="P&L" radius={[4, 4, 0, 0]}>
                       {analyticsData.byStrategy.map((entry, i) => (
@@ -1275,9 +1276,9 @@ export default function TradingJournal() {
                 <p style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--text-secondary)', fontFamily: MONO, marginBottom: 8 }}>P&L by Symbol</p>
                 <ResponsiveContainer width="100%" height={140}>
                   <BarChart data={analyticsData.bySymbol} barSize={18}>
-                    <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.04)" />
-                    <XAxis dataKey="name" tick={{ fill: '#64748B', fontSize: 8, fontFamily: MONO }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fill: '#64748B', fontSize: 9 }} axisLine={false} tickLine={false} tickFormatter={v => fmt(v)} width={48} />
+                    <CartesianGrid vertical={false} stroke="var(--border-subtle)" />
+                    <XAxis dataKey="name" tick={{ fill: 'var(--text-muted)', fontSize: 8, fontFamily: MONO }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 9 }} axisLine={false} tickLine={false} tickFormatter={v => fmt(v)} width={48} />
                     <Tooltip content={<ChartTooltip />} formatter={(v) => [fmt(v), 'P&L']} />
                     <Bar dataKey="pnl" name="P&L" radius={[4, 4, 0, 0]}>
                       {analyticsData.bySymbol.map((entry, i) => (

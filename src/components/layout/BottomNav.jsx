@@ -59,7 +59,7 @@ export default function BottomNav() {
                 {active && (
                   <motion.div
                     layoutId="bottomnav-active-dot"
-                    className="absolute top-0.5 w-1 h-1 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.8)]"
+                    className="absolute top-0.5 w-1 h-1 rounded-full bg-cyan-400 shadow-[0_0_6px_rgb(var(--accent-rgb)/0.8)]"
                     transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                   />
                 )}
@@ -83,7 +83,7 @@ export default function BottomNav() {
             {moreActive && (
               <motion.div
                 layoutId="bottomnav-active-dot"
-                className="absolute top-0.5 w-1 h-1 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.8)]"
+                className="absolute top-0.5 w-1 h-1 rounded-full bg-cyan-400 shadow-[0_0_6px_rgb(var(--accent-rgb)/0.8)]"
                 transition={{ type: 'spring', stiffness: 400, damping: 30 }}
               />
             )}

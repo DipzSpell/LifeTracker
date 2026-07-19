@@ -20,9 +20,8 @@
 import { useMemo, useState } from 'react'
 import { format } from 'date-fns'
 import { dateKey } from '../lib/storage'
+import { useThemeColors } from '../hooks/useThemeColors'
 
-const LIME = '#A3E635'
-const CYAN = '#22D3EE'
 const MONO = "'JetBrains Mono', ui-monospace, monospace"
 
 const DAY_LABELS = ['Mon', '', 'Wed', '', 'Fri', '', '']
@@ -37,28 +36,19 @@ function levelFor(pts) {
   return 0
 }
 
-function cellStyle(level, isToday) {
+/* Cell color driven by the active theme's --heat-0..4 ramp + --accent
+   today-ring, so this re-colors with the rest of the app on theme switch. */
+function cellStyle(level, isToday, T) {
   const s = { borderRadius: 3 }
-  if (level === 0) {
-    s.background = 'rgba(255,255,255,0.04)'
-    s.border = '1px solid var(--border-subtle)'
-  } else if (level === 1) {
-    s.background = 'rgba(163,230,53,0.25)'
-  } else if (level === 2) {
-    s.background = 'rgba(163,230,53,0.45)'
-  } else if (level === 3) {
-    s.background = 'rgba(163,230,53,0.70)'
-  } else {
-    s.background = LIME
-    s.boxShadow = '0 0 6px rgba(163,230,53,0.55)'
-  }
+  const heat = [T.heat0, T.heat1, T.heat2, T.heat3, T.heat4]
+  s.background = heat[level]
+  if (level === 0) s.border = '1px solid var(--border-subtle)'
+  if (level === 4) s.boxShadow = `0 0 6px ${T.success}8C`
   if (isToday) {
-    s.boxShadow = `0 0 0 1.5px ${CYAN}${level === 4 ? ', 0 0 6px rgba(163,230,53,0.55)' : ''}`
+    s.boxShadow = `0 0 0 1.5px ${T.accent}${level === 4 ? `, 0 0 6px ${T.success}8C` : ''}`
   }
   return s
 }
-
-const LEGEND_STYLES = [0, 1, 2, 3, 4].map(l => cellStyle(l, false))
 
 function TooltipBox({ tip }) {
   if (!tip) return null
@@ -86,6 +76,8 @@ function TooltipBox({ tip }) {
 
 export default function ActivityHeatmap({ data = [], days = 35 }) {
   const [tip, setTip] = useState(null)
+  const T = useThemeColors()
+  const legendStyles = useMemo(() => [0, 1, 2, 3, 4].map(l => cellStyle(l, false, T)), [T])
 
   const { weeks, activeDays, totalPts } = useMemo(() => {
     const byDate = new Map(data.map(d => [d.date, d]))
@@ -178,7 +170,7 @@ export default function ActivityHeatmap({ data = [], days = 35 }) {
                   <div
                     key={cell.key}
                     className={CELL_CLS}
-                    style={cell.hidden ? { visibility: 'hidden' } : cellStyle(cell.level, cell.isToday)}
+                    style={cell.hidden ? { visibility: 'hidden' } : cellStyle(cell.level, cell.isToday, T)}
                     onMouseEnter={e => showTip(cell, e)}
                     onClick={e => showTip(cell, e)}
                   />
@@ -192,7 +184,7 @@ export default function ActivityHeatmap({ data = [], days = 35 }) {
       {/* Legend — bottom-right */}
       <div className="flex items-center justify-end gap-[3px]" style={{ marginTop: 12 }}>
         <span style={{ fontSize: 11, color: 'var(--text-muted)', marginRight: 3 }}>Less</span>
-        {LEGEND_STYLES.map((s, i) => (
+        {legendStyles.map((s, i) => (
           <div key={i} className={CELL_CLS} style={s} />
         ))}
         <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 3 }}>More</span>

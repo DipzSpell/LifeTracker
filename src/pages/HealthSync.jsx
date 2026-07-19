@@ -19,18 +19,19 @@ import { supabase } from '../lib/supabase'
 import { todayKey } from '../lib/storage'
 import { isBluetoothSupported, connectHealthDevice } from '../lib/bluetoothService'
 import {
-  isGoogleFitConfigured, requestGoogleFitAccessToken, syncGoogleFitLast7Days,
+  isGoogleFitConfigured, requestGoogleFitAccessToken, syncGoogleFitLast7Days, GoogleFitAuthError,
 } from '../lib/googleFitService'
 import Toast, { useToast } from '../components/ui/Toast'
 import ProgressRing from '../components/bevel/ProgressRing'
 
-/* ── Design-system palette (mirrors src/styles/theme.css — see Dashboard.jsx) ── */
+/* ── Design-system palette (mirrors src/styles/theme.css) — CSS-var strings
+   so they re-resolve live on theme switch, no JS hook needed ──────────── */
 const C = {
-  cyan: '#22D3EE',
-  lime: '#A3E635',
-  violet: '#A78BFA',
-  coral: '#F87171',
-  muted: '#64748B',
+  cyan: 'var(--accent)',
+  lime: 'var(--success)',
+  violet: 'var(--special)',
+  coral: 'var(--danger)',
+  muted: 'var(--text-muted)',
 }
 const MONO = "'JetBrains Mono', ui-monospace, monospace"
 
@@ -57,13 +58,13 @@ function HeroCard({ bleConnected, gfConnected }) {
       style={{
         padding: '1.4rem 1.3rem',
         overflow: 'hidden',
-        ...(anyConnected ? { boxShadow: '0 0 32px var(--accent-glow)', borderColor: 'rgba(34,211,238,0.35)' } : {}),
+        ...(anyConnected ? { boxShadow: '0 0 32px var(--accent-glow)', borderColor: 'rgb(var(--accent-rgb)/0.35)' } : {}),
       }}
     >
       <div className="flex items-center gap-4 relative">
         <div className="flex items-center justify-center flex-shrink-0" style={{
           width: 56, height: 56, borderRadius: 18,
-          background: anyConnected ? 'rgba(34,211,238,0.14)' : 'var(--bg-glass)',
+          background: anyConnected ? 'rgb(var(--accent-rgb)/0.14)' : 'var(--bg-glass)',
         }}>
           <Watch size={26} style={{ color: anyConnected ? C.cyan : 'var(--text-muted)' }} />
         </div>
@@ -78,8 +79,8 @@ function HeroCard({ bleConnected, gfConnected }) {
         <span className="flex items-center gap-1.5" style={{
           fontSize: 11, fontWeight: 700, fontFamily: MONO,
           color: bleConnected ? C.cyan : 'var(--text-muted)',
-          background: bleConnected ? 'rgba(34,211,238,0.12)' : 'var(--bg-glass)',
-          border: `1px solid ${bleConnected ? 'rgba(34,211,238,0.35)' : 'var(--border-subtle)'}`,
+          background: bleConnected ? 'rgb(var(--accent-rgb)/0.12)' : 'var(--bg-glass)',
+          border: `1px solid ${bleConnected ? 'rgb(var(--accent-rgb)/0.35)' : 'var(--border-subtle)'}`,
           padding: '4px 10px', borderRadius: 20,
         }}>
           {bleConnected ? <BluetoothConnected size={12} /> : <Bluetooth size={12} />}
@@ -88,8 +89,8 @@ function HeroCard({ bleConnected, gfConnected }) {
         <span className="flex items-center gap-1.5" style={{
           fontSize: 11, fontWeight: 700, fontFamily: MONO,
           color: gfConnected ? C.cyan : 'var(--text-muted)',
-          background: gfConnected ? 'rgba(34,211,238,0.12)' : 'var(--bg-glass)',
-          border: `1px solid ${gfConnected ? 'rgba(34,211,238,0.35)' : 'var(--border-subtle)'}`,
+          background: gfConnected ? 'rgb(var(--accent-rgb)/0.12)' : 'var(--bg-glass)',
+          border: `1px solid ${gfConnected ? 'rgb(var(--accent-rgb)/0.35)' : 'var(--border-subtle)'}`,
           padding: '4px 10px', borderRadius: 20,
         }}>
           <Zap size={12} />
@@ -127,7 +128,7 @@ function BluetoothCard({
     <div className="glass-card" style={{ padding: '1.2rem' }}>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <div className="flex items-center justify-center flex-shrink-0" style={{ width: 34, height: 34, borderRadius: 12, background: 'rgba(34,211,238,0.12)' }}>
+          <div className="flex items-center justify-center flex-shrink-0" style={{ width: 34, height: 34, borderRadius: 12, background: 'rgb(var(--accent-rgb)/0.12)' }}>
             {connected ? <BluetoothConnected size={17} style={{ color: C.cyan }} /> : <Bluetooth size={17} style={{ color: C.cyan }} />}
           </div>
           <span className="section-label">Bluetooth Device</span>
@@ -142,7 +143,7 @@ function BluetoothCard({
           <div className="flex items-center gap-4">
             {heartRate != null && (
               <div className="flex items-center gap-2">
-                <span className="flex items-center justify-center" style={{ width: 30, height: 30, borderRadius: '50%', background: 'rgba(248,113,113,0.12)' }}>
+                <span className="flex items-center justify-center" style={{ width: 30, height: 30, borderRadius: '50%', background: 'rgb(var(--danger-rgb)/0.12)' }}>
                   <HeartPulse size={15} className="bevel-heartbeat" style={{ color: C.coral }} />
                 </span>
                 <div>
@@ -153,7 +154,7 @@ function BluetoothCard({
             )}
             {battery != null && (
               <div className="flex items-center gap-2">
-                <span className="flex items-center justify-center" style={{ width: 30, height: 30, borderRadius: '50%', background: 'rgba(163,230,53,0.12)' }}>
+                <span className="flex items-center justify-center" style={{ width: 30, height: 30, borderRadius: '50%', background: 'rgb(var(--success-rgb)/0.12)' }}>
                   <Battery size={15} style={{ color: C.lime }} />
                 </span>
                 <div>
@@ -204,7 +205,7 @@ function GoogleFitCard({
     <div className="glass-card" style={{ padding: '1.2rem' }}>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <div className="flex items-center justify-center flex-shrink-0" style={{ width: 34, height: 34, borderRadius: 12, background: 'rgba(34,211,238,0.12)' }}>
+          <div className="flex items-center justify-center flex-shrink-0" style={{ width: 34, height: 34, borderRadius: 12, background: 'rgb(var(--accent-rgb)/0.12)' }}>
             <Zap size={17} style={{ color: C.cyan }} />
           </div>
           <span className="section-label">Google Fit</span>
@@ -281,14 +282,14 @@ function SyncedPreview({ steps, stepGoal, heartRate, sleepHours }) {
           <span className="section-label">Steps</span>
         </div>
         <div className="flex flex-col items-center gap-2">
-          <div className="flex items-center justify-center" style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(248,113,113,0.10)' }}>
+          <div className="flex items-center justify-center" style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgb(var(--danger-rgb)/0.10)' }}>
             <HeartPulse size={22} className={heartRate != null ? 'bevel-heartbeat' : ''} style={{ color: C.coral }} />
           </div>
           <p className="stat-number" style={{ fontSize: 14, color: 'var(--text-primary)', margin: 0 }}>{heartRate != null ? `${heartRate} bpm` : '—'}</p>
           <span className="section-label">Latest HR</span>
         </div>
         <div className="flex flex-col items-center gap-2">
-          <div className="flex items-center justify-center" style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(167,139,250,0.10)' }}>
+          <div className="flex items-center justify-center" style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgb(var(--special-rgb)/0.10)' }}>
             <Moon size={20} style={{ color: C.violet }} />
           </div>
           <p className="stat-number" style={{ fontSize: 14, color: 'var(--text-primary)', margin: 0 }}>{sleepHours != null ? `${sleepHours}h` : '—'}</p>
@@ -327,7 +328,7 @@ function SyncHistory({ rows }) {
             return (
               <div key={row.id} className="flex items-center gap-3"
                 style={{ padding: '0.55rem 0.1rem', borderBottom: i < rows.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}>
-                <span className="flex items-center justify-center flex-shrink-0" style={{ width: 28, height: 28, borderRadius: 9, background: `${meta.color}1F` }}>
+                <span className="flex items-center justify-center flex-shrink-0" style={{ width: 28, height: 28, borderRadius: 9, background: `color-mix(in srgb, ${meta.color} 12%, transparent)` }}>
                   <Icon size={13} style={{ color: meta.color }} />
                 </span>
                 <span style={{ fontSize: 12, fontWeight: 700, fontFamily: MONO, color: 'var(--text-primary)', flexShrink: 0 }}>
@@ -382,8 +383,10 @@ export default function HealthSync() {
 
   const insertReadings = useCallback(async (rows) => {
     if (!uid || uid === 'guest' || !rows.length) return
+    console.log('[HealthSync] inserting into health_readings:', rows)
     const { error } = await supabase.from('health_readings').insert(rows.map(r => ({ ...r, user_id: uid })))
     if (error) console.error('[HealthSync] insert failed:', error)
+    else console.log('[HealthSync] insert succeeded')
   }, [uid])
 
   const loadPreviewAndHistory = useCallback(async () => {
@@ -396,6 +399,13 @@ export default function HealthSync() {
       supabase.from('health_readings').select('value').eq('user_id', uid).eq('reading_type', 'sleep').order('reading_time', { ascending: false }).limit(1).maybeSingle(),
       supabase.from('health_readings').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(5),
     ])
+
+    console.log('[HealthSync] loadPreviewAndHistory for', today, {
+      steps: stepsRes.data?.value ?? null,
+      heartRate: hrRes.data?.value ?? null,
+      sleep: sleepRes.data?.value ?? null,
+      stepsErr: stepsRes.error, hrErr: hrRes.error, sleepErr: sleepRes.error,
+    })
 
     setPreviewSteps(stepsRes.data?.value || 0)
     setPreviewHR(hrRes.data?.value ?? null)
@@ -451,25 +461,61 @@ export default function HealthSync() {
   }, [])
 
   /* ── Google Fit handlers ────────────────────────────────────────────── */
+  const disconnectGoogleFitSilently = useCallback(() => {
+    gfTokenRef.current = null
+    setGfConnected(false)
+    localStorage.removeItem(GF_CONNECTED_KEY)
+  }, [])
+
   const runGoogleFitSync = useCallback(async (accessToken) => {
-    if (!uid || uid === 'guest') return
+    if (!uid || uid === 'guest') {
+      console.log('[HealthSync] skipping sync — no authenticated uid')
+      return
+    }
+    console.log('[HealthSync] sync starting…')
     setGfSyncing(true)
     try {
-      const rows = await syncGoogleFitLast7Days(accessToken)
+      const { rows, summary } = await syncGoogleFitLast7Days(accessToken)
+      console.log('[HealthSync] fetched rows from Google Fit:', rows.length, rows)
+
       const startDate = daysAgoKey(7)
-      await supabase.from('health_readings').delete().eq('user_id', uid).eq('source', 'google_fit').gte('reading_date', startDate)
-      if (rows.length) await insertReadings(rows)
+      const { error: delErr } = await supabase.from('health_readings').delete()
+        .eq('user_id', uid).eq('source', 'google_fit').gte('reading_date', startDate)
+      if (delErr) console.error('[HealthSync] delete old google_fit rows failed:', delErr)
+      else console.log('[HealthSync] cleared old google_fit rows since', startDate)
+
+      if (rows.length) {
+        await insertReadings(rows)
+        console.log('[HealthSync] inserted', rows.length, 'rows into Supabase health_readings')
+      } else {
+        console.warn('[HealthSync] Google Fit returned zero rows — nothing to insert. Check the bucket logs above for an empty-response warning.')
+      }
+
       const now = Date.now()
       setGfLastSynced(now)
       localStorage.setItem(GF_LAST_SYNCED_KEY, String(now))
-      addToast('Google Fit synced successfully!', 'success')
+
+      const parts = []
+      if (summary.steps != null) parts.push(`${summary.steps.toLocaleString()} steps`)
+      if (summary.heartRate != null) parts.push(`HR ${summary.heartRate} bpm`)
+      if (summary.calories != null) parts.push(`${summary.calories} cal`)
+      addToast(parts.length ? `Synced: ${parts.join(', ')}` : 'Synced, but no data found for today yet.', parts.length ? 'success' : 'info')
+
       await loadPreviewAndHistory()
+      console.log('[HealthSync] preview + history reloaded from Supabase')
     } catch (err) {
-      addToast(err.message, 'error')
+      if (err instanceof GoogleFitAuthError) {
+        console.error('[HealthSync] auth error, disconnecting:', err.status, err.body)
+        disconnectGoogleFitSilently()
+        addToast('Permission issue — reconnect Google Fit', 'error')
+      } else {
+        console.error('[HealthSync] sync failed:', err)
+        addToast(err.message, 'error')
+      }
     } finally {
       setGfSyncing(false)
     }
-  }, [uid, insertReadings, addToast, loadPreviewAndHistory])
+  }, [uid, insertReadings, addToast, loadPreviewAndHistory, disconnectGoogleFitSilently])
 
   const handleConnectGoogleFit = useCallback(async () => {
     setGfConnecting(true)
@@ -491,10 +537,8 @@ export default function HealthSync() {
     if (token && window.google?.accounts?.oauth2?.revoke) {
       window.google.accounts.oauth2.revoke(token, () => {})
     }
-    gfTokenRef.current = null
-    setGfConnected(false)
-    localStorage.removeItem(GF_CONNECTED_KEY)
-  }, [])
+    disconnectGoogleFitSilently()
+  }, [disconnectGoogleFitSilently])
 
   const handleSyncNow = useCallback(() => {
     if (gfTokenRef.current?.accessToken) runGoogleFitSync(gfTokenRef.current.accessToken)

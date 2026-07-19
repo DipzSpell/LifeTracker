@@ -24,11 +24,12 @@ import { useJournal } from '../hooks/useJournal'
 import Toast, { useToast } from '../components/ui/Toast'
 import { useNavigate } from 'react-router-dom'
 
-/* ── Design-system palette (mirrors src/styles/theme.css) ──────────────────── */
-const LIME = '#A3E635'
-const CYAN = '#22D3EE'
-const VIOLET = '#A78BFA'
-const CORAL = '#F87171'
+/* ── Design-system palette (mirrors src/styles/theme.css) — CSS-var strings
+   so they re-resolve live on theme switch ──────────────────────────────── */
+const LIME = 'var(--success)'
+const CYAN = 'var(--accent)'
+const VIOLET = 'var(--special)'
+const CORAL = 'var(--danger)'
 const MONO = "'JetBrains Mono', ui-monospace, monospace"
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -68,7 +69,7 @@ function Section({ icon: Icon, label, accent, children }) {
   return (
     <div className="glass-card" style={{ padding: '0.9rem 1rem' }}>
       <div className="flex items-center gap-2" style={{ marginBottom: '0.65rem' }}>
-        <div style={{ padding: 6, borderRadius: 8, background: `${accent}1A`, display: 'flex' }}>
+        <div style={{ padding: 6, borderRadius: 8, background: `color-mix(in srgb, ${accent} 10%, transparent)`, display: 'flex' }}>
           <Icon size={13} style={{ color: accent }} />
         </div>
         <span className="section-label">{label}</span>
@@ -120,7 +121,7 @@ function DraftBadge({ savedAt }) {
           transition={{ duration: 0.25 }}
           style={{
             fontSize: 11,
-            color: 'rgba(163,230,53,0.85)',
+            color: `color-mix(in srgb, ${LIME} 85%, transparent)`,
             fontFamily: MONO,
             display: 'flex', alignItems: 'center', gap: 4,
           }}
@@ -219,7 +220,7 @@ function PastEntryCard({ entry, isOpen, onToggle }) {
             <div style={{
               borderTop: '1px solid var(--border-subtle)',
               padding: '0.75rem 0.9rem',
-              background: 'rgba(0,0,0,0.15)',
+              background: 'color-mix(in srgb, var(--bg-base) 40%, transparent)',
               display: 'flex',
               flexDirection: 'column',
               gap: 10,
@@ -230,7 +231,7 @@ function PastEntryCard({ entry, isOpen, onToggle }) {
               {/* Top 3 */}
               {entry.top_things?.some(t => t?.trim()) && (
                 <div>
-                  <p style={{ fontSize: 10, fontWeight: 700, color: `${LIME}bb`, textTransform: 'uppercase', letterSpacing: '0.09em', marginBottom: 6 }}>
+                  <p style={{ fontSize: 10, fontWeight: 700, color: `color-mix(in srgb, ${LIME} 73%, transparent)`, textTransform: 'uppercase', letterSpacing: '0.09em', marginBottom: 6 }}>
                     Top things today
                   </p>
                   {entry.top_things.filter(t => t?.trim()).map((t, i) => (
@@ -269,14 +270,14 @@ function Field({ label, color, children }) {
   return (
     <div>
       <p style={{
-        fontSize: 10, fontWeight: 700, color: `${color}aa`,
+        fontSize: 10, fontWeight: 700, color: `color-mix(in srgb, ${color} 67%, transparent)`,
         textTransform: 'uppercase', letterSpacing: '0.09em', marginBottom: 3,
       }}>
         {label}
       </p>
       <p style={{
         paddingLeft: 8,
-        borderLeft: `2px solid ${color}33`,
+        borderLeft: `2px solid color-mix(in srgb, ${color} 20%, transparent)`,
         color: 'var(--text-secondary)',
         lineHeight: 1.6,
         whiteSpace: 'pre-wrap',
@@ -495,11 +496,11 @@ export default function Journal() {
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 gap: 10,
               }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(34,211,238,0.4)'; e.currentTarget.style.background = 'rgba(34,211,238,0.06)' }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = `color-mix(in srgb, ${CYAN} 40%, transparent)`; e.currentTarget.style.background = `color-mix(in srgb, ${CYAN} 6%, transparent)` }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = ''; e.currentTarget.style.background = '' }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ padding: 7, borderRadius: 9, background: 'rgba(34,211,238,0.12)', display: 'flex' }}>
+                <div style={{ padding: 7, borderRadius: 9, background: `color-mix(in srgb, ${CYAN} 12%, transparent)`, display: 'flex' }}>
                   <LineChart size={14} style={{ color: CYAN }} />
                 </div>
                 <div>
@@ -511,7 +512,7 @@ export default function Journal() {
                   </p>
                 </div>
               </div>
-              <span style={{ fontSize: 11, color: 'rgba(34,211,238,0.6)', fontFamily: MONO, flexShrink: 0 }}>open →</span>
+              <span style={{ fontSize: 11, color: `color-mix(in srgb, ${CYAN} 60%, transparent)`, fontFamily: MONO, flexShrink: 0 }}>open →</span>
             </div>
           </div>
 

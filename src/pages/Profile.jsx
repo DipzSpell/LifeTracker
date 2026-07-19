@@ -22,7 +22,7 @@ function BadgeCard({ badge, earned, progress }) {
       animate={{ opacity: 1, scale: 1 }}
       className={`p-3.5 rounded-xl border flex flex-col gap-3 transition-all duration-300 ${
         earned
-          ? 'bg-amber-400/10 border-amber-400/35 shadow-[0_0_20px_rgba(251,191,36,0.08)]'
+          ? 'bg-[rgb(var(--warning-rgb)/0.1)] border-[rgb(var(--warning-rgb)/0.35)] shadow-[0_0_20px_rgb(var(--warning-rgb)/0.08)]'
           : 'border-white/5 bg-white/3'
       }`}
     >
@@ -912,8 +912,8 @@ export default function Profile() {
                               <div className="flex gap-1.5 mt-2">
                                 {t.val === 'dark' && (
                                   <>
-                                    <div className="w-3.5 h-3.5 rounded-full bg-[#06b6d4]" />
-                                    <div className="w-3.5 h-3.5 rounded-full bg-[#0f172a]" />
+                                    <div className="w-3.5 h-3.5 rounded-full bg-[#22d3ee]" />
+                                    <div className="w-3.5 h-3.5 rounded-full bg-[#0b0e14]" />
                                   </>
                                 )}
                                 {t.val === 'midnight' && (
@@ -936,7 +936,7 @@ export default function Profile() {
                                 )}
                                 {t.val === 'frost' && (
                                   <>
-                                    <div className="w-3.5 h-3.5 rounded-full bg-[#3b82f6]" />
+                                    <div className="w-3.5 h-3.5 rounded-full bg-[#0284c7]" />
                                     <div className="w-3.5 h-3.5 rounded-full bg-[#f8fafc] border border-slate-300" />
                                   </>
                                 )}
@@ -1294,11 +1294,11 @@ export default function Profile() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ type: 'spring', duration: 0.3 }}
-              className="w-full max-w-md bg-card border border-red-400/30 rounded-3xl p-6 shadow-[0_0_50px_rgba(239,68,68,0.15)] overflow-hidden relative"
+              className="w-full max-w-md bg-card border border-red-400/30 rounded-3xl p-6 shadow-[0_0_50px_rgb(var(--danger-rgb)/0.15)] overflow-hidden relative"
             >
               <div className="absolute top-0 left-0 right-0 h-1 bg-red-400 animate-pulse" />
               
-              <div className="w-12 h-12 rounded-2xl bg-red-400/20 flex items-center justify-center mx-auto mb-4 border border-red-400/30 shadow-[0_0_15px_rgba(239,68,68,0.2)]">
+              <div className="w-12 h-12 rounded-2xl bg-red-400/20 flex items-center justify-center mx-auto mb-4 border border-red-400/30 shadow-[0_0_15px_rgb(var(--danger-rgb)/0.2)]">
                 <Trash2 size={24} className="text-red-400" />
               </div>
               
@@ -1327,7 +1327,7 @@ export default function Profile() {
                       addToast('Failed to reset application data.', 'error')
                     }
                   }}
-                  className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-semibold border border-red-400/30 transition-colors shadow-[0_0_15px_rgba(239,68,68,0.3)]"
+                  className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-semibold border border-red-400/30 transition-colors shadow-[0_0_15px_rgb(var(--danger-rgb)/0.3)]"
                 >
                   Yes, Reset All
                 </button>

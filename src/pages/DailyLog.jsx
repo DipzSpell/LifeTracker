@@ -12,17 +12,18 @@ import {
 } from 'lucide-react'
 import Toast, { useToast } from '../components/ui/Toast'
 
-/* ── Design-system palette (mirrors src/styles/theme.css) ──────────────────── */
-const CYAN = '#22D3EE'
-const LIME = '#A3E635'
-const VIOLET = '#A78BFA'
-const CORAL = '#F87171'
+/* ── Design-system palette (mirrors src/styles/theme.css) — CSS-var strings,
+   not hex, so they re-resolve live on theme switch with zero JS involved ── */
+const CYAN = 'var(--accent)'
+const LIME = 'var(--success)'
+const VIOLET = 'var(--special)'
+const CORAL = 'var(--danger)'
 
 // ─── Section wrapper ───────────────────────────────────────────────────────────
 const Section = ({ icon: Icon, accent, title, children, badge }) => (
   <div className="glass-card p-4">
     <div className="flex items-center gap-2 mb-4">
-      <div style={{ padding: 6, borderRadius: 8, background: `${accent}1A`, display: 'flex' }}>
+      <div style={{ padding: 6, borderRadius: 8, background: `color-mix(in srgb, ${accent} 10%, transparent)`, display: 'flex' }}>
         <Icon size={14} style={{ color: accent }} />
       </div>
       <span className="section-label flex-1">{title}</span>
@@ -61,7 +62,7 @@ function HabitPill({ habit, today, onToggle }) {
         flex items-center gap-2 px-3 py-2.5 rounded-xl border text-left
         transition-all duration-200 w-full
         ${isSuccess
-          ? 'border-lime-400/50 bg-lime-400/10 shadow-[0_0_12px_rgba(163,230,53,0.10)]'
+          ? 'border-lime-400/50 bg-lime-400/10 shadow-[0_0_12px_rgb(var(--success-rgb)/0.10)]'
           : isFailed
             ? 'border-red-400/30 bg-red-400/10'
             : isSkipped
@@ -114,7 +115,7 @@ function ProgressRing({ pct, size = 48, stroke = 4, color = CYAN }) {
   return (
     <svg width={size} height={size} className="-rotate-90">
       <circle cx={size / 2} cy={size / 2} r={r} fill="none"
-        stroke="rgba(255,255,255,0.08)" strokeWidth={stroke} />
+        stroke="var(--border-subtle)" strokeWidth={stroke} />
       <motion.circle
         cx={size / 2} cy={size / 2} r={r} fill="none"
         stroke={color} strokeWidth={stroke}

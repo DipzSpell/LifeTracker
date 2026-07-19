@@ -15,6 +15,10 @@
  */
 import { motion } from 'framer-motion'
 
+// Named fallback gradients for callers that pass `gradient="green"` instead
+// of explicit `from`/`to` — still hardcoded hex, not yet theme-reactive.
+// Dashboard always passes from/to explicitly so this doesn't affect it;
+// callers still using named gradients are in scope for the next migration pass.
 export const RING_GRADIENTS = {
   green:  ['#22C55E', '#A3E635'],
   teal:   ['#34C759', '#5AC8FA'],
@@ -31,7 +35,7 @@ export default function ProgressRing({
   gradient = 'green',
   from,
   to,
-  trackColor = 'rgba(255,255,255,0.08)',
+  trackColor = 'var(--border-subtle)',
   center,
   label,
   zeroLabel,
@@ -109,13 +113,13 @@ export default function ProgressRing({
                     WebkitTextFillColor: 'transparent',
                     backgroundClip: 'text',
                   }
-                : { color: '#fff' }),
+                : { color: 'var(--text-primary)' }),
             }}
           >
             {center !== undefined ? center : `${Math.round(pct)}%`}
           </span>
           {effectiveLabel && (
-            <span style={{ fontSize: labelFontSize, fontWeight: 600, color: '#8A93B2', marginTop: 4 }}>
+            <span style={{ fontSize: labelFontSize, fontWeight: 600, color: 'var(--text-muted)', marginTop: 4 }}>
               {effectiveLabel}
             </span>
           )}

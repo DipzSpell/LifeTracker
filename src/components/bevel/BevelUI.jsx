@@ -15,18 +15,22 @@ import ProgressRingImpl from './ProgressRing'
 import StatCardImpl from './StatCard'
 import InfoCardImpl from './InfoCard'
 
+// CSS-var strings, not hex — re-resolve live on theme switch. Currently
+// unused (no page imports BevelCard/MetricTile/PillTabs/StatBar/BevelPill,
+// only Dot + ProgressRing from this file are live), fixed for whenever
+// something does import them.
 export const BEVEL = {
-  bgStart: '#0D1220',
-  bgEnd:   '#131A2E',
-  card:    '#1A2138',
-  cardAlt: '#212A45',
-  text:    '#FFFFFF',
-  muted:   '#8A93B2',
-  green:   '#22C55E',
-  orange:  '#F97316',
-  blue:    '#3B82F6',
-  purple:  '#A855F7',
-  red:     '#FF6B5B', // coral — "danger" accent
+  bgStart: 'var(--bg-base)',
+  bgEnd:   'var(--bg-elevated)',
+  card:    'var(--bg-elevated)',
+  cardAlt: 'var(--bg-elevated)',
+  text:    'var(--text-primary)',
+  muted:   'var(--text-muted)',
+  green:   'var(--success)',
+  orange:  'var(--warning)',
+  blue:    'var(--accent)',
+  purple:  'var(--special)',
+  red:     'var(--danger)',
 }
 
 export const ProgressRing = ProgressRingImpl
@@ -138,8 +142,8 @@ export function PillTabs({ tabs, active, onChange }) {
               fontSize: 12.5,
               fontWeight: 700,
               border: isActive ? 'none' : '1px solid var(--bevel-border)',
-              background: isActive ? '#fff' : 'rgba(255,255,255,0.05)',
-              color: isActive ? '#0D1220' : BEVEL.muted,
+              background: isActive ? 'var(--text-primary)' : 'var(--bg-glass)',
+              color: isActive ? 'var(--bg-base)' : BEVEL.muted,
             }}
           >
             {tab}
@@ -185,7 +189,7 @@ export function StatBar({ label, value, max = 100, color = BEVEL.green, unit = '
           {value}{unit} <span style={{ color: BEVEL.muted, fontWeight: 500 }}>/ {max}{unit}</span>
         </span>
       </div>
-      <div style={{ height: 8, borderRadius: 999, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+      <div style={{ height: 8, borderRadius: 999, background: 'var(--bg-glass)', overflow: 'hidden' }}>
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: `${pct}%` }}

@@ -3,8 +3,7 @@
  *
  * Logic preserved: ADD/UPDATE/DELETE_TODO dispatches, recalcPoints, victory
  * sound, browser notifications, filters, priority sort.
- * Priority colors: high = coral (--danger), medium = amber #FBBF24 (the one
- * sanctioned exception outside the core palette, per design spec), low = lime.
+ * Priority colors: high = coral (--danger), medium = amber (--warning), low = lime (--success).
  * Done state: muted + strikethrough.
  */
 import { useState } from 'react'
@@ -15,10 +14,14 @@ import { playVictorySound } from '../lib/sounds'
 import Modal from '../components/ui/Modal'
 import { Plus, Trash2, Check, Clock, RefreshCw } from 'lucide-react'
 
-const CYAN = '#22D3EE'
-const LIME = '#A3E635'
-const CORAL = '#F87171'
-const AMBER = '#FBBF24'
+/* CSS-var strings, not hex, so they re-resolve live on theme switch.
+   AMBER now maps to the design system's --warning token (medium priority =
+   caution, the exact semantic --warning exists for) instead of its own
+   hardcoded literal. */
+const CYAN = 'var(--accent)'
+const LIME = 'var(--success)'
+const CORAL = 'var(--danger)'
+const AMBER = 'var(--warning)'
 const MONO = "'JetBrains Mono', ui-monospace, monospace"
 
 const PRIORITY_COLOR = { high: CORAL, medium: AMBER, low: LIME }
@@ -39,7 +42,7 @@ function Pill({ color, children, style = {} }) {
       display: 'inline-flex', alignItems: 'center', gap: 3,
       fontSize: 10, fontWeight: 700, fontFamily: MONO,
       padding: '2px 8px', borderRadius: 20, whiteSpace: 'nowrap',
-      background: `${color}1F`, color, border: `1px solid ${color}44`,
+      background: `color-mix(in srgb, ${color} 12%, transparent)`, color, border: `1px solid color-mix(in srgb, ${color} 27%, transparent)`,
       ...style,
     }}>
       {children}
@@ -148,7 +151,7 @@ function AddTaskModal({ isOpen, onClose }) {
                 onClick={() => setForm(f => ({ ...f, priority: p.val }))}
                 className="flex-1 py-2 rounded-xl text-xs font-semibold transition-all"
                 style={active
-                  ? { border: `1px solid ${color}66`, background: `${color}1F`, color }
+                  ? { border: `1px solid color-mix(in srgb, ${color} 40%, transparent)`, background: `color-mix(in srgb, ${color} 12%, transparent)`, color }
                   : { border: '1px solid var(--border-subtle)', background: 'var(--bg-glass)', color: 'var(--text-muted)' }}>
                 {p.label}
               </button>
@@ -164,7 +167,7 @@ function AddTaskModal({ isOpen, onClose }) {
               onClick={() => setForm(f => ({ ...f, category: c }))}
               className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
               style={form.category === c
-                ? { border: '1px solid rgba(34,211,238,0.5)', background: 'rgba(34,211,238,0.12)', color: CYAN }
+                ? { border: '1px solid rgb(var(--accent-rgb)/0.5)', background: 'rgb(var(--accent-rgb)/0.12)', color: CYAN }
                 : { border: '1px solid var(--border-subtle)', background: 'var(--bg-glass)', color: 'var(--text-muted)' }}>
               {c}
             </button>
@@ -179,7 +182,7 @@ function AddTaskModal({ isOpen, onClose }) {
               onClick={() => setForm(f => ({ ...f, recurring: r.val }))}
               className="flex-1 py-2 rounded-xl text-xs font-semibold transition-all"
               style={form.recurring === r.val
-                ? { border: '1px solid rgba(34,211,238,0.5)', background: 'rgba(34,211,238,0.12)', color: CYAN }
+                ? { border: '1px solid rgb(var(--accent-rgb)/0.5)', background: 'rgb(var(--accent-rgb)/0.12)', color: CYAN }
                 : { border: '1px solid var(--border-subtle)', background: 'var(--bg-glass)', color: 'var(--text-muted)' }}>
               {r.label}
             </button>
@@ -219,7 +222,7 @@ function TaskCard({ task }) {
       className="glass-card p-4"
       style={{
         ...(done ? { opacity: 0.55 } : {}),
-        ...(isOverdue ? { borderColor: 'rgba(248,113,113,0.35)' } : {}),
+        ...(isOverdue ? { borderColor: 'rgb(var(--danger-rgb)/0.35)' } : {}),
       }}>
       <div className="flex items-start gap-3">
         {/* Check circle */}
@@ -228,7 +231,7 @@ function TaskCard({ task }) {
           style={{
             width: 24, height: 24, borderRadius: '50%',
             border: done ? `1.5px solid ${LIME}` : '1.5px solid var(--border-glass)',
-            background: done ? 'rgba(163,230,53,0.15)' : 'transparent',
+            background: done ? 'rgb(var(--success-rgb)/0.15)' : 'transparent',
             cursor: 'pointer',
           }}>
           {done && <Check size={13} style={{ color: LIME }} strokeWidth={3} />}
@@ -240,7 +243,7 @@ function TaskCard({ task }) {
             <div className="flex-shrink-0" style={{
               width: 8, height: 8, borderRadius: '50%',
               background: priColor,
-              boxShadow: task.priority === 'high' ? `0 0 8px ${priColor}99` : 'none',
+              boxShadow: task.priority === 'high' ? `0 0 8px color-mix(in srgb, ${priColor} 60%, transparent)` : 'none',
             }} />
             <p className="text-sm font-semibold" style={done
               ? { textDecoration: 'line-through', color: 'var(--text-muted)', margin: 0 }
@@ -248,7 +251,7 @@ function TaskCard({ task }) {
               {task.title}
             </p>
             {task.recurring !== 'none' && (
-              <RefreshCw size={10} style={{ color: `${CYAN}99` }} className="flex-shrink-0" />
+              <RefreshCw size={10} style={{ color: `color-mix(in srgb, ${CYAN} 60%, transparent)` }} className="flex-shrink-0" />
             )}
           </div>
           {task.desc && <p className="text-xs mb-1 truncate" style={{ color: 'var(--text-muted)' }}>{task.desc}</p>}
@@ -341,7 +344,7 @@ export default function Todo() {
             onClick={() => setFilter(f.val)}
             className="flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all"
             style={filter === f.val
-              ? { background: 'rgba(34,211,238,0.15)', color: CYAN, border: '1px solid rgba(34,211,238,0.35)' }
+              ? { background: 'rgb(var(--accent-rgb)/0.15)', color: CYAN, border: '1px solid rgb(var(--accent-rgb)/0.35)' }
               : { color: 'var(--text-muted)', border: '1px solid transparent', background: 'none' }}>
             {f.label}
           </button>

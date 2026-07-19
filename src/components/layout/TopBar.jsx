@@ -4,7 +4,9 @@ import { Flame, Bell, CheckCircle2, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useApp } from '../../context/AppContext'
 import { useAuth } from '../../context/AuthContext'
+import { useThemeColors } from '../../hooks/useThemeColors'
 import AnimatedNumber from '../ui/AnimatedNumber'
+import Logo from '../Logo'
 
 // ── Icon map keyed by notification type ──────────────────────────────────────
 const TYPE_CONFIG = {
@@ -116,6 +118,7 @@ function NotifDropdown({ onClose }) {
 export default function TopBar() {
   const { user } = useAuth()
   const { totalPoints, todayPoints, profile, notifications } = useApp()
+  const T = useThemeColors()
   const today = format(new Date(), 'EEE, MMM d')
   const greetingName = profile?.displayName || user?.displayName || 'Champion'
 
@@ -145,10 +148,10 @@ export default function TopBar() {
       <div className="flex items-center justify-between px-4 py-3 max-w-lg mx-auto">
         {/* User + Date + Logo */}
         <div className="flex items-center gap-2.5">
-          <img
-            src="/logo.png"
-            alt="LifeTracker Logo"
-            className="w-8 h-8 rounded-lg object-cover border border-white/10 shadow-[0_0_12px_rgba(34,211,238,0.2)]"
+          <Logo
+            size={32}
+            className="rounded-lg border border-white/10"
+            style={{ boxShadow: '0 0 12px var(--accent-glow)' }}
           />
           <div className="flex flex-col">
             <span className="text-[10px] text-white/40 font-medium leading-none mb-1">{today}</span>
@@ -163,21 +166,24 @@ export default function TopBar() {
           {/* Live Points */}
           <div
             id="topbar-points"
-            className="flex items-center gap-1.5 bg-lime-400/10 border border-lime-400/25 rounded-full px-3 py-1.5"
+            className="flex items-center gap-1.5 rounded-full px-3 py-1.5"
+            style={{ background: `${T.success}1A`, border: `1px solid ${T.success}40` }}
           >
-            <Flame size={14} className="text-lime-400 streak-fire" />
-            <AnimatedNumber
-              value={totalPoints}
-              duration={800}
-              className="text-sm font-bold text-lime-300 tabular-nums"
-            />
-            <span className="text-[10px] text-lime-400/60 font-medium">pts</span>
+            <Flame size={14} className="streak-fire" style={{ color: T.success }} />
+            <span style={{ color: T.success }}>
+              <AnimatedNumber
+                value={totalPoints}
+                duration={800}
+                className="text-sm font-bold tabular-nums"
+              />
+            </span>
+            <span className="text-[10px] font-medium" style={{ color: `${T.success}99` }}>pts</span>
           </div>
 
           {/* Today's points mini badge */}
           {todayPoints > 0 && (
-            <div className="hidden sm:flex items-center gap-1 bg-cyan-400/12 border border-cyan-400/30 rounded-full px-2 py-1">
-              <span className="text-[10px] text-cyan-400 font-semibold">+{todayPoints} today</span>
+            <div className="hidden sm:flex items-center gap-1 rounded-full px-2 py-1" style={{ background: `${T.accent}1F`, border: `1px solid ${T.accent}4D` }}>
+              <span className="text-[10px] font-semibold" style={{ color: T.accent }}>+{todayPoints} today</span>
             </div>
           )}
 

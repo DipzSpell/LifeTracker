@@ -46,10 +46,41 @@ export default {
           800: 'rgb(var(--color-cyber-800) / <alpha-value>)',
           900: 'rgb(var(--color-cyber-900) / <alpha-value>)',
         },
+        // cyan/lime/red/emerald used to be Tailwind's stock palette, kept
+        // as a stand-in for accent/success/danger because their default hex
+        // happened to equal the (dark-theme-only) design tokens. That's why
+        // every bg-cyan-400 / text-lime-400 / border-red-400 / emerald-*
+        // class across the app stayed frozen on the old theme after a
+        // switch — remapped here to the live per-theme RGB triplets so
+        // every existing usage of these names becomes theme-reactive with
+        // no per-component JSX changes needed.
+        cyan: {
+          50: 'rgb(var(--accent-rgb) / <alpha-value>)', 100: 'rgb(var(--accent-rgb) / <alpha-value>)',
+          200: 'rgb(var(--accent-rgb) / <alpha-value>)', 300: 'rgb(var(--accent-rgb) / <alpha-value>)',
+          400: 'rgb(var(--accent-rgb) / <alpha-value>)', 500: 'rgb(var(--accent-rgb) / <alpha-value>)',
+          600: 'rgb(var(--accent-rgb) / <alpha-value>)', 700: 'rgb(var(--accent-rgb) / <alpha-value>)',
+          800: 'rgb(var(--accent-rgb) / <alpha-value>)', 900: 'rgb(var(--accent-rgb) / <alpha-value>)',
+          950: 'rgb(var(--accent-rgb) / <alpha-value>)',
+        },
+        lime: {
+          50: 'rgb(var(--success-rgb) / <alpha-value>)', 100: 'rgb(var(--success-rgb) / <alpha-value>)',
+          200: 'rgb(var(--success-rgb) / <alpha-value>)', 300: 'rgb(var(--success-rgb) / <alpha-value>)',
+          400: 'rgb(var(--success-rgb) / <alpha-value>)', 500: 'rgb(var(--success-rgb) / <alpha-value>)',
+          600: 'rgb(var(--success-rgb) / <alpha-value>)', 700: 'rgb(var(--success-rgb) / <alpha-value>)',
+          800: 'rgb(var(--success-rgb) / <alpha-value>)', 900: 'rgb(var(--success-rgb) / <alpha-value>)',
+          950: 'rgb(var(--success-rgb) / <alpha-value>)',
+        },
+        red: {
+          50: 'rgb(var(--danger-rgb) / <alpha-value>)', 100: 'rgb(var(--danger-rgb) / <alpha-value>)',
+          200: 'rgb(var(--danger-rgb) / <alpha-value>)', 300: 'rgb(var(--danger-rgb) / <alpha-value>)',
+          400: 'rgb(var(--danger-rgb) / <alpha-value>)', 500: 'rgb(var(--danger-rgb) / <alpha-value>)',
+          600: 'rgb(var(--danger-rgb) / <alpha-value>)', 700: 'rgb(var(--danger-rgb) / <alpha-value>)',
+          800: 'rgb(var(--danger-rgb) / <alpha-value>)', 900: 'rgb(var(--danger-rgb) / <alpha-value>)',
+          950: 'rgb(var(--danger-rgb) / <alpha-value>)',
+        },
         emerald: {
-          400: '#34d399',
-          500: '#10b981',
-          600: '#059669',
+          300: 'rgb(var(--success-rgb) / <alpha-value>)', 400: 'rgb(var(--success-rgb) / <alpha-value>)',
+          500: 'rgb(var(--success-rgb) / <alpha-value>)', 600: 'rgb(var(--success-rgb) / <alpha-value>)',
         },
       },
       fontFamily: {

@@ -16,10 +16,11 @@ import Toast, { useToast } from '../components/ui/Toast'
 import ProgressRing from '../components/bevel/ProgressRing'
 import { Save, Dumbbell, Droplets, Scale, Map, Flame, Ruler } from 'lucide-react'
 
-const CYAN = '#22D3EE'
-const LIME = '#A3E635'
-const VIOLET = '#A78BFA'
-const CORAL = '#F87171'
+/* CSS-var strings, not hex, so they re-resolve live on theme switch */
+const CYAN = 'var(--accent)'
+const LIME = 'var(--success)'
+const VIOLET = 'var(--special)'
+const CORAL = 'var(--danger)'
 const MONO = "'JetBrains Mono', ui-monospace, monospace"
 
 // ── Metabolic Equivalent of Task (MET) Matrix ──────────────────────────────────
@@ -45,7 +46,7 @@ const DEFAULT_WORKOUT_TYPES = [
 const Section = ({ icon: Icon, accent, title, children }) => (
   <div className="glass-card p-4">
     <div className="flex items-center gap-2 mb-4">
-      <div style={{ padding: 6, borderRadius: 8, background: `${accent}1A`, display: 'flex' }}>
+      <div style={{ padding: 6, borderRadius: 8, background: `color-mix(in srgb, ${accent} 10%, transparent)`, display: 'flex' }}>
         <Icon size={14} style={{ color: accent }} />
       </div>
       <span className="section-label">{title}</span>
@@ -63,7 +64,7 @@ function TypeChip({ id, label, active, color, onClick }) {
       onClick={onClick}
       className="px-4 py-2.5 min-h-[48px] min-w-[48px] flex items-center justify-center rounded-xl text-xs font-semibold transition-all"
       style={active
-        ? { border: `1px solid ${color}66`, background: `${color}1F`, color }
+        ? { border: `1px solid color-mix(in srgb, ${color} 40%, transparent)`, background: `color-mix(in srgb, ${color} 12%, transparent)`, color }
         : { border: '1px solid var(--border-subtle)', background: 'var(--bg-glass)', color: 'var(--text-muted)' }}
     >
       {label}
@@ -211,7 +212,7 @@ export default function Fitness() {
         {/* Type picker — grouped into Cardio + Strength rows */}
         {cardioList.length > 0 && (
           <div className="mb-3">
-            <p className="section-label mb-2" style={{ color: `${CYAN}99` }}>
+            <p className="section-label mb-2" style={{ color: `color-mix(in srgb, ${CYAN} 60%, transparent)` }}>
               🏃 Cardio
             </p>
             <div className="flex flex-wrap gap-2">
@@ -231,7 +232,7 @@ export default function Fitness() {
 
         {strengthList.length > 0 && (
           <div className="mb-4">
-            <p className="section-label mb-2" style={{ color: `${LIME}99` }}>
+            <p className="section-label mb-2" style={{ color: `color-mix(in srgb, ${LIME} 60%, transparent)` }}>
               🏋️ Strength / Gym
             </p>
             <div className="flex flex-wrap gap-2">
@@ -343,7 +344,7 @@ export default function Fitness() {
               onClick={() => setForm(f => ({ ...f, waterGlasses: i + 1 }))}
               className="w-9 h-9 rounded-xl text-base transition-all"
               style={i < form.waterGlasses
-                ? { background: 'rgba(34,211,238,0.20)', border: '1px solid rgba(34,211,238,0.5)' }
+                ? { background: 'rgb(var(--accent-rgb)/0.20)', border: '1px solid rgb(var(--accent-rgb)/0.5)' }
                 : { background: 'var(--bg-glass)', border: '1px solid var(--border-subtle)', opacity: 0.4 }}>
               💧
             </button>
@@ -371,7 +372,7 @@ export default function Fitness() {
       </Section>
 
       {/* Google Fit note */}
-      <div className="glass-card p-4" style={{ borderColor: 'rgba(34,211,238,0.2)' }}>
+      <div className="glass-card p-4" style={{ borderColor: 'rgb(var(--accent-rgb)/0.2)' }}>
         <p className="text-xs font-semibold mb-1" style={{ color: CYAN }}>📱 Smartwatch / Google Fit Sync</p>
         <p className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
           To auto-sync steps, heart rate, and calories from your Fastrack or any Google Fit-compatible watch:

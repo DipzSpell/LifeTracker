@@ -6,6 +6,7 @@ import {
   useReducedMotion,
 } from "framer-motion";
 import { supabase } from "../lib/supabase";
+import Logo from "../components/Logo";
 
 /* ── New design-language font stack ──────────── */
 const FONT_STACK =
@@ -546,12 +547,7 @@ export default function Login() {
                   "0 0 0 1px rgba(135,166,140,0.15), 0 8px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.07)",
               }}
             >
-              <img
-                src="/logo.png"
-                alt="LifeTracker Logo"
-                style={{ width: 34, height: 34, objectFit: "contain" }}
-                onError={(e) => { e.currentTarget.style.display = "none"; }}
-              />
+              <Logo size={34} />
             </div>
           </motion.div>
 

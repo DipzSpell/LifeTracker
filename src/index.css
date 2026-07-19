@@ -8,17 +8,22 @@
 
 @layer base {
   :root, [data-theme="dark"] {
-    /* --background/--card/--text alias the design-system tokens (single
-       source of truth — src/styles/theme.css) so Tailwind's bg-background /
-       bg-card / text-text classes stay in sync with every theme automatically.
-       --accent is NOT redefined here anymore — it collided with the design
-       system's --accent (styles/theme.css) and caused the "some panels keep
-       the old theme's color" bug; styles/theme.css is now the only place
-       --accent is set, for every theme. */
+    /* --background/--card/--text/--primary alias the design-system tokens
+       (single source of truth — src/styles/theme.css) so Tailwind's
+       bg-background / bg-card / text-text classes, plus anything still
+       reading --primary (scrollbar hover, .aura-card border), stay in sync
+       with every theme automatically. Neither --accent nor --primary is
+       redefined with its own literal here anymore — --primary used to be a
+       hardcoded hex per theme block that quietly disagreed with
+       styles/theme.css's --accent (e.g. synthwave's --primary was yellow
+       while --accent was pink) — same "some panels keep the old theme's
+       color" bug as the old --accent collision, just a second variable.
+       styles/theme.css is now the only place a hex literal for the accent
+       hue is ever written. */
     --background: var(--bg-base);
     --card: var(--bg-elevated);
     --text: var(--text-primary);
-    --primary: #06b6d4; /* cyan-500 */
+    --primary: var(--accent);
 
     --color-white: 255 255 255;
     --color-navy-50: 240 244 255;
@@ -51,7 +56,7 @@
     --background: var(--bg-base);
     --card: var(--bg-elevated);
     --text: var(--text-primary);
-    --primary: #3b82f6; /* blue-500 */
+    --primary: var(--accent);
 
     --color-white: 15 23 42; /* slate-900 */
     --color-navy-50: 241 245 249;
@@ -84,7 +89,7 @@
     --background: var(--bg-base);
     --card: var(--bg-elevated);
     --text: var(--text-primary);
-    --primary: #facc15; /* toxic bright yellow */
+    --primary: var(--accent);
 
     --color-white: 255 255 255;
     --color-navy-50: 253 250 255;
@@ -117,7 +122,7 @@
     --background: var(--bg-base);
     --card: var(--bg-elevated);
     --text: var(--text-primary);
-    --primary: #f59e0b; /* elegant gold */
+    --primary: var(--accent);
 
     --color-white: 255 255 255;
     --color-navy-50: 240 244 255;
@@ -150,7 +155,7 @@
     --background: var(--bg-base);
     --card: var(--bg-elevated);
     --text: var(--text-primary);
-    --primary: #22c55e; /* neon terminal green */
+    --primary: var(--accent);
 
     --color-white: 34 197 94; /* neon green text mapping */
     --color-navy-50: 20 20 20;

@@ -22,10 +22,11 @@ import { playVictorySound } from '../lib/sounds'
 import Modal from '../components/ui/Modal'
 import { Plus, Flame, Trash2, TrendingUp, Check, X, SkipForward } from 'lucide-react'
 
-/* ── Design-system palette (mirrors src/styles/theme.css) ─────────────────── */
-const LIME = '#A3E635'
-const CYAN = '#22D3EE'
-const CORAL = '#F87171'
+/* ── Design-system palette (mirrors src/styles/theme.css) — CSS-var strings
+   so they re-resolve live on theme switch ──────────────────────────────── */
+const LIME = 'var(--success)'
+const CYAN = 'var(--accent)'
+const CORAL = 'var(--danger)'
 const MONO = "'JetBrains Mono', ui-monospace, monospace"
 
 const HABIT_ICONS = ['🏋️','🚶','📚','🧘','💧','😴','🎯','💪','🥗','✍️','🎵','🏃','🧹','💊','🛁','☀️','🌙','🤸','🎨','🎮']
@@ -107,7 +108,7 @@ function AddHabitModal({ isOpen, onClose }) {
               onClick={() => setForm(f => ({ ...f, icon }))}
               className="w-10 h-10 rounded-xl text-xl transition-all"
               style={form.icon === icon
-                ? { background: 'rgba(34,211,238,0.15)', border: `1px solid ${CYAN}` }
+                ? { background: 'rgb(var(--accent-rgb)/0.15)', border: `1px solid ${CYAN}` }
                 : { background: 'var(--bg-glass)', border: '1px solid var(--border-subtle)' }}>
               {icon}
             </button>
@@ -119,8 +120,8 @@ function AddHabitModal({ isOpen, onClose }) {
         <label className="text-xs block mb-2" style={{ color: 'var(--text-muted)' }}>Type</label>
         <div className="flex gap-2">
           {[
-            { val: 'good', label: '✅ Good Habit', activeStyle: { border: '1px solid rgba(163,230,53,0.5)', background: 'rgba(163,230,53,0.12)', color: LIME } },
-            { val: 'bad', label: '⚠️ Bad Habit to Reduce', activeStyle: { border: '1px solid rgba(248,113,113,0.5)', background: 'rgba(248,113,113,0.12)', color: CORAL } },
+            { val: 'good', label: '✅ Good Habit', activeStyle: { border: '1px solid rgb(var(--success-rgb)/0.5)', background: 'rgb(var(--success-rgb)/0.12)', color: LIME } },
+            { val: 'bad', label: '⚠️ Bad Habit to Reduce', activeStyle: { border: '1px solid rgb(var(--danger-rgb)/0.5)', background: 'rgb(var(--danger-rgb)/0.12)', color: CORAL } },
           ].map(({ val, label, activeStyle }) => (
             <button key={val} id={`habit-type-${val}`}
               onClick={() => setForm(f => ({ ...f, type: val }))}
@@ -142,7 +143,7 @@ function AddHabitModal({ isOpen, onClose }) {
               onClick={() => setForm(f => ({ ...f, timeOfDay: id }))}
               className="flex-1 py-2 rounded-xl text-xs font-semibold transition-all"
               style={form.timeOfDay === id
-                ? { border: `1px solid ${CYAN}`, background: 'rgba(34,211,238,0.12)', color: CYAN }
+                ? { border: `1px solid ${CYAN}`, background: 'rgb(var(--accent-rgb)/0.12)', color: CYAN }
                 : { border: '1px solid var(--border-subtle)', background: 'var(--bg-glass)', color: 'var(--text-muted)' }}>
               {label}
             </button>
@@ -158,7 +159,7 @@ function AddHabitModal({ isOpen, onClose }) {
               onClick={() => setForm(f => ({ ...f, category: c }))}
               className="px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-all"
               style={form.category === c
-                ? { border: '1px solid rgba(34,211,238,0.5)', background: 'rgba(34,211,238,0.12)', color: CYAN }
+                ? { border: '1px solid rgb(var(--accent-rgb)/0.5)', background: 'rgb(var(--accent-rgb)/0.12)', color: CYAN }
                 : { border: '1px solid var(--border-subtle)', background: 'var(--bg-glass)', color: 'var(--text-muted)' }}>
               {c}
             </button>
@@ -238,7 +239,7 @@ function SmallStateBtn({ id, title, active, activeColor, onClick, children }) {
       style={{
         width: 28, height: 28, borderRadius: '50%',
         border: active ? `1.5px solid ${activeColor}` : '1px solid var(--border-subtle)',
-        background: active ? `${activeColor}1F` : 'transparent',
+        background: active ? `color-mix(in srgb, ${activeColor} 12%, transparent)` : 'transparent',
         color: active ? activeColor : 'var(--text-muted)',
         cursor: 'pointer',
       }}
@@ -287,15 +288,15 @@ function HabitRow({ habit }) {
         padding: '0.75rem 0.9rem',
         transition: 'border-color 0.25s, background 0.25s',
         ...(isChecked
-          ? { borderColor: 'rgba(163,230,53,0.45)', background: 'rgba(163,230,53,0.07)' }
+          ? { borderColor: 'rgb(var(--success-rgb)/0.45)', background: 'rgb(var(--success-rgb)/0.07)' }
           : isBad && status === 'done'
-            ? { borderColor: 'rgba(248,113,113,0.4)', background: 'rgba(248,113,113,0.06)' }
+            ? { borderColor: 'rgb(var(--danger-rgb)/0.4)', background: 'rgb(var(--danger-rgb)/0.06)' }
             : {}),
       }}
     >
       {/* Icon */}
       <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
-        style={{ background: isChecked ? 'rgba(163,230,53,0.12)' : 'var(--bg-glass)' }}>
+        style={{ background: isChecked ? 'rgb(var(--success-rgb)/0.12)' : 'var(--bg-glass)' }}>
         {habit.icon}
       </div>
 
@@ -367,7 +368,7 @@ function HabitRow({ habit }) {
         style={{
           width: 36, height: 36, borderRadius: '50%',
           border: isChecked ? `1.5px solid ${LIME}` : '1.5px solid var(--border-glass)',
-          background: isChecked ? 'rgba(163,230,53,0.15)' : 'transparent',
+          background: isChecked ? 'rgb(var(--success-rgb)/0.15)' : 'transparent',
           cursor: 'pointer',
           transition: 'border-color 0.2s, background 0.2s',
         }}
@@ -431,14 +432,14 @@ export default function Habits() {
         <button id="habits-tab-good" onClick={() => setTab('good')}
           className="flex-1 py-2 rounded-lg text-sm font-semibold transition-all"
           style={tab === 'good'
-            ? { background: 'rgba(163,230,53,0.15)', color: LIME, border: '1px solid rgba(163,230,53,0.35)' }
+            ? { background: 'rgb(var(--success-rgb)/0.15)', color: LIME, border: '1px solid rgb(var(--success-rgb)/0.35)' }
             : { color: 'var(--text-muted)', border: '1px solid transparent' }}>
           ✅ Good Habits ({goodHabits.length})
         </button>
         <button id="habits-tab-bad" onClick={() => setTab('bad')}
           className="flex-1 py-2 rounded-lg text-sm font-semibold transition-all"
           style={tab === 'bad'
-            ? { background: 'rgba(248,113,113,0.12)', color: CORAL, border: '1px solid rgba(248,113,113,0.35)' }
+            ? { background: 'rgb(var(--danger-rgb)/0.12)', color: CORAL, border: '1px solid rgb(var(--danger-rgb)/0.35)' }
             : { color: 'var(--text-muted)', border: '1px solid transparent' }}>
           ⚠️ To Reduce ({badHabits.length})
         </button>

@@ -1,18 +1,20 @@
 /**
  * Sidebar.jsx — Desktop left sidebar (lg+ breakpoint only)
  *
- * Design-system styling: --bg-elevated surface, active item = cyan tint
- * pill + cyan icon, hover = glass bg, glass-card user chip, lime
- * flame + mono number points badge.
+ * Design-system styling: --bg-elevated surface, active item = accent tint
+ * pill + accent icon, hover = glass bg, glass-card user chip, success-colored
+ * flame + mono number points badge. All colors read live off the active
+ * theme via useThemeColors() — no hardcoded hex, so switching theme updates
+ * every element here instantly.
  * Hidden on mobile (the BottomNav handles mobile navigation).
  */
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Home, BookOpen, BarChart2, CheckSquare, User, Dumbbell, Flame, BookMarked, LineChart, Watch } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { useAuth } from '../../context/AuthContext'
+import { useThemeColors } from '../../hooks/useThemeColors'
+import Logo from '../Logo'
 
-const CYAN = '#22D3EE'
-const LIME = '#A3E635'
 const MONO = "'JetBrains Mono', ui-monospace, monospace"
 
 export default function Sidebar() {
@@ -20,6 +22,7 @@ export default function Sidebar() {
   const { user } = useAuth()
   const location  = useLocation()
   const navigate  = useNavigate()
+  const T = useThemeColors()
 
   const fitnessEnabled = settings?.fitnessTrackerEnabled !== false
 
@@ -52,10 +55,9 @@ export default function Sidebar() {
     >
       {/* ── Logo + Wordmark ─────────────────────────────────── */}
       <div className="flex items-center gap-3 px-5 py-5" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-        <img
-          src="/logo.png"
-          alt="LifeTracker logo"
-          className="w-8 h-8 rounded-xl object-cover"
+        <Logo
+          size={32}
+          className="rounded-xl"
           style={{ border: '1px solid var(--border-subtle)', boxShadow: '0 0 12px var(--accent-glow)' }}
         />
         <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
@@ -81,7 +83,7 @@ export default function Sidebar() {
         ) : (
           <div
             className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
-            style={{ background: 'rgba(34,211,238,0.15)', border: `1px solid ${CYAN}55`, color: CYAN }}
+            style={{ background: 'color-mix(in srgb, var(--accent) 15%, transparent)', border: `1px solid ${T.accent}55`, color: T.accent }}
           >
             {avatarLetter}
           </div>
@@ -117,15 +119,15 @@ export default function Sidebar() {
                 borderRadius: 14,
                 fontSize: 13,
                 fontWeight: 600,
-                background: active ? 'rgba(34,211,238,0.12)' : 'transparent',
-                border: active ? '1px solid rgba(34,211,238,0.25)' : '1px solid transparent',
-                color: active ? CYAN : 'var(--text-muted)',
+                background: active ? `${T.accent}1F` : 'transparent',
+                border: active ? `1px solid ${T.accent}40` : '1px solid transparent',
+                color: active ? T.accent : 'var(--text-muted)',
                 cursor: 'pointer',
               }}
               onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'var(--bg-glass)' }}
               onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent' }}
             >
-              <Icon size={16} style={{ color: active ? CYAN : 'var(--text-muted)' }} />
+              <Icon size={16} style={{ color: active ? T.accent : 'var(--text-muted)' }} />
               <span>{label}</span>
             </button>
           )
@@ -136,14 +138,14 @@ export default function Sidebar() {
       <div className="px-4 pb-5 pt-3" style={{ borderTop: '1px solid var(--border-subtle)' }}>
         <div
           className="flex items-center gap-2"
-          style={{ padding: '0.6rem 0.75rem', borderRadius: 14, background: 'rgba(163,230,53,0.10)', border: '1px solid rgba(163,230,53,0.25)' }}
+          style={{ padding: '0.6rem 0.75rem', borderRadius: 14, background: `${T.success}1A`, border: `1px solid ${T.success}40` }}
         >
-          <Flame size={14} style={{ color: LIME }} className="flex-shrink-0" />
+          <Flame size={14} style={{ color: T.success }} className="flex-shrink-0" />
           <div>
-            <p style={{ fontSize: 14, fontWeight: 700, fontFamily: MONO, color: LIME, margin: 0, lineHeight: 1.2 }}>
+            <p style={{ fontSize: 14, fontWeight: 700, fontFamily: MONO, color: T.success, margin: 0, lineHeight: 1.2 }}>
               {totalPoints.toLocaleString()}
             </p>
-            <p style={{ fontSize: 10, color: 'rgba(163,230,53,0.6)', margin: 0, lineHeight: 1.2 }}>total pts</p>
+            <p style={{ fontSize: 10, color: `${T.success}99`, margin: 0, lineHeight: 1.2 }}>total pts</p>
           </div>
         </div>
       </div>

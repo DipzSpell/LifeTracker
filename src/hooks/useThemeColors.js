@@ -21,7 +21,7 @@ const TOKENS = [
   'bg-base', 'bg-elevated', 'bg-glass',
   'border-subtle', 'border-glass',
   'accent', 'accent-glow',
-  'success', 'danger', 'special',
+  'success', 'danger', 'special', 'warning',
   'text-primary', 'text-secondary', 'text-muted',
   'chart-line', 'chart-fill-from', 'chart-fill-to',
   'heat-0', 'heat-1', 'heat-2', 'heat-3', 'heat-4',

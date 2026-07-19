@@ -11,12 +11,13 @@ import { supabase } from '../lib/supabase'
 import { getLast30Days, getLast7Days } from '../lib/storage'
 import { BarChart2, TrendingUp, Activity, Award, Download, Sparkles } from 'lucide-react'
 
-/* ── Design-system palette (mirrors src/styles/theme.css) ──────────────────── */
-const CYAN = '#22D3EE'
-const LIME = '#A3E635'
-const VIOLET = '#A78BFA'
-const CORAL = '#F87171'
-const MUTED = '#64748B'
+/* ── Design-system palette (mirrors src/styles/theme.css) — CSS-var strings
+   so they re-resolve live on theme switch ──────────────────────────────── */
+const CYAN = 'var(--accent)'
+const LIME = 'var(--success)'
+const VIOLET = 'var(--special)'
+const CORAL = 'var(--danger)'
+const MUTED = 'var(--text-muted)'
 const MONO = "'JetBrains Mono', ui-monospace, monospace"
 
 const CustomTooltip = ({ active, payload, label }) => {
@@ -109,8 +110,11 @@ function HabitHeatmap({ habitsData, logHabit }) {
     return new Date(y, m - 1, d)
   }
 
-  // Tailwind's 400-level palette matches the design system exactly
-  // (lime-400 #A3E635, cyan-400 #22D3EE, red-400 #F87171, amber-400 #FBBF24)
+  // cyan-400/lime-400/red-400 are remapped in tailwind.config.js to the
+  // active theme's accent/success/danger, so these classes stay theme-
+  // reactive. amber-400 is NOT remapped (it's claimed elsewhere for the
+  // "trading" module-brand accent) — skipped-state cells use an arbitrary
+  // rgb(var(--warning-rgb)/x) value instead so they follow --warning.
   const getCellColor = (date) => {
     if (selectedFilter === 'all') {
       if (!goodHabits.length) return 'bg-white/5'
@@ -120,14 +124,14 @@ function HabitHeatmap({ habitsData, logHabit }) {
       if (pct < 0.33) return 'bg-lime-400/25 border border-lime-400/20'
       if (pct < 0.66) return 'bg-lime-400/45 border border-lime-400/30'
       if (pct < 1) return 'bg-lime-400/70 border border-lime-400/40'
-      return 'bg-lime-400 shadow-[0_0_10px_rgba(163,230,53,0.35)]'
+      return 'bg-lime-400 shadow-[0_0_10px_rgb(var(--success-rgb)/0.35)]'
     } else {
       const habit = localHabits[selectedFilter]
       if (!habit) return 'bg-white/5'
       const status = habit.entries?.[date]?.status
       if (habit.type === 'good') {
-        if (status === 'done') return 'bg-lime-400 shadow-[0_0_10px_rgba(163,230,53,0.35)]'
-        if (status === 'skipped') return 'bg-amber-400/80 border border-amber-400/30'
+        if (status === 'done') return 'bg-lime-400 shadow-[0_0_10px_rgb(var(--success-rgb)/0.35)]'
+        if (status === 'skipped') return 'bg-[rgb(var(--warning-rgb)/0.8)] border border-[rgb(var(--warning-rgb)/0.3)]'
         if (status === 'failed') return 'bg-red-400/80 border border-red-400/30'
         return 'bg-white/5'
       } else {
@@ -234,7 +238,7 @@ function HabitHeatmap({ habitsData, logHabit }) {
                 onClick={() => setSelectedDate(d)}
                 className={`w-full aspect-square rounded-lg transition-all duration-200 flex items-center justify-center text-[9px] font-bold ${cellColorClass} ${
                   isSelected
-                    ? 'ring-2 ring-cyan-400 ring-offset-2 ring-offset-[#0B0E14] scale-105 z-10'
+                    ? 'ring-2 ring-cyan-400 ring-offset-2 ring-offset-[var(--bg-base)] scale-105 z-10'
                     : 'hover:scale-105'
                 }`}
               >
@@ -265,7 +269,7 @@ function HabitHeatmap({ habitsData, logHabit }) {
               <span className="w-2.5 h-2.5 rounded-sm bg-lime-400" /> Done
             </span>
             <span className="flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded-sm bg-amber-400/80 border border-amber-400/30" /> Skipped
+              <span className="w-2.5 h-2.5 rounded-sm bg-[rgb(var(--warning-rgb)/0.8)] border border-[rgb(var(--warning-rgb)/0.3)]" /> Skipped
             </span>
             <span className="flex items-center gap-1">
               <span className="w-2.5 h-2.5 rounded-sm bg-red-400/80 border border-red-400/30" /> Failed
@@ -320,7 +324,7 @@ function HabitHeatmap({ habitsData, logHabit }) {
                   <span className={`text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full ${
                     status === 'done' ? (isBad ? 'bg-red-400/10 text-red-400 border border-red-400/20' : 'bg-lime-400/10 text-lime-400 border border-lime-400/20') :
                     status === 'clean' ? 'bg-cyan-400/10 text-cyan-400 border border-cyan-400/20' :
-                    status === 'skipped' ? 'bg-amber-400/10 text-amber-400 border border-amber-400/20' :
+                    status === 'skipped' ? 'bg-[rgb(var(--warning-rgb)/0.1)] text-[rgb(var(--warning-rgb))] border border-[rgb(var(--warning-rgb)/0.2)]' :
                     status === 'failed' ? 'bg-red-400/10 text-red-400 border border-red-400/20' :
                     'bg-white/5 text-white/30 border border-white/5'
                   }`}>
@@ -372,7 +376,7 @@ function HabitHeatmap({ habitsData, logHabit }) {
                         onClick={() => logHabit(selectedHabit.id, selectedDate, status === 'skipped' ? null : 'skipped')}
                         className={`flex-1 py-2 rounded-lg text-[10px] font-bold border transition-all active:scale-[0.98] ${
                           status === 'skipped'
-                            ? 'border-amber-400/50 bg-amber-400/15 text-amber-300 shadow-md'
+                            ? 'border-[rgb(var(--warning-rgb)/0.5)] bg-[rgb(var(--warning-rgb)/0.15)] text-[rgb(var(--warning-rgb))] shadow-md'
                             : 'border-white/5 bg-white/5 text-white/40 hover:bg-white/10'
                         }`}
                       >
@@ -454,7 +458,7 @@ function HabitHeatmap({ habitsData, logHabit }) {
                             onClick={() => logHabit(h.id, selectedDate, status === 'skipped' ? null : 'skipped')}
                             className={`px-2.5 py-1 rounded-lg text-[9px] font-bold transition-all border ${
                               status === 'skipped'
-                                ? 'bg-amber-400/15 text-amber-300 border-amber-400/30'
+                                ? 'bg-[rgb(var(--warning-rgb)/0.15)] text-[rgb(var(--warning-rgb))] border-[rgb(var(--warning-rgb)/0.3)]'
                                 : 'bg-transparent text-white/30 border-transparent hover:bg-white/5'
                             }`}
                           >
@@ -621,7 +625,7 @@ export default function Stats() {
   const badResisted = badHabits.filter(h => h.entries?.[today]?.status === 'clean').length
   const habitPieData = [
     { name: 'Good Done', value: goodDone, color: LIME },
-    { name: 'Good Missed', value: goodMissed, color: 'rgba(255,255,255,0.05)' },
+    { name: 'Good Missed', value: goodMissed, color: 'var(--border-subtle)' },
     { name: 'Bad Resisted', value: badResisted, color: CYAN },
     { name: 'Bad Done', value: badDone, color: CORAL },
   ].filter(d => d.value > 0)
@@ -649,7 +653,7 @@ export default function Stats() {
   }
 
   const axisStyle = { fill: MUTED, fontSize: 10, fontFamily: MONO }
-  const gridStyle = { stroke: 'rgba(255,255,255,0.08)', opacity: 1 }
+  const gridStyle = { stroke: 'var(--border-subtle)', opacity: 1 }
 
   if (loading) {
     return (
@@ -715,7 +719,7 @@ export default function Stats() {
             onClick={() => setRange(r.val)}
             className="flex-1 py-2 rounded-lg text-sm font-semibold transition-all"
             style={range === r.val
-              ? { background: 'rgba(34,211,238,0.15)', color: CYAN, border: '1px solid rgba(34,211,238,0.35)' }
+              ? { background: 'rgb(var(--accent-rgb)/0.15)', color: CYAN, border: '1px solid rgb(var(--accent-rgb)/0.35)' }
               : { color: 'var(--text-muted)', border: '1px solid transparent', background: 'none' }}>
             {r.label}
           </button>
@@ -739,8 +743,8 @@ export default function Stats() {
                 <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>This week</p>
               </div>
               <div className="text-center px-3 py-1.5 rounded-xl" style={diff >= 0
-                ? { background: 'rgba(163,230,53,0.12)', color: LIME }
-                : { background: 'rgba(248,113,113,0.12)', color: CORAL }}>
+                ? { background: 'rgb(var(--success-rgb)/0.12)', color: LIME }
+                : { background: 'rgb(var(--danger-rgb)/0.12)', color: CORAL }}>
                 <p className="text-lg font-bold" style={{ fontFamily: MONO }}>{diff >= 0 ? '+' : ''}{diff}</p>
                 <p className="text-[10px] font-bold">vs last week</p>
               </div>
@@ -768,7 +772,7 @@ export default function Stats() {
               <XAxis dataKey="day" tick={axisStyle} axisLine={false} tickLine={false} />
               <YAxis yAxisId="left" domain={[0, 16]} tick={axisStyle} axisLine={false} tickLine={false} width={30} />
               <YAxis yAxisId="right" orientation="right" tick={axisStyle} axisLine={false} tickLine={false} width={40} />
-              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--bg-glass)' }} />
               <Bar yAxisId="left" dataKey="sleepHours" name="Sleep (hrs)" fill={VIOLET} radius={[4, 4, 0, 0]} maxBarSize={20} />
               <Area yAxisId="right" type="monotone" dataKey="steps" name="Steps" stroke={CYAN} fill="url(#energyGrad)" strokeWidth={2} />
             </ComposedChart>
@@ -791,7 +795,7 @@ export default function Stats() {
               <XAxis dataKey="day" tick={axisStyle} axisLine={false} tickLine={false} />
               <YAxis yAxisId="left" domain={[1, 10]} tick={axisStyle} axisLine={false} tickLine={false} width={30} />
               <YAxis yAxisId="right" orientation="right" domain={[0, 12]} tick={axisStyle} axisLine={false} tickLine={false} width={30} />
-              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--bg-glass)' }} />
               <Bar yAxisId="right" dataKey="water" name="Water (glasses)" fill={VIOLET} radius={[4, 4, 0, 0]} maxBarSize={20} />
               <Area yAxisId="left" type="monotone" dataKey="mood" name="Mood" stroke={CYAN} fill="url(#vibeGrad)" strokeWidth={2} />
             </ComposedChart>
@@ -807,7 +811,7 @@ export default function Stats() {
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridStyle.stroke} opacity={gridStyle.opacity} />
               <XAxis dataKey="day" tick={axisStyle} axisLine={false} tickLine={false} />
               <YAxis tick={axisStyle} axisLine={false} tickLine={false} width={30} domain={[0, 1]} ticks={[0, 1]} />
-              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--bg-glass)' }} />
               <Bar dataKey="gym" name="Done" fill={LIME} radius={[4, 4, 0, 0]} maxBarSize={20} />
               <Bar dataKey="skipped" name="Skipped" fill={CORAL} radius={[4, 4, 0, 0]} maxBarSize={20} />
             </BarChart>
@@ -829,7 +833,7 @@ export default function Stats() {
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridStyle.stroke} opacity={gridStyle.opacity} />
               <XAxis dataKey="day" tick={axisStyle} axisLine={false} tickLine={false} />
               <YAxis tick={axisStyle} axisLine={false} tickLine={false} width={30} />
-              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--bg-glass)' }} />
               <Area type="monotone" dataKey="pts" name="Points" stroke={CYAN} fill="url(#ptsGrad)" strokeWidth={2} />
             </AreaChart>
           </ResponsiveContainer>
