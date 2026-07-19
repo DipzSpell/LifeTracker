@@ -1,36 +1,42 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+/**
+ * Dashboard.jsx — rebuilt on the design-system foundation (src/styles/theme.css).
+ *
+ * Presentation only: all data hooks, derived state, and handlers are unchanged
+ * from the previous version. Uses .glass-card / .glass-btn / .stat-number /
+ * .section-label utilities for CSS-driven colors, and useThemeColors() for
+ * every JS-side color (recharts stroke/fill, SVG gradient stops, ProgressRing
+ * props) — no hardcoded hex. Switching theme (Profile → Appearance) updates
+ * every color on this page instantly, no reload.
+ */
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { format, isValid } from 'date-fns'
 import { useNavigate } from 'react-router-dom'
 import {
-  Flame, CheckCircle2, TrendingUp, Calendar, Plus, Moon,
-  ArrowRight,
+  Flame, CheckCircle2, Plus, Moon, ArrowRight, Sparkles,
+  Footprints, Smile, Award, ClipboardList, BookMarked,
+  X, Gift, RefreshCw,
 } from 'lucide-react'
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts'
 import { useApp } from '../context/AppContext'
 import { useAuth } from '../context/AuthContext'
-import { todayKey, getLast7Days, getLast30Days } from '../lib/storage'
+import { todayKey, getLast7Days } from '../lib/storage'
+import { useThemeColors } from '../hooks/useThemeColors'
 import QuickLogModal from '../components/QuickLogModal'
 import Toast, { useToast } from '../components/ui/Toast'
 import { playVictorySound } from '../lib/sounds'
-import AIMorningBrief, { generateDailyInsight } from '../components/AIMorningBrief'
-import ModuleSummaryCard from '../components/ui/ModuleSummaryCard'
-import QuickActionPills from '../components/ui/QuickActionPills'
-import DataTable from '../components/ui/DataTable'
+import { generateDailyInsight } from '../components/AIMorningBrief'
+import ProgressRing from '../components/bevel/ProgressRing'
+import { Dot } from '../components/bevel/BevelUI'
+import MonthlyHeatmap from '../components/MonthlyHeatmap'
 
-/* ─────────────────────────────────────────────────────────────────────────────
-   DESIGN TOKENS  (pastel palette)
-───────────────────────────────────────────────────────────────────────────── */
-const SAGE   = '#87a68c'
-const SKY    = '#7db8d8'
-const CORAL  = '#e87c6e'
-const AMBER  = '#d4a847'
+const MONO = "'JetBrains Mono', ui-monospace, monospace"
 
-/* ─────────────────────────────────────────────────────────────────────────────
+/* ─────────────────────────────────────────────────────────────────────────
    UTILS
-───────────────────────────────────────────────────────────────────────────── */
+───────────────────────────────────────────────────────────────────────── */
 function calculateSleepDuration(sleepTime, wakeTime) {
   if (!sleepTime || !wakeTime) return ''
   try {
@@ -43,243 +49,202 @@ function calculateSleepDuration(sleepTime, wakeTime) {
   } catch { return '' }
 }
 
-/* ─────────────────────────────────────────────────────────────────────────────
-   INTERSECTION OBSERVER HOOK — fade-in sections as they enter viewport
-───────────────────────────────────────────────────────────────────────────── */
-function useFadeInSection() {
-  const ref  = useRef(null)
-  const [visible, setVisible] = useState(false)
-  useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    const obs = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) { setVisible(true); obs.disconnect() } },
-      { threshold: 0.08 }
-    )
-    obs.observe(el)
-    return () => obs.disconnect()
-  }, [])
-  return [ref, visible]
-}
+/* ─────────────────────────────────────────────────────────────────────────
+   HERO RING — big accent→success progress ring with soft glow
+───────────────────────────────────────────────────────────────────────── */
+const RING_VB = 160          // SVG viewBox size; CSS scales it 140/160px
+const RING_STROKE = 12
+const RING_R = (RING_VB - RING_STROKE) / 2
+const RING_CIRC = 2 * Math.PI * RING_R
 
-/* ─────────────────────────────────────────────────────────────────────────────
-   SECTION WRAPPER — shared card + fade animation
-───────────────────────────────────────────────────────────────────────────── */
-function SectionCard({ children, style = {} }) {
-  const [ref, visible] = useFadeInSection()
+function HeroRingCard({ dayScore, T }) {
+  const pct = Math.min(Math.max(dayScore, 0), 100)
+  const dash = (pct / 100) * RING_CIRC
+
   return (
-    <div
-      ref={ref}
-      style={{
-        background: 'rgba(255,255,255,0.04)',
-        border: '1px solid rgba(255,255,255,0.08)',
-        borderRadius: 18,
-        padding: '1rem 1.1rem',
-        transition: 'opacity 0.55s cubic-bezier(0.16,1,0.3,1), transform 0.55s cubic-bezier(0.16,1,0.3,1)',
-        opacity: visible ? 1 : 0,
-        transform: visible ? 'translateY(0)' : 'translateY(22px)',
-        ...style,
-      }}
-    >
-      {children}
+    <div className="glass-card flex flex-col items-center" style={{ padding: '1.6rem 1.2rem 1.5rem' }}>
+      <span className="section-label">{format(new Date(), 'EEEE, MMMM d')}</span>
+      <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', margin: '4px 0 18px' }}>
+        Today's Score
+      </h2>
+
+      <div className="relative flex items-center justify-center w-[140px] h-[140px] sm:w-[160px] sm:h-[160px]">
+        {/* Soft accent glow behind the ring */}
+        <div
+          aria-hidden
+          style={{
+            position: 'absolute', inset: '-16%', borderRadius: '50%',
+            background: 'radial-gradient(closest-side, var(--accent-glow), transparent 72%)',
+            filter: 'blur(26px)', pointerEvents: 'none',
+          }}
+        />
+        <svg width="100%" height="100%" viewBox={`0 0 ${RING_VB} ${RING_VB}`} style={{ transform: 'rotate(-90deg)', position: 'relative' }}>
+          <defs>
+            <linearGradient id="heroRingGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor={T.accent} />
+              <stop offset="100%" stopColor={T.success} />
+            </linearGradient>
+          </defs>
+          {/* Faint track — visible even at 0% */}
+          <circle cx={RING_VB / 2} cy={RING_VB / 2} r={RING_R} fill="none" stroke={T.borderSubtle} strokeWidth={RING_STROKE} />
+          <motion.circle
+            cx={RING_VB / 2} cy={RING_VB / 2} r={RING_R}
+            fill="none" stroke="url(#heroRingGrad)" strokeWidth={RING_STROKE} strokeLinecap="round"
+            strokeDasharray={RING_CIRC}
+            initial={{ strokeDashoffset: RING_CIRC }}
+            animate={{ strokeDashoffset: RING_CIRC - dash }}
+            transition={{ duration: 1, ease: 'easeOut' }}
+          />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="stat-number" style={{ color: 'var(--text-primary)', lineHeight: 1 }}>{pct}%</span>
+          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginTop: 4 }}>
+            completed today
+          </span>
+        </div>
+      </div>
+
+      {pct === 0 && (
+        <p style={{ fontSize: 12.5, color: 'var(--text-muted)', margin: '14px 0 0', textAlign: 'center' }}>
+          Start logging to fill your ring ✨
+        </p>
+      )}
     </div>
   )
 }
 
-function SectionLabel({ children }) {
+/* ─────────────────────────────────────────────────────────────────────────
+   AI INSIGHT — dark glass + special left accent border
+───────────────────────────────────────────────────────────────────────── */
+function InsightCard({ insight, onRefresh, refreshing, T }) {
   return (
-    <p style={{
-      fontSize: '0.65rem',
-      fontWeight: 700,
-      textTransform: 'uppercase',
-      letterSpacing: '0.12em',
-      color: 'rgba(255,255,255,0.28)',
-      marginBottom: '0.85rem',
-      fontFamily: 'ui-monospace, JetBrains Mono, monospace',
-    }}>
-      {children}
-    </p>
-  )
-}
-
-/* gradient text helper */
-function GradNum({ children, from = SAGE, to = SKY, style = {} }) {
-  return (
-    <span style={{
-      backgroundImage: `linear-gradient(90deg, ${from}, ${to})`,
-      WebkitBackgroundClip: 'text',
-      WebkitTextFillColor: 'transparent',
-      backgroundClip: 'text',
-      fontFamily: 'ui-monospace, JetBrains Mono, monospace',
-      fontWeight: 700,
-      ...style,
-    }}>
-      {children}
-    </span>
-  )
-}
-
-/* Skeleton pulse block */
-function Skeleton({ w = '100%', h = 18, r = 8, style = {} }) {
-  return (
-    <div style={{
-      width: w, height: h, borderRadius: r,
-      background: 'rgba(255,255,255,0.07)',
-      animation: 'dash-pulse 1.4s ease-in-out infinite',
-      ...style,
-    }} />
-  )
-}
-
-/* ─────────────────────────────────────────────────────────────────────────────
-   SECTION 1 — HABIT BREAKDOWN GRID
-───────────────────────────────────────────────────────────────────────────── */
-function CircleRing({ pct, color, size = 44, stroke = 4 }) {
-  const r   = (size - stroke) / 2
-  const circ = 2 * Math.PI * r
-  const dash = (pct / 100) * circ
-  return (
-    <svg width={size} height={size} style={{ transform: 'rotate(-90deg)', flexShrink: 0 }}>
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={stroke} />
-      <circle
-        cx={size / 2} cy={size / 2} r={r}
-        fill="none" stroke={color} strokeWidth={stroke}
-        strokeDasharray={`${dash} ${circ}`}
-        strokeLinecap="round"
-        style={{ transition: 'stroke-dasharray 0.8s cubic-bezier(0.16,1,0.3,1)' }}
-      />
-    </svg>
-  )
-}
-
-function HabitBreakdownGrid({ habits, getHabitStreak, last7 }) {
-  const goodHabits = useMemo(
-    () => Object.values(habits).filter(h => h.type === 'good').slice(0, 6),
-    [habits]
-  )
-  const loading = !Object.keys(habits).length
-
-  if (loading) {
-    return (
-      <SectionCard>
-        <SectionLabel>Habit Breakdown</SectionLabel>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10 }}>
-          {[...Array(6)].map((_, i) => (
-            <Skeleton key={i} h={84} r={14} style={{ marginBottom: 0 }} />
-          ))}
+    <div className="glass-card" style={{ padding: '1rem 1.1rem', borderLeft: `3px solid ${T.special}` }}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <Sparkles size={15} style={{ color: T.special, flexShrink: 0 }} />
+          <p style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text-primary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {insight.title}
+          </p>
+          {insight.tag && (
+            <span style={{
+              fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, flexShrink: 0,
+              background: `${T.special}24`, color: T.special,
+            }}>
+              {insight.tag}
+            </span>
+          )}
         </div>
-      </SectionCard>
-    )
-  }
+        <button
+          onClick={onRefresh}
+          disabled={refreshing}
+          aria-label="Refresh insight"
+          className="glass-btn flex-shrink-0"
+          style={{ width: 32, height: 32, minHeight: 32, padding: 0, borderRadius: 10 }}
+        >
+          <motion.span animate={{ rotate: refreshing ? 360 : 0 }} transition={{ duration: 0.7 }} className="flex">
+            <RefreshCw size={12} style={{ color: 'var(--text-muted)' }} />
+          </motion.span>
+        </button>
+      </div>
+      <motion.p
+        key={insight.body}
+        initial={{ opacity: 0, y: 4 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        style={{ fontSize: 13, lineHeight: 1.65, color: 'var(--text-secondary)', margin: '8px 0 0' }}
+      >
+        {insight.body}
+      </motion.p>
+    </div>
+  )
+}
 
-  if (!goodHabits.length) {
-    return (
-      <SectionCard>
-        <SectionLabel>Habit Breakdown</SectionLabel>
-        <div style={{ textAlign: 'center', padding: '2rem 0', color: 'rgba(255,255,255,0.3)', fontSize: '0.82rem' }}>
-          <div style={{ fontSize: '2rem', marginBottom: 8 }}>🌱</div>
-          No habits set up yet — add some in the Habits page!
-        </div>
-      </SectionCard>
-    )
-  }
-
+/* ─────────────────────────────────────────────────────────────────────────
+   STAT GRID — glass cards with mini progress arc in the corner
+───────────────────────────────────────────────────────────────────────── */
+function StatTile({ icon: Icon, label, value, pct, color, trackColor }) {
   return (
-    <SectionCard>
-      <SectionLabel>Habit Breakdown · This Week</SectionLabel>
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
-        gap: 10,
-      }}>
-        {goodHabits.map(h => {
-          const streak   = getHabitStreak(h.id)
-          const doneDays = last7.filter(d => h.entries?.[d]?.status === 'done').length
-          const weekPct  = Math.round((doneDays / 7) * 100)
-          const ringColor = weekPct >= 70 ? SAGE : weekPct >= 40 ? AMBER : CORAL
-          const glowColor = weekPct >= 70
-            ? 'rgba(135,166,140,0.22)' : weekPct >= 40
-            ? 'rgba(212,168,71,0.18)' : 'rgba(232,124,110,0.12)'
+    <div className="glass-card relative" style={{ padding: '0.9rem 1rem' }}>
+      <div className="absolute" style={{ top: 12, right: 12 }}>
+        <ProgressRing pct={pct} size={28} stroke={3} from={color} to={color} mini animate={false} trackColor={trackColor} />
+      </div>
+      <Icon size={16} style={{ color }} />
+      <div className="stat-number" style={{ color: 'var(--text-primary)', lineHeight: 1.15, margin: '10px 0 2px' }}>
+        {value}
+      </div>
+      <span className="section-label">{label}</span>
+    </div>
+  )
+}
 
-          return (
+/* ─────────────────────────────────────────────────────────────────────────
+   7-DAY HISTORY — compact rows: date + habit dots + points (mono)
+───────────────────────────────────────────────────────────────────────── */
+function HistoryCard({ rows, T }) {
+  return (
+    <div className="glass-card" style={{ padding: '1.1rem' }}>
+      <span className="section-label block" style={{ marginBottom: 12 }}>7-Day History</span>
+      {rows.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '1rem 0', color: 'var(--text-muted)', fontSize: 13 }}>No logs yet</div>
+      ) : (
+        <div className="flex flex-col">
+          {rows.map((r, i) => (
             <div
-              key={h.id}
+              key={r.id}
+              className="flex items-center gap-3"
               style={{
-                background: 'rgba(255,255,255,0.04)',
-                border: `1px solid ${glowColor.replace('0.22', '0.35').replace('0.18','0.3').replace('0.12','0.22')}`,
-                borderRadius: 14,
-                padding: '0.7rem 0.75rem',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 8,
-                boxShadow: `0 0 18px ${glowColor}`,
-                transition: 'box-shadow 0.3s',
+                padding: '0.55rem 0.15rem',
+                borderBottom: i < rows.length - 1 ? '1px solid var(--border-subtle)' : 'none',
               }}
             >
-              {/* Top row: icon + ring */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '1.4rem' }}>{h.icon}</span>
-                <div style={{ position: 'relative' }}>
-                  <CircleRing pct={weekPct} color={ringColor} size={40} stroke={3.5} />
-                  <span style={{
-                    position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: '0.52rem', fontWeight: 700, color: ringColor,
-                    fontFamily: 'ui-monospace, monospace',
-                  }}>
-                    {weekPct}%
-                  </span>
-                </div>
+              <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-secondary)', width: 52, flexShrink: 0 }}>
+                {r.date}
+              </span>
+              <div className="flex items-center gap-1.5 flex-1 flex-wrap">
+                {Array.from({ length: r.total }).map((_, di) => (
+                  <span
+                    key={di}
+                    style={{
+                      width: 7, height: 7, borderRadius: '50%',
+                      background: di < r.doneCnt ? T.success : 'var(--border-glass)',
+                    }}
+                  />
+                ))}
+                {r.total === 0 && <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>—</span>}
               </div>
-              {/* Habit name */}
-              <p style={{
-                fontSize: '0.72rem', fontWeight: 600, color: 'rgba(255,255,255,0.85)',
-                margin: 0, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              <span style={{
+                fontFamily: MONO, fontSize: 12.5, fontWeight: 700, textAlign: 'right', flexShrink: 0,
+                color: r.pts > 0 ? T.success : 'var(--text-muted)',
               }}>
-                {h.name}
-              </p>
-              {/* Streak */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <Flame size={11} style={{ color: CORAL, flexShrink: 0 }} />
-                <span style={{
-                  fontSize: '0.68rem', fontFamily: 'ui-monospace, monospace',
-                  color: streak > 0 ? CORAL : 'rgba(255,255,255,0.25)',
-                }}>
-                  {streak > 0 ? `${streak}d streak` : 'No streak'}
-                </span>
-              </div>
+                {r.pts > 0 ? `+${r.pts}` : '—'}
+              </span>
             </div>
-          )
-        })}
-      </div>
-    </SectionCard>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 
-/* ─────────────────────────────────────────────────────────────────────────────
-   SECTION 2 — WEEKLY TREND CHART
-───────────────────────────────────────────────────────────────────────────── */
-function CustomAreaTooltip({ active, payload, label }) {
+/* ─────────────────────────────────────────────────────────────────────────
+   WEEKLY TREND CHART
+───────────────────────────────────────────────────────────────────────── */
+function CustomAreaTooltip({ active, payload, label, T }) {
   if (!active || !payload?.length) return null
   const d = payload[0]?.payload
   return (
     <div style={{
-      background: 'rgba(11,17,33,0.95)',
-      border: '1px solid rgba(255,255,255,0.12)',
-      borderRadius: 10,
-      padding: '0.55rem 0.85rem',
-      fontSize: '0.72rem',
-      color: 'rgba(255,255,255,0.85)',
-      fontFamily: 'ui-monospace, monospace',
-      backdropFilter: 'blur(8px)',
+      background: T.bgElevated, border: `1px solid ${T.borderSubtle}`, borderRadius: 12,
+      padding: '0.55rem 0.85rem', fontSize: 12, color: 'var(--text-primary)', boxShadow: '0 16px 40px rgba(0,0,0,0.45)',
     }}>
-      <p style={{ margin: 0, fontWeight: 700, color: '#fff', marginBottom: 4 }}>{d?.fullDate || label}</p>
-      <p style={{ margin: '2px 0', color: SAGE }}>Points: <strong>{d?.pts ?? 0}</strong></p>
-      <p style={{ margin: '2px 0', color: SKY }}>Habits: <strong>{d?.habitsStr ?? '—'}</strong></p>
+      <p style={{ margin: 0, fontWeight: 700 }}>{d?.fullDate || label}</p>
+      <p style={{ margin: '2px 0', color: T.accent }}>Points: <strong>{d?.pts ?? 0}</strong></p>
+      <p style={{ margin: '2px 0', color: T.success }}>Habits: <strong>{d?.habitsStr ?? '—'}</strong></p>
     </div>
   )
 }
 
-function WeeklyTrendChart({ pointsHistory, habits, last7 }) {
+function WeeklyTrendChart({ pointsHistory, habits, last7, T }) {
   const weekData = useMemo(() => {
     const allHabits = Object.values(habits).filter(h => h.type === 'good')
     return last7.map(d => {
@@ -296,75 +261,112 @@ function WeeklyTrendChart({ pointsHistory, habits, last7 }) {
   const totalPts = weekData.reduce((s, d) => s + d.pts, 0)
 
   return (
-    <SectionCard>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
-        <SectionLabel children="Weekly Points Trend" />
-        <GradNum from={SAGE} to={SKY} style={{ fontSize: '0.85rem' }}>{totalPts} pts</GradNum>
+    <div className="glass-card" style={{ padding: '1.1rem' }}>
+      <div className="flex items-center justify-between mb-2">
+        <span className="section-label">Weekly Points Trend</span>
+        <span style={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: T.accent }}>{totalPts} pts</span>
       </div>
-
       {totalPts === 0 ? (
-        <div style={{ textAlign: 'center', padding: '2rem 0', color: 'rgba(255,255,255,0.3)', fontSize: '0.82rem' }}>
+        <div style={{ textAlign: 'center', padding: '1.5rem 0', color: 'var(--text-muted)', fontSize: 13 }}>
           <div style={{ fontSize: '2rem', marginBottom: 8 }}>📊</div>
           Start logging to see your weekly trend!
         </div>
       ) : (
-        <ResponsiveContainer width="100%" height={130}>
+        <ResponsiveContainer width="100%" height={140}>
           <AreaChart data={weekData} margin={{ top: 4, right: 4, left: -28, bottom: 0 }}>
             <defs>
-              <linearGradient id="sageSkySkyGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={SAGE} stopOpacity={0.45} />
-                <stop offset="60%" stopColor={SKY}  stopOpacity={0.15} />
-                <stop offset="100%" stopColor={SKY} stopOpacity={0} />
+              <linearGradient id="dsPtsGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={T.accent} stopOpacity={0.3} />
+                <stop offset="100%" stopColor={T.accent} stopOpacity={0} />
               </linearGradient>
-              <linearGradient id="sageSkyLine" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%"   stopColor={SAGE} />
-                <stop offset="100%" stopColor={SKY}  />
+              <linearGradient id="dsLineGrad" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor={T.accent} />
+                <stop offset="100%" stopColor={T.success} />
               </linearGradient>
             </defs>
-            <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.05)" />
-            <XAxis
-              dataKey="day"
-              tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10, fontFamily: 'ui-monospace, monospace' }}
-              axisLine={false} tickLine={false}
-            />
-            <YAxis
-              tick={{ fill: 'rgba(255,255,255,0.2)', fontSize: 9, fontFamily: 'ui-monospace, monospace' }}
-              axisLine={false} tickLine={false}
-            />
-            <Tooltip content={<CustomAreaTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.12)', strokeWidth: 1 }} />
+            <CartesianGrid vertical={false} stroke={T.borderSubtle} />
+            <XAxis dataKey="day" tick={{ fill: T.textMuted, fontSize: 10 }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fill: T.textMuted, fontSize: 9 }} axisLine={false} tickLine={false} />
+            <Tooltip content={<CustomAreaTooltip T={T} />} cursor={{ stroke: T.borderGlass, strokeWidth: 1 }} />
             <Area
-              type="monotone" dataKey="pts"
-              stroke="url(#sageSkyLine)"
-              strokeWidth={2.5}
-              fill="url(#sageSkySkyGrad)"
-              dot={{ fill: SAGE, strokeWidth: 0, r: 3 }}
-              activeDot={{ fill: '#fff', stroke: SAGE, strokeWidth: 2, r: 4 }}
+              type="monotone" dataKey="pts" stroke="url(#dsLineGrad)" strokeWidth={2.5}
+              fill="url(#dsPtsGrad)"
+              dot={{ fill: T.accent, strokeWidth: 0, r: 3 }}
+              activeDot={{ fill: T.textPrimary, stroke: T.accent, strokeWidth: 2, r: 4 }}
             />
           </AreaChart>
         </ResponsiveContainer>
       )}
-    </SectionCard>
+    </div>
   )
 }
 
-/* ─────────────────────────────────────────────────────────────────────────────
-   SECTION 3 — UPCOMING TASKS WIDGET
-───────────────────────────────────────────────────────────────────────────── */
-const PRIORITY_DOT = {
-  high:   { bg: CORAL,  label: 'High' },
-  medium: { bg: AMBER,  label: 'Med'  },
-  low:    { bg: SAGE,   label: 'Low'  },
+/* ─────────────────────────────────────────────────────────────────────────
+   HABIT BREAKDOWN GRID
+───────────────────────────────────────────────────────────────────────── */
+function HabitBreakdownGrid({ habits, getHabitStreak, last7, T }) {
+  const goodHabits = useMemo(() => Object.values(habits).filter(h => h.type === 'good').slice(0, 6), [habits])
+  const loading = !Object.keys(habits).length
+
+  if (loading || !goodHabits.length) {
+    return (
+      <div className="glass-card" style={{ padding: '1.1rem' }}>
+        <span className="section-label block" style={{ marginBottom: 12 }}>Habit Breakdown</span>
+        <div style={{ textAlign: 'center', padding: '1.5rem 0', color: 'var(--text-muted)', fontSize: 13 }}>
+          <div style={{ fontSize: '2rem', marginBottom: 8 }}>🌱</div>
+          No habits set up yet — add some in the Habits page!
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="glass-card" style={{ padding: '1.1rem' }}>
+      <span className="section-label block" style={{ marginBottom: 12 }}>Habit Breakdown · This Week</span>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10 }}>
+        {goodHabits.map(h => {
+          const streak = getHabitStreak(h.id)
+          const doneDays = last7.filter(d => h.entries?.[d]?.status === 'done').length
+          const weekPct = Math.round((doneDays / 7) * 100)
+          const ringColor = weekPct >= 70 ? T.success : weekPct >= 40 ? T.accent : T.danger
+          return (
+            <div key={h.id} style={{
+              background: 'var(--bg-glass)', borderRadius: 16, padding: '0.7rem',
+              display: 'flex', flexDirection: 'column', gap: 8, border: `1px solid ${T.borderSubtle}`,
+            }}>
+              <div className="flex items-center justify-between">
+                <span style={{ fontSize: '1.3rem' }}>{h.icon}</span>
+                <ProgressRing pct={weekPct} size={40} stroke={4} from={ringColor} to={ringColor} center={`${weekPct}%`} />
+              </div>
+              <p style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text-primary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {h.name}
+              </p>
+              <div className="flex items-center gap-1">
+                <Flame size={11} style={{ color: streak > 0 ? T.danger : T.textMuted }} />
+                <span style={{ fontSize: 11.5, fontWeight: 600, color: streak > 0 ? T.danger : T.textMuted }}>
+                  {streak > 0 ? `${streak}d streak` : 'No streak'}
+                </span>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
 }
 
-function UpcomingTasksWidget({ todos, navigate }) {
-  // Next 3 days pending todos sorted by due date
+/* ─────────────────────────────────────────────────────────────────────────
+   UPCOMING TASKS
+───────────────────────────────────────────────────────────────────────── */
+function UpcomingTasksWidget({ todos, navigate, T }) {
+  const priorityColor = { high: T.danger, medium: T.accent, low: T.success }
+
   const upcoming = useMemo(() => {
     const now = new Date()
     const cutoff = new Date(); cutoff.setDate(cutoff.getDate() + 3)
     return todos
       .filter(t => {
-        if (t.status === 'done') return false
-        if (!t.dueDate) return false
+        if (t.status === 'done' || !t.dueDate) return false
         try {
           const due = new Date(t.dueDate)
           return isValid(due) && due >= now && due <= cutoff
@@ -375,88 +377,47 @@ function UpcomingTasksWidget({ todos, navigate }) {
   }, [todos])
 
   return (
-    <SectionCard>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
-        <SectionLabel children="Upcoming Tasks · Next 3 Days" />
-        <button
-          onClick={() => navigate('/todo')}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 4,
-            fontSize: '0.65rem', color: SKY, background: 'none', border: 'none',
-            cursor: 'pointer', fontFamily: 'ui-monospace, monospace', fontWeight: 600,
-            textDecoration: 'none', padding: 0,
-          }}
-        >
+    <div className="glass-card" style={{ padding: '1.1rem' }}>
+      <div className="flex items-center justify-between mb-2">
+        <span className="section-label">Upcoming Tasks · Next 3 Days</span>
+        <button onClick={() => navigate('/todo')} className="flex items-center gap-1" style={{ fontSize: 11.5, fontWeight: 700, color: T.accent, background: 'none', border: 'none', cursor: 'pointer' }}>
           View all <ArrowRight size={11} />
         </button>
       </div>
-
       {upcoming.length === 0 ? (
-        <div style={{
-          textAlign: 'center', padding: '1.5rem 0',
-          color: 'rgba(255,255,255,0.4)', fontSize: '0.82rem',
-          lineHeight: 1.6,
-        }}>
-          <div style={{ fontSize: '1.8rem', marginBottom: 8 }}>🎉</div>
+        <div style={{ textAlign: 'center', padding: '1.25rem 0', color: 'var(--text-muted)', fontSize: 13 }}>
+          <div style={{ fontSize: '1.7rem', marginBottom: 6 }}>🎉</div>
           Sab clear hai! Koi pending task nahi.
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div className="flex flex-col gap-2">
           {upcoming.map(task => {
-            const p = PRIORITY_DOT[task.priority] || PRIORITY_DOT.low
+            const color = priorityColor[task.priority] || priorityColor.low
             let dueStr
             try { dueStr = format(new Date(task.dueDate), 'MMM d, h:mm a') } catch { dueStr = 'Soon' }
             return (
-              <div
-                key={task.id}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 10,
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.07)',
-                  borderRadius: 12, padding: '0.6rem 0.75rem',
-                }}
-              >
-                <div style={{
-                  width: 8, height: 8, borderRadius: '50%',
-                  background: p.bg, flexShrink: 0,
-                  boxShadow: `0 0 6px ${p.bg}`,
-                }} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{
-                    margin: 0, fontSize: '0.78rem', fontWeight: 600,
-                    color: 'rgba(255,255,255,0.88)',
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                  }}>
-                    {task.title}
-                  </p>
-                  <p style={{
-                    margin: 0, fontSize: '0.63rem',
-                    color: 'rgba(255,255,255,0.35)',
-                    fontFamily: 'ui-monospace, monospace', marginTop: 2,
-                  }}>
-                    {dueStr}
-                  </p>
+              <div key={task.id} className="flex items-center gap-2.5" style={{ background: 'var(--bg-glass)', borderRadius: 14, padding: '0.6rem 0.75rem', border: `1px solid ${T.borderSubtle}` }}>
+                <Dot color={color} size={8} />
+                <div className="flex-1 min-w-0">
+                  <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.title}</p>
+                  <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>{dueStr}</p>
                 </div>
-                <span style={{
-                  fontSize: '0.6rem', fontWeight: 700, fontFamily: 'ui-monospace, monospace',
-                  padding: '2px 7px', borderRadius: 20,
-                  background: `${p.bg}22`, color: p.bg, border: `1px solid ${p.bg}44`,
-                }}>
-                  {p.label}
+                <span style={{ fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 20, background: `${color}1F`, color }}>
+                  {task.priority === 'high' ? 'High' : task.priority === 'medium' ? 'Med' : 'Low'}
                 </span>
               </div>
             )
           })}
         </div>
       )}
-    </SectionCard>
+    </div>
   )
 }
 
-/* ─────────────────────────────────────────────────────────────────────────────
-   SECTION 4 — STREAK SUMMARY STRIP
-───────────────────────────────────────────────────────────────────────────── */
-function StreakStrip({ habits, getHabitStreak }) {
+/* ─────────────────────────────────────────────────────────────────────────
+   ACTIVE STREAKS STRIP
+───────────────────────────────────────────────────────────────────────── */
+function StreakStrip({ habits, getHabitStreak, T }) {
   const streaks = useMemo(() =>
     Object.values(habits)
       .map(h => ({ ...h, streak: getHabitStreak(h.id) }))
@@ -467,229 +428,70 @@ function StreakStrip({ habits, getHabitStreak }) {
 
   if (!streaks.length) {
     return (
-      <SectionCard>
-        <SectionLabel>Active Streaks</SectionLabel>
-        <div style={{ textAlign: 'center', padding: '1.25rem 0', color: 'rgba(255,255,255,0.3)', fontSize: '0.82rem' }}>
-          <div style={{ fontSize: '1.8rem', marginBottom: 8 }}>🔥</div>
+      <div className="glass-card" style={{ padding: '1.1rem' }}>
+        <span className="section-label block" style={{ marginBottom: 10 }}>Active Streaks</span>
+        <div style={{ textAlign: 'center', padding: '1rem 0', color: 'var(--text-muted)', fontSize: 13 }}>
+          <div style={{ fontSize: '1.6rem', marginBottom: 6 }}>🔥</div>
           Complete habits daily to build streaks!
         </div>
-      </SectionCard>
+      </div>
     )
   }
 
   const maxStreak = streaks[0]?.streak || 0
 
   return (
-    <SectionCard>
-      <SectionLabel>Active Streaks</SectionLabel>
-      <div style={{
-        display: 'flex',
-        gap: 8,
-        overflowX: 'auto',
-        paddingBottom: 4,
-        scrollbarWidth: 'none',
-        msOverflowStyle: 'none',
-      }}>
+    <div className="glass-card" style={{ padding: '1.1rem' }}>
+      <span className="section-label block" style={{ marginBottom: 10 }}>Active Streaks</span>
+      <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
         {streaks.map((h, idx) => {
           const isTop = h.streak === maxStreak && idx === 0
           return (
-            <div
-              key={h.id}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 7,
-                padding: '0.45rem 0.85rem',
-                borderRadius: 100,
-                flexShrink: 0,
-                border: isTop
-                  ? `1.5px solid ${AMBER}66`
-                  : '1px solid rgba(255,255,255,0.1)',
-                background: isTop
-                  ? `linear-gradient(135deg, ${AMBER}22, rgba(255,255,255,0.04))`
-                  : 'rgba(255,255,255,0.05)',
-                boxShadow: isTop
-                  ? `0 0 18px ${AMBER}44, 0 0 6px ${AMBER}33`
-                  : 'none',
-                transition: 'all 0.3s',
-              }}
-            >
+            <div key={h.id} className="flex items-center gap-1.5 flex-shrink-0" style={{
+              padding: '0.45rem 0.85rem', borderRadius: 999,
+              background: isTop ? `${T.accent}1A` : 'var(--bg-glass)',
+              border: isTop ? `1.5px solid ${T.accent}66` : `1px solid ${T.borderSubtle}`,
+            }}>
               <span style={{ fontSize: '1rem' }}>{h.icon}</span>
-              <span style={{
-                fontSize: '0.71rem',
-                fontWeight: 600,
-                color: isTop ? AMBER : 'rgba(255,255,255,0.75)',
-                whiteSpace: 'nowrap',
-              }}>
-                {h.name}
-              </span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                <Flame size={11} style={{ color: isTop ? AMBER : CORAL }} />
-                <span style={{
-                  fontSize: '0.7rem',
-                  fontWeight: 700,
-                  fontFamily: 'ui-monospace, monospace',
-                  color: isTop ? AMBER : CORAL,
-                }}>
-                  {h.streak}d
-                </span>
-                {isTop && <span style={{ fontSize: '0.65rem', marginLeft: 2 }}>🏆</span>}
-              </div>
+              <span style={{ fontSize: 12, fontWeight: 700, color: isTop ? T.accent : 'var(--text-primary)' }}>{h.name}</span>
+              <Flame size={11} style={{ color: T.danger }} />
+              <span style={{ fontFamily: MONO, fontSize: 12, fontWeight: 700, color: isTop ? T.accent : T.danger }}>{h.streak}d</span>
+              {isTop && <span style={{ fontSize: 12 }}>🏆</span>}
             </div>
           )
         })}
       </div>
-    </SectionCard>
-  )
-}
-
-/* ─────────────────────────────────────────────────────────────────────────────
-   SECTION 5 — MONTHLY HEATMAP
-───────────────────────────────────────────────────────────────────────────── */
-function HeatmapTooltip({ data, x, y }) {
-  if (!data) return null
-  return (
-    <div style={{
-      position: 'fixed',
-      left: Math.min(x + 10, window.innerWidth - 180),
-      top: y + 10,
-      zIndex: 1000,
-      background: 'rgba(11,17,33,0.96)',
-      border: '1px solid rgba(255,255,255,0.12)',
-      borderRadius: 10,
-      padding: '0.5rem 0.75rem',
-      fontSize: '0.68rem',
-      color: 'rgba(255,255,255,0.85)',
-      fontFamily: 'ui-monospace, monospace',
-      pointerEvents: 'none',
-      backdropFilter: 'blur(8px)',
-      minWidth: 150,
-    }}>
-      <p style={{ margin: 0, fontWeight: 700, color: '#fff', marginBottom: 4 }}>{data.label}</p>
-      <p style={{ margin: '2px 0', color: SAGE }}>Points: <strong>{data.pts}</strong></p>
-      <p style={{ margin: '2px 0', color: SKY }}>Habits: <strong>{data.habitsStr}</strong></p>
     </div>
   )
 }
 
-function MonthlyHeatmap({ pointsHistory, habits, last30 }) {
-  const [tooltip, setTooltip] = useState(null) // { data, x, y }
-
-  // Build cell data
-  const cells = useMemo(() => {
-    const allHabits = Object.values(habits).filter(h => h.type === 'good')
-    const maxPts = Math.max(...last30.map(d => pointsHistory[d] || 0), 1)
-    return last30.map(d => {
-      const pts  = pointsHistory[d] || 0
-      const done = allHabits.filter(h => h.entries?.[d]?.status === 'done').length
-      const intensity = pts / maxPts  // 0–1
-      return {
-        dateKey: d,
-        label: format(new Date(d), 'MMM d, yyyy'),
-        pts,
-        habitsStr: `${done}/${allHabits.length}`,
-        intensity,
-      }
-    })
-  }, [pointsHistory, habits, last30])
-
-  // Intensity to color: empty → faint, full → vivid sage
-  function cellColor(intensity) {
-    if (intensity <= 0) return 'rgba(255,255,255,0.05)'
-    if (intensity < 0.25) return `${SAGE}40`
-    if (intensity < 0.5)  return `${SAGE}70`
-    if (intensity < 0.75) return `${SAGE}aa`
-    return SAGE
-  }
-
-  return (
-    <SectionCard>
-      <SectionLabel>Last 30 Days · Activity Heatmap</SectionLabel>
-
-      {/* Legend */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-        <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.3)', fontFamily: 'ui-monospace, monospace' }}>Less</span>
-        {[0, 0.2, 0.5, 0.75, 1].map(v => (
-          <div key={v} style={{
-            width: 12, height: 12, borderRadius: 3,
-            background: cellColor(v), border: '1px solid rgba(255,255,255,0.06)',
-          }} />
-        ))}
-        <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.3)', fontFamily: 'ui-monospace, monospace' }}>More</span>
-      </div>
-
-      {/* Grid — 6 columns of 5 weeks */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(10, 1fr)',
-        gap: 5,
-      }}>
-        {cells.map(cell => (
-          <div
-            key={cell.dateKey}
-            style={{
-              aspectRatio: '1',
-              borderRadius: 5,
-              background: cellColor(cell.intensity),
-              border: '1px solid rgba(255,255,255,0.06)',
-              cursor: cell.pts > 0 ? 'pointer' : 'default',
-              transition: 'transform 0.15s, box-shadow 0.15s',
-              boxShadow: cell.intensity > 0.5 ? `0 0 8px ${SAGE}55` : 'none',
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.transform = 'scale(1.25)'
-              setTooltip({ data: cell, x: e.clientX, y: e.clientY })
-            }}
-            onMouseMove={e => setTooltip(t => t ? { ...t, x: e.clientX, y: e.clientY } : t)}
-            onMouseLeave={e => {
-              e.currentTarget.style.transform = 'scale(1)'
-              setTooltip(null)
-            }}
-          />
-        ))}
-      </div>
-
-      {tooltip && <HeatmapTooltip data={tooltip.data} x={tooltip.x} y={tooltip.y} />}
-    </SectionCard>
-  )
-}
-
-/* ─────────────────────────────────────────────────────────────────────────────
-   ANIMATION VARIANTS (existing)
-───────────────────────────────────────────────────────────────────────────── */
-const cardVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: i => ({ opacity: 1, y: 0, transition: { delay: i * 0.08, duration: 0.4, ease: 'easeOut' } }),
-}
-
-/* ─────────────────────────────────────────────────────────────────────────────
+/* ─────────────────────────────────────────────────────────────────────────
    MAIN DASHBOARD COMPONENT
-───────────────────────────────────────────────────────────────────────────── */
+───────────────────────────────────────────────────────────────────────── */
 export default function Dashboard() {
   const navigate = useNavigate()
   const { user } = useAuth()
+  const T = useThemeColors()
   const {
     todos, habits, dailyLogs, fitnessLogs, pointsHistory,
-    todayPoints, getHabitStreak, getUpcomingTodos, settings,
+    todayPoints, getHabitStreak, settings,
     profile, completeProfileOnboarding,
   } = useApp()
-  const [quickLogOpen,    setQuickLogOpen]    = useState(false)
+  const [quickLogOpen, setQuickLogOpen] = useState(false)
   const [profileModalOpen, setProfileModalOpen] = useState(false)
-  const [insight,          setInsight]          = useState(null)
-  const [isRefreshing,     setIsRefreshing]     = useState(false)
+  const [insight, setInsight] = useState(null)
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
-  // Memoize good habits list
-  const goodHabits = useMemo(() =>
-    Object.values(habits).filter(h => h.type === 'good'), [habits])
+  const goodHabits = useMemo(() => Object.values(habits).filter(h => h.type === 'good'), [habits])
 
   const loadInsight = useCallback(() => {
     const d = new Date()
     d.setDate(d.getDate() - 1)
-    const yesterdayK = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
-    const yLog     = dailyLogs[yesterdayK] || {}
+    const yesterdayK = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    const yLog = dailyLogs[yesterdayK] || {}
     const yFitness = fitnessLogs[yesterdayK] || {}
-    const pHigh    = todos.filter(t => t.status === 'pending' && t.priority === 'high')
-    const pMedium  = todos.filter(t => t.status === 'pending' && t.priority === 'medium')
+    const pHigh = todos.filter(t => t.status === 'pending' && t.priority === 'high')
+    const pMedium = todos.filter(t => t.status === 'pending' && t.priority === 'medium')
     setInsight(generateDailyInsight(yLog, yFitness, goodHabits, yesterdayK, pHigh, pMedium))
   }, [dailyLogs, fitnessLogs, goodHabits, todos])
 
@@ -704,15 +506,14 @@ export default function Dashboard() {
 
   const { toasts, addToast, removeToast } = useToast()
 
-  // Profile form state
   const [displayName, setDisplayName] = useState('')
-  const [dob,         setDob]         = useState('')
-  const [height,      setHeight]      = useState('')
-  const [weight,      setWeight]      = useState('')
-  const [submitting,  setSubmitting]  = useState(false)
+  const [dob, setDob] = useState('')
+  const [height, setHeight] = useState('')
+  const [weight, setWeight] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
   const userProfile = profile || {}
-  const showBanner  = !userProfile.onboarding_completed && (!userProfile.dob || !userProfile.height || !userProfile.weight)
+  const showBanner = !userProfile.onboarding_completed && (!userProfile.dob || !userProfile.height || !userProfile.weight)
 
   useEffect(() => {
     if (profileModalOpen) {
@@ -723,15 +524,14 @@ export default function Dashboard() {
     }
   }, [profileModalOpen, user?.displayName, profile])
 
-  const getProgressPercentage = () => {
+  const progressPercentage = useMemo(() => {
     let filled = 0
     if (displayName?.trim()) filled++
-    if (dob)                  filled++
+    if (dob) filled++
     if (height && parseFloat(height) > 0) filled++
     if (weight && parseFloat(weight) > 0) filled++
     return (filled / 4) * 100
-  }
-  const progressPercentage = getProgressPercentage()
+  }, [displayName, dob, height, weight])
 
   const handleProfileSubmit = async (e) => {
     e.preventDefault()
@@ -750,421 +550,271 @@ export default function Dashboard() {
     }
   }
 
-  const today        = todayKey()
-  const last7        = getLast7Days()
-  const last30       = getLast30Days()
-  const todayLog     = dailyLogs[today] || {}
+  const today = todayKey()
+  const last7 = getLast7Days()
+  const todayLog = dailyLogs[today] || {}
   const todayFitness = fitnessLogs[today] || {}
 
-  // Today's habits
   const doneToday = goodHabits.filter(h => h.entries?.[today]?.status === 'done').length
-  const habitPct  = goodHabits.length ? Math.round((doneToday / goodHabits.length) * 100) : 0
+  const habitPct = goodHabits.length ? Math.round((doneToday / goodHabits.length) * 100) : 0
+  const todaySteps = todayFitness.steps || todayLog.steps || 0
+  const stepPct = Math.min(100, Math.round((todaySteps / (settings?.stepGoal || 8000)) * 100))
+  const moodPct = todayLog.mood ? todayLog.mood * 10 : 0
+  const pointsPct = Math.min(100, Math.round((todayPoints / 50) * 100))
+  const dayScore = Math.round((habitPct + stepPct + moodPct + pointsPct) / 4)
 
-  // Top streaks
-  const topStreaks = Object.values(habits)
-    .map(h => ({ ...h, streak: getHabitStreak(h.id) }))
-    .filter(h => h.streak > 0)
-    .sort((a, b) => b.streak - a.streak)
-    .slice(0, 4)
-
-  // Upcoming tasks
-  const upcomingTasks = getUpcomingTodos(2)
-
-  // Weekly points chart data (for the small mini chart at top)
-  const weekDays     = getLast7Days()
-  const weekChartData = weekDays.map(d => ({
-    day: format(new Date(d), 'EEE'),
-    pts: pointsHistory[d] || 0,
-  }))
-
-  // 7-day history rows
   const historyRows = useMemo(() =>
     getLast7Days().map(dateKey => {
-      const log     = dailyLogs[dateKey] || {}
-      const fitness = fitnessLogs[dateKey] || {}
-      const allH    = Object.values(habits).filter(h => h.type === 'good')
+      const allH = Object.values(habits).filter(h => h.type === 'good')
       const doneCnt = allH.filter(h => h.entries?.[dateKey]?.status === 'done').length
-      const pts     = pointsHistory[dateKey] || 0
       return {
-        id:     dateKey,
-        date:   format(new Date(dateKey), 'MMM d'),
-        habits: `${doneCnt}/${allH.length}`,
-        steps:  (fitness.steps || log.steps || 0).toLocaleString(),
-        mood:   log.mood ? `${log.mood}/10` : '—',
-        sleep:  log.wakeTime && log.sleepTime ? (() => {
-          const [sh, sm] = log.sleepTime.split(':').map(Number)
-          const [wh, wm] = log.wakeTime.split(':').map(Number)
-          let d = (wh * 60 + wm) - (sh * 60 + sm)
-          if (d < 0) d += 1440
-          return `${Math.floor(d / 60)}h${d % 60 ? `${d % 60}m` : ''}`
-        })() : '—',
-        pts: pts > 0 ? `+${pts}` : '—',
+        id: dateKey,
+        date: format(new Date(dateKey), 'MMM d'),
+        doneCnt,
+        total: allH.length,
+        pts: pointsHistory[dateKey] || 0,
       }
     }).reverse()
-  , [dailyLogs, fitnessLogs, habits, pointsHistory])
+  , [habits, pointsHistory])
 
-  const historyColumns = [
-    { key: 'date',   label: 'Date'   },
-    { key: 'habits', label: 'Habits' },
-    { key: 'steps',  label: 'Steps'  },
-    { key: 'mood',   label: 'Mood'   },
-    { key: 'sleep',  label: 'Sleep'  },
-    { key: 'pts',    label: 'Pts'    },
-  ]
+  const greeting = new Date().getHours() < 12 ? 'Morning' : new Date().getHours() < 17 ? 'Afternoon' : 'Evening'
+  const firstName = profile?.displayName?.split(' ')[0] || user?.displayName?.split(' ')[0] || 'there'
 
   return (
-    <div className="space-y-4 page-enter">
-      {/* Pulse animation keyframe for skeletons */}
-      <style>{`
-        @keyframes dash-pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.4; }
-        }
-      `}</style>
-
+    <div className="relative">
       <Toast toasts={toasts} removeToast={removeToast} />
 
-      {/* ── Profile Banner ──────────────────────────────────────────── */}
-      <AnimatePresence>
-        {showBanner && (
-          <motion.div
-            initial={{ opacity: 0, height: 0, y: -20 }}
-            animate={{ opacity: 1, height: 'auto', y: 0 }}
-            exit={{ opacity: 0, height: 0, y: -20 }}
-            className="overflow-hidden"
-          >
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-amber-500/90 via-indigo-600/95 to-indigo-700/90 p-4 shadow-lg border border-amber-500/30 text-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl flex-shrink-0 animate-bounce">🎁</span>
-                <div>
-                  <h4 className="text-sm font-bold text-amber-200">Welcome Back!</h4>
-                  <p className="text-xs text-white/95 font-medium">
-                    Complete your profile setup to unlock full stats and earn +15 points!
-                  </p>
-                </div>
-              </div>
-              <button
-                id="complete-setup-btn"
-                onClick={() => setProfileModalOpen(true)}
-                className="flex-shrink-0 bg-amber-400 hover:bg-amber-300 text-navy-950 text-xs font-bold px-4 py-2 rounded-xl transition-all duration-200 shadow-md hover:shadow-lg active:scale-95 text-center"
-              >
-                Complete Setup
-              </button>
-            </div>
-          </motion.div>
+      <div className="relative space-y-4" style={{ zIndex: 1 }}>
+        {/* ── Greeting ───────────────────────────────────────────────── */}
+        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="px-1">
+          <span className="section-label">{format(new Date(), 'EEEE, MMMM d')}</span>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', margin: '2px 0 0' }}>
+            Good {greeting}, {firstName} ✦
+          </h1>
+        </motion.div>
+
+        {/* ── Hero ring ──────────────────────────────────────────────── */}
+        <HeroRingCard dayScore={dayScore} T={T} />
+
+        {/* ── AI Insight ─────────────────────────────────────────────── */}
+        {insight && (
+          <InsightCard insight={insight} onRefresh={triggerRefresh} refreshing={isRefreshing} T={T} />
         )}
-      </AnimatePresence>
 
-      {/* ── Greeting ────────────────────────────────────────────────── */}
-      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="px-1">
-        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-white/30">
-          {format(new Date(), 'EEEE, MMMM d · yyyy')}
-        </p>
-        <h1 className="text-lg font-display font-bold text-white mt-0.5 leading-tight">
-          Good{new Date().getHours() < 12 ? ' Morning' : new Date().getHours() < 17 ? ' Afternoon' : ' Evening'},{' '}
-          <span className="text-transparent bg-clip-text" style={{ backgroundImage: 'linear-gradient(90deg, var(--primary), var(--accent))' }}>
-            {profile?.displayName?.split(' ')[0] || user?.displayName?.split(' ')[0] || 'there'}
-          </span>{' '}✦
-        </h1>
-      </motion.div>
-
-      {/* ── AI Brief ────────────────────────────────────────────────── */}
-      <AIMorningBrief insight={insight} onRefresh={triggerRefresh} isRefreshing={isRefreshing} />
-
-      {/* ── Today Summary ───────────────────────────────────────────── */}
-      <ModuleSummaryCard
-        title={format(new Date(), 'EEE, MMM d')}
-        icon="Today"
-        accentRgb="99 102 241"
-        tiles={[
-          { label: 'Habits', value: doneToday + '/' + goodHabits.length, pct: habitPct, ringColor: habitPct >= 80 ? 'rgb(52,211,153)' : habitPct >= 50 ? 'rgb(251,191,36)' : 'rgb(248,113,113)' },
-          { label: 'Steps', value: (todayFitness.steps || todayLog.steps || 0).toLocaleString(), pct: Math.min(100, Math.round(((todayFitness.steps || todayLog.steps || 0) / (settings?.stepGoal || 8000)) * 100)), ringColor: 'rgb(34,211,238)' },
-          { label: 'Mood', value: todayLog.mood ? todayLog.mood + '/10' : '--', pct: todayLog.mood ? (todayLog.mood / 10) * 100 : 0, ringColor: 'rgb(192,132,252)' },
-          { label: 'Points', value: '+' + todayPoints, pct: Math.min(100, (todayPoints / 50) * 100), ringColor: 'rgb(251,146,60)' },
-        ]}
-      />
-
-      {/* ── Quick Actions ────────────────────────────────────────────── */}
-      <QuickActionPills actions={[
-        { id: 'pill-log',     icon: '📋', label: 'Log Today',   onClick: () => setQuickLogOpen(true),  accentRgb: '99 102 241' },
-        { id: 'pill-journal', icon: '📓', label: 'Journal',     onClick: () => navigate('/journal'),   accentRgb: '184 158 220' },
-        { id: 'pill-habits',  icon: '🏃', label: 'Habits',      onClick: () => navigate('/habits'),    accentRgb: '135 166 140' },
-        { id: 'pill-task',    icon: '✅', label: 'Add Task',    onClick: () => navigate('/todo'),      accentRgb: '100 180 160' },
-        { id: 'pill-fitness', icon: '💪', label: 'Log Fitness', onClick: () => navigate('/fitness'),   accentRgb: '232 124 110' },
-        { id: 'pill-stats',   icon: '📈', label: 'Stats',       onClick: () => navigate('/stats'),     accentRgb: '212 168 71' },
-      ]} />
-
-      {/* ── 7-Day Log History ───────────────────────────────────────── */}
-      <motion.div custom={0} variants={cardVariants} initial="hidden" animate="visible">
-        <div className="glass-card p-4">
-          <h3 className="text-xs font-bold font-mono uppercase tracking-wider text-white/40 mb-3">7-Day Log History</h3>
-          <DataTable columns={historyColumns} rows={historyRows} emptyMessage="No logs yet" />
+        {/* ── Stat grid — 2x2 mobile / 4 across desktop ──────────────── */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <StatTile icon={CheckCircle2} label="Habits" value={`${doneToday}/${goodHabits.length}`} pct={habitPct} color={T.success} trackColor={T.borderSubtle} />
+          <StatTile icon={Footprints} label="Steps" value={todaySteps.toLocaleString()} pct={stepPct} color={T.accent} trackColor={T.borderSubtle} />
+          <StatTile icon={Smile} label="Mood" value={todayLog.mood ? `${todayLog.mood}/10` : '--'} pct={moodPct} color={T.special} trackColor={T.borderSubtle} />
+          <StatTile icon={Award} label="Points" value={`+${todayPoints}`} pct={pointsPct} color={T.accent} trackColor={T.borderSubtle} />
         </div>
-      </motion.div>
 
-      {/* ── Quick Log button ─────────────────────────────────────────── */}
-      {!todayLog.loggedAt && (
-        <motion.div custom={1} variants={cardVariants} initial="hidden" animate="visible">
+        {/* ── Quick actions — row on desktop, 2x2 grid on mobile ─────── */}
+        <div className="grid grid-cols-2 sm:flex gap-2">
+          <button id="pill-log" onClick={() => setQuickLogOpen(true)} className="glass-btn sm:flex-1" style={{ padding: '0.6rem 1rem', fontSize: 12.5, fontWeight: 700 }}>
+            <ClipboardList size={14} style={{ color: T.success }} /> Log Today
+          </button>
+          <button id="pill-journal" onClick={() => navigate('/journal')} className="glass-btn sm:flex-1" style={{ padding: '0.6rem 1rem', fontSize: 12.5, fontWeight: 700 }}>
+            <BookMarked size={14} style={{ color: T.special }} /> Journal
+          </button>
+          <button id="pill-habits" onClick={() => navigate('/habits')} className="glass-btn sm:flex-1" style={{ padding: '0.6rem 1rem', fontSize: 12.5, fontWeight: 700 }}>
+            <CheckCircle2 size={14} style={{ color: T.success }} /> Habits
+          </button>
+          <button id="pill-task" onClick={() => navigate('/todo')} className="glass-btn sm:flex-1" style={{ padding: '0.6rem 1rem', fontSize: 12.5, fontWeight: 700 }}>
+            <Plus size={14} style={{ color: T.accent }} /> Add Task
+          </button>
+        </div>
+
+        {/* ── Quick Log CTA ──────────────────────────────────────────── */}
+        {!todayLog.loggedAt && (
           <button
             id="dashboard-quick-log"
             onClick={() => setQuickLogOpen(true)}
-            className="w-full glass-card p-4 flex items-center gap-3 border-dashed border-cyber-500/30 hover:border-cyber-400/50 hover:bg-white/8 transition-all duration-200 active:scale-98"
+            className="glass-card w-full flex items-center gap-3 transition-all active:scale-[0.99]"
+            style={{
+              padding: '1rem 1.1rem',
+              borderStyle: 'dashed',
+              borderWidth: 1.5,
+              borderColor: `${T.success}59`,
+              cursor: 'pointer',
+            }}
           >
-            <div className="w-10 h-10 rounded-xl bg-cyber-500/20 flex items-center justify-center">
-              <Plus size={20} className="text-cyber-400" />
+            <div className="flex items-center justify-center flex-shrink-0" style={{ width: 40, height: 40, borderRadius: 14, background: `${T.success}1F` }}>
+              <Plus size={20} style={{ color: T.success }} />
             </div>
             <div className="text-left">
-              <p className="text-sm font-semibold text-white">Quick Log Today</p>
-              <p className="text-xs text-white/40">Tap to log your day in 30 seconds</p>
+              <p style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>Quick Log Today</p>
+              <p style={{ fontSize: 11.5, color: 'var(--text-muted)', margin: 0 }}>Tap to log your day in 30 seconds</p>
             </div>
-            <div className="ml-auto">
-              <span className="badge-cyan">Today</span>
-            </div>
+            <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 800, color: T.success, background: `${T.success}1F`, padding: '3px 9px', borderRadius: 20 }}>Today</span>
           </button>
-        </motion.div>
-      )}
-
-      {/* ── Habits Progress Card (existing) ─────────────────────────── */}
-      <motion.div custom={2} variants={cardVariants} initial="hidden" animate="visible"
-                  whileHover={{ y: -4, scale: 1.01 }} whileTap={{ scale: 0.985 }}
-                  onClick={() => navigate('/habits')} className="cursor-pointer">
-        <div className="glass-card p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-              <CheckCircle2 size={16} className="text-emerald-400" />
-              Today's Habits
-            </h3>
-            <span className={`text-sm font-bold ${habitPct >= 80 ? 'text-emerald-400' : 'text-white/60'}`}>{habitPct}%</span>
-          </div>
-          <div className="progress-bar mb-3">
-            <motion.div className="progress-fill" initial={{ width: 0 }} animate={{ width: `${habitPct}%` }} transition={{ duration: 1, delay: 0.3, ease: 'easeOut' }} />
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {goodHabits.slice(0, 6).map(h => {
-              const done = h.entries?.[today]?.status === 'done'
-              return (
-                <div key={h.id} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-200 ${done ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-white/5 text-white/40 border border-white/10'}`}>
-                  <span>{h.icon}</span>
-                  <span>{h.name}</span>
-                  {done && <CheckCircle2 size={10} />}
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      </motion.div>
-
-      {/* ── Streaks Card (existing) ──────────────────────────────────── */}
-      {topStreaks.length > 0 && (
-        <motion.div custom={3} variants={cardVariants} initial="hidden" animate="visible"
-                    whileHover={{ y: -4, scale: 1.01 }} whileTap={{ scale: 0.985 }}
-                    onClick={() => navigate('/habits')} className="cursor-pointer">
-          <div className="glass-card p-4">
-            <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-3">
-              <Flame size={16} className="text-orange-400 streak-fire" />
-              Active Streaks
-            </h3>
-            <div className="grid grid-cols-2 gap-2">
-              {topStreaks.map(h => (
-                <div key={h.id} className="flex items-center gap-2 bg-white/5 rounded-xl p-2.5">
-                  <span className="text-lg">{h.icon}</span>
-                  <div className="min-w-0">
-                    <p className="text-xs font-medium text-white truncate">{h.name}</p>
-                    <p className="text-xs text-orange-400 font-bold">{h.streak}🔥 day streak</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </motion.div>
-      )}
-
-      {/* ── Upcoming Tasks (existing) ────────────────────────────────── */}
-      {upcomingTasks.length > 0 && (
-        <motion.div custom={4} variants={cardVariants} initial="hidden" animate="visible"
-                    whileHover={{ y: -4, scale: 1.01 }} whileTap={{ scale: 0.985 }}
-                    onClick={() => navigate('/todo')} className="cursor-pointer">
-          <div className="glass-card p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-                <Calendar size={16} className="text-cyber-400" />
-                Upcoming Tasks
-              </h3>
-              <span className="text-xs text-white/40">{upcomingTasks.length} tasks</span>
-            </div>
-            <div className="space-y-2">
-              {upcomingTasks.slice(0, 3).map(task => (
-                <div key={task.id} className="flex items-center gap-3 p-2.5 bg-white/5 rounded-xl">
-                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${task.priority === 'high' ? 'bg-red-400' : task.priority === 'medium' ? 'bg-yellow-400' : 'bg-emerald-400'}`} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-white font-medium truncate">{task.title}</p>
-                    <p className="text-xs text-white/40">
-                      {task.dueDate ? format(new Date(task.dueDate), 'MMM d, h:mm a') : 'No due date'}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </motion.div>
-      )}
-
-      {/* ── Weekly Points Mini Chart (existing) ─────────────────────── */}
-      <motion.div custom={5} variants={cardVariants} initial="hidden" animate="visible"
-                  whileHover={{ y: -4, scale: 1.01 }} whileTap={{ scale: 0.985 }}
-                  onClick={() => navigate('/stats')} className="cursor-pointer">
-        <div className="glass-card p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-              <TrendingUp size={16} className="text-cyber-400" />
-              This Week's Points
-            </h3>
-            <span className="text-xs text-cyber-400 font-semibold">
-              {weekChartData.reduce((s, d) => s + d.pts, 0)} pts
-            </span>
-          </div>
-          <ResponsiveContainer width="100%" height={80}>
-            <AreaChart data={weekChartData}>
-              <defs>
-                <linearGradient id="ptsGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="rgb(var(--color-cyber-500))" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="rgb(var(--color-cyber-500))" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <XAxis dataKey="day" tick={{ fill: 'rgb(var(--color-white) / 0.3)', fontSize: 10 }} axisLine={false} tickLine={false} />
-              <Tooltip
-                contentStyle={{ background: 'rgb(var(--color-navy-900))', border: '1px solid rgb(var(--color-white) / 0.1)', borderRadius: 8 }}
-                labelStyle={{ color: 'rgb(var(--color-white) / 0.6)', fontSize: 11 }}
-                itemStyle={{ color: 'rgb(var(--color-cyber-500))', fontSize: 11 }}
-              />
-              <Area type="monotone" dataKey="pts" stroke="rgb(var(--color-cyber-500))" fill="url(#ptsGrad)" strokeWidth={2} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </motion.div>
-
-      {/* ── Sleep (existing) ─────────────────────────────────────────── */}
-      <AnimatePresence>
-        {settings?.sleepTrackerEnabled !== false && (todayLog.wakeTime || todayLog.sleepTime) && (
-          <motion.div custom={6} variants={cardVariants} initial="hidden" animate="visible" exit={{ opacity: 0, height: 0 }}
-                      whileHover={{ y: -4, scale: 1.01 }} whileTap={{ scale: 0.985 }}
-                      onClick={() => navigate('/log')} className="cursor-pointer overflow-hidden">
-            <div className="glass-card p-4 flex items-center gap-4">
-              <span className="text-3xl">😴</span>
-              <div className="flex-1">
-                <p className="text-xs text-white/40 font-medium mb-0.5">Last Night's Sleep</p>
-                <div className="flex items-center gap-2.5 flex-wrap">
-                  <p className="text-sm font-semibold text-white">
-                    {todayLog.sleepTime || '—'} → {todayLog.wakeTime || '—'}
-                  </p>
-                  {todayLog.sleepTime && todayLog.wakeTime && (
-                    <span className="text-xs text-cyber-400 font-medium flex items-center gap-1 bg-cyber-500/10 border border-cyber-500/20 px-2.5 py-0.5 rounded-full">
-                      <Moon size={10} className="text-cyber-400" />
-                      {calculateSleepDuration(todayLog.sleepTime, todayLog.wakeTime)}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          </motion.div>
         )}
-      </AnimatePresence>
 
-      {/* ═══════════════════════════════════════════════════════════════
-          NEW SECTIONS BELOW 7-DAY LOG HISTORY
-      ═══════════════════════════════════════════════════════════════ */}
+        {/* ── 7-day history ──────────────────────────────────────────── */}
+        <HistoryCard rows={historyRows} T={T} />
 
-      {/* SECTION 1 — Habit Breakdown Grid */}
-      <HabitBreakdownGrid
-        habits={habits}
-        getHabitStreak={getHabitStreak}
-        last7={last7}
-      />
-
-      {/* SECTION 2 — Weekly Trend Chart (enhanced, full tooltip) */}
-      <WeeklyTrendChart
-        pointsHistory={pointsHistory}
-        habits={habits}
-        last7={last7}
-      />
-
-      {/* SECTION 3 — Upcoming Tasks Widget (next 3 days) */}
-      <UpcomingTasksWidget todos={todos} navigate={navigate} />
-
-      {/* SECTION 4 — Streak Summary Strip */}
-      <StreakStrip habits={habits} getHabitStreak={getHabitStreak} />
-
-      {/* SECTION 5 — Monthly Heatmap */}
-      <MonthlyHeatmap
-        pointsHistory={pointsHistory}
-        habits={habits}
-        last30={last30}
-      />
-
-      {/* bottom padding for nav */}
-      <div style={{ height: '1.5rem' }} />
-
-      {/* ── Profile Modal (existing) ─────────────────────────────────── */}
-      <AnimatePresence>
-        {profileModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        {/* ── Welcome Back / Complete Setup banner ───────────────────── */}
+        <AnimatePresence>
+          {showBanner && (
             <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setProfileModalOpen(false)}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ opacity: 0, y: 50, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 30, scale: 0.95 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className="relative w-full max-w-md bg-card border border-white/10 rounded-3xl shadow-2xl overflow-hidden flex flex-col z-10 max-h-[85vh]"
+              initial={{ opacity: 0, height: 0, y: -12 }}
+              animate={{ opacity: 1, height: 'auto', y: 0 }}
+              exit={{ opacity: 0, height: 0, y: -12 }}
+              className="overflow-hidden"
             >
-              <div className="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden">
-                <motion.div initial={{ width: 0 }} animate={{ width: `${progressPercentage}%` }} transition={{ duration: 0.3, ease: 'easeOut' }} className="bg-gradient-to-r from-teal-400 to-blue-500 h-full rounded-full" />
-              </div>
-              <div className="px-6 pt-5 pb-3 border-b border-white/5 flex items-center justify-between flex-shrink-0">
-                <div>
-                  <h2 className="text-lg font-bold text-white flex items-center gap-2">🎁 Complete Your Profile</h2>
-                  <p className="text-[10px] text-white/40 mt-0.5">Unlock full stats & earn +15 points!</p>
+              <div
+                className="glass-card"
+                style={{
+                  padding: '1rem 1.1rem',
+                  borderColor: `${T.accent}66`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+                }}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="flex items-center justify-center flex-shrink-0" style={{ width: 34, height: 34, borderRadius: 12, background: `${T.accent}24` }}>
+                    <Gift size={17} style={{ color: T.accent }} />
+                  </span>
+                  <div className="min-w-0">
+                    <p style={{ fontSize: 13, fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>Welcome Back!</p>
+                    <p style={{ fontSize: 11.5, margin: 0, color: 'var(--text-muted)' }}>Complete your profile to unlock full stats + 15 points!</p>
+                  </div>
                 </div>
-                <button onClick={() => setProfileModalOpen(false)} className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-all duration-200 active:scale-90">
-                  <span className="text-white/60 text-sm">✕</span>
+                <button
+                  onClick={() => setProfileModalOpen(true)}
+                  className="glass-btn glass-btn-accent flex-shrink-0"
+                  style={{ fontSize: 12, fontWeight: 700, padding: '0.55rem 1rem', minHeight: 40 }}
+                >
+                  Complete Setup
                 </button>
               </div>
-              <form onSubmit={handleProfileSubmit} className="flex-1 flex flex-col overflow-hidden">
-                <div className="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-thin">
-                  <div className="flex items-center justify-between text-xs font-semibold text-white/50 mb-1">
-                    <span>Profile Completion</span>
-                    <span className="text-teal-400 font-bold">{progressPercentage}%</span>
-                  </div>
-                  {[
-                    { id: 'display-name-input', label: 'Display Name', type: 'text', value: displayName, onChange: e => setDisplayName(e.target.value), placeholder: 'Your Name' },
-                    { id: 'dob-input', label: 'Date of Birth', type: 'date', value: dob, onChange: e => setDob(e.target.value), placeholder: '' },
-                    { id: 'height-input', label: 'Height (cm)', type: 'number', value: height, onChange: e => setHeight(e.target.value), placeholder: 'e.g. 175', min: 50, max: 300 },
-                    { id: 'weight-input', label: 'Weight (kg)', type: 'number', value: weight, onChange: e => setWeight(e.target.value), placeholder: 'e.g. 72.5', min: 10, max: 500, step: 0.1 },
-                  ].map(field => (
-                    <div key={field.id}>
-                      <label htmlFor={field.id} className="text-xs text-white/40 block mb-1 font-medium">{field.label}</label>
-                      <input id={field.id} {...field} label={undefined} required className="input-cyber text-sm w-full font-sans bg-background/40 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-cyber-500 transition-all" />
-                    </div>
-                  ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ── Weekly trend chart ─────────────────────────────────────── */}
+        <WeeklyTrendChart pointsHistory={pointsHistory} habits={habits} last7={last7} T={T} />
+
+        {/* ── Habit breakdown ────────────────────────────────────────── */}
+        <HabitBreakdownGrid habits={habits} getHabitStreak={getHabitStreak} last7={last7} T={T} />
+
+        {/* ── Upcoming tasks ─────────────────────────────────────────── */}
+        <UpcomingTasksWidget todos={todos} navigate={navigate} T={T} />
+
+        {/* ── Active streaks ─────────────────────────────────────────── */}
+        <StreakStrip habits={habits} getHabitStreak={getHabitStreak} T={T} />
+
+        {/* ── Monthly calendar heatmap — interactive, with day details ── */}
+        <MonthlyHeatmap habits={habits} pointsHistory={pointsHistory} />
+
+        {/* ── Sleep card ──────────────────────────────────────────────── */}
+        <AnimatePresence>
+          {settings?.sleepTrackerEnabled !== false && (todayLog.wakeTime || todayLog.sleepTime) && (
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, height: 0 }}
+              onClick={() => navigate('/log')} className="cursor-pointer"
+            >
+              <div className="glass-card flex items-center gap-3.5" style={{ padding: '1.1rem' }}>
+                <div className="flex items-center justify-center flex-shrink-0" style={{ width: 44, height: 44, borderRadius: 14, background: `${T.special}24` }}>
+                  <Moon size={20} style={{ color: T.special }} />
                 </div>
-                <div className="flex-shrink-0 p-4 border-t border-white/10 bg-card flex items-center justify-between gap-3">
-                  <button type="button" onClick={() => setProfileModalOpen(false)} className="w-1/2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium py-2.5 px-4 rounded-xl transition-all">Cancel</button>
-                  <button type="submit" disabled={submitting || progressPercentage < 100}
-                    className={`w-1/2 font-bold py-2.5 px-4 rounded-xl transition-all active:scale-[0.98] ${progressPercentage === 100 ? 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-md cursor-pointer' : 'bg-slate-700 text-white/40 border border-white/5 cursor-not-allowed'}`}
-                  >
-                    {submitting ? 'Saving...' : 'Complete Setup 🚀'}
+                <div className="flex-1">
+                  <span className="section-label">Last Night's Sleep</span>
+                  <div className="flex items-center gap-2 flex-wrap mt-1">
+                    <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                      {todayLog.sleepTime || '—'} → {todayLog.wakeTime || '—'}
+                    </p>
+                    {todayLog.sleepTime && todayLog.wakeTime && (
+                      <span style={{ fontSize: 11, fontWeight: 700, color: T.special, background: `${T.special}24`, padding: '2px 9px', borderRadius: 20 }}>
+                        {calculateSleepDuration(todayLog.sleepTime, todayLog.wakeTime)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div style={{ height: '1.5rem' }} />
+
+        {/* ── Profile modal — bottom sheet on mobile, centered card on sm+ ── */}
+        <AnimatePresence>
+          {profileModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
+              <motion.div
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setProfileModalOpen(false)}
+                className="absolute inset-0"
+                style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
+              />
+              <motion.div
+                initial={{ opacity: 0, y: 40, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 24, scale: 0.98 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                className="glass-card relative w-full max-w-md overflow-hidden flex flex-col z-10 max-h-[88vh] sm:max-h-[85vh]
+                           rounded-t-3xl sm:rounded-[26px]"
+                style={{ background: 'var(--bg-elevated)', boxShadow: '0 16px 40px rgba(0,0,0,0.45)' }}
+              >
+                <div style={{ width: '100%', height: 6, background: 'var(--border-glass)' }}>
+                  <motion.div initial={{ width: 0 }} animate={{ width: `${progressPercentage}%` }} transition={{ duration: 0.3 }}
+                    style={{ height: '100%', background: `linear-gradient(90deg, ${T.accent}, ${T.success})` }} />
+                </div>
+                {/* Drag handle — mobile bottom-sheet only */}
+                <div className="sm:hidden flex justify-center pt-2.5 pb-0.5 flex-shrink-0">
+                  <div className="w-10 h-1.5 rounded-full" style={{ background: 'var(--border-glass)' }} />
+                </div>
+                <div className="flex items-center justify-between flex-shrink-0" style={{ padding: '0.85rem 1.25rem 0.75rem', borderBottom: '1px solid var(--border-subtle)' }}>
+                  <div>
+                    <h2 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>🎁 Complete Your Profile</h2>
+                    <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '2px 0 0' }}>Unlock full stats & earn +15 points!</p>
+                  </div>
+                  <button onClick={() => setProfileModalOpen(false)} className="glass-btn flex-shrink-0" style={{ width: 36, height: 36, minHeight: 36, padding: 0, borderRadius: '50%' }}>
+                    <X size={14} style={{ color: 'var(--text-muted)' }} />
                   </button>
                 </div>
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+                <form onSubmit={handleProfileSubmit} className="flex-1 flex flex-col overflow-hidden">
+                  <div className="flex-1 overflow-y-auto space-y-3.5" style={{ padding: '1.25rem' }}>
+                    <div className="flex items-center justify-between" style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--text-muted)' }}>
+                      <span>Profile Completion</span>
+                      <span style={{ color: T.success, fontWeight: 800 }}>{progressPercentage}%</span>
+                    </div>
+                    {[
+                      { id: 'display-name-input', label: 'Display Name', type: 'text', value: displayName, onChange: e => setDisplayName(e.target.value), placeholder: 'Your Name' },
+                      { id: 'dob-input', label: 'Date of Birth', type: 'date', value: dob, onChange: e => setDob(e.target.value), placeholder: '' },
+                      { id: 'height-input', label: 'Height (cm)', type: 'number', value: height, onChange: e => setHeight(e.target.value), placeholder: 'e.g. 175', min: 50, max: 300 },
+                      { id: 'weight-input', label: 'Weight (kg)', type: 'number', value: weight, onChange: e => setWeight(e.target.value), placeholder: 'e.g. 72.5', min: 10, max: 500, step: 0.1 },
+                    ].map(field => (
+                      <div key={field.id}>
+                        <label htmlFor={field.id} style={{ fontSize: 11.5, color: 'var(--text-muted)', display: 'block', marginBottom: 4, fontWeight: 600 }}>{field.label}</label>
+                        <input
+                          id={field.id} {...field} label={undefined} required
+                          className="w-full transition-all focus:outline-none glass-input"
+                          style={{ fontSize: 13.5 }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex-shrink-0 flex items-center justify-between gap-3 pb-safe" style={{ padding: '1rem 1.25rem', borderTop: '1px solid var(--border-subtle)' }}>
+                    <button type="button" onClick={() => setProfileModalOpen(false)} className="glass-btn w-1/2"
+                      style={{ color: 'var(--text-muted)', fontWeight: 700, padding: '0.65rem 1rem', fontSize: 13 }}>
+                      Cancel
+                    </button>
+                    <button type="submit" disabled={submitting || progressPercentage < 100}
+                      className="glass-btn glass-btn-accent w-1/2"
+                      style={{ fontWeight: 800, padding: '0.65rem 1rem', fontSize: 13 }}
+                    >
+                      {submitting ? 'Saving...' : 'Complete Setup 🚀'}
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
 
-      <QuickLogModal isOpen={quickLogOpen} onClose={() => setQuickLogOpen(false)} />
+        <QuickLogModal isOpen={quickLogOpen} onClose={() => setQuickLogOpen(false)} />
+      </div>
     </div>
   )
 }

@@ -1,0 +1,354 @@
+/*
+ * theme.css — the design system single source of truth.
+ * Imported globally via index.css (before @tailwind base). .glass-btn /
+ * .glass-card / .glass-input here are the only definitions of those classes
+ * in the app (old duplicates removed from src/theme.css and index.css).
+ *
+ * MULTI-THEME TOKENS
+ * Every token below is redefined per [data-theme="..."] block — there is
+ * no bare :root fallback for the palette (only the font-family constant
+ * lives at :root). This is deliberate: a :root default plus per-theme
+ * overrides is exactly the pattern that caused the old bug where some
+ * components picked up the :root value and others picked up the theme
+ * value depending on CSS source order. One block per theme, one value per
+ * token, no ambiguity.
+ *
+ * --accent used to collide with a legacy per-theme --accent defined in
+ * index.css (emerald/pink/gold depending on theme) — that legacy variable
+ * has been removed from index.css; this file is now the only place --accent
+ * is set, for every theme. Components should always reference var(--accent)
+ * (or the useThemeColors() hook in JS) rather than a literal hex, so theme
+ * switches propagate everywhere without a rebuild.
+ *
+ * JS-side (recharts, SVG gradients, inline styles): use the useThemeColors()
+ * hook (src/hooks/useThemeColors.js) instead of hardcoded hex — it reads
+ * these exact custom properties live off the DOM and re-reads on theme
+ * change, so a chart's stroke/fill always matches the active theme.
+ *
+ * --warning is the 4th semantic accent (amber/caution — "skipped", not yet
+ * "danger") alongside --success/--danger/--special; added because several
+ * components had their own hardcoded amber literal for this exact state.
+ *
+ * --accent-rgb/--success-rgb/--danger-rgb are "R G B" triplet copies of the
+ * same three hex tokens, added so tailwind.config.js can remap the stock
+ * Tailwind `cyan`/`lime`/`red`/`emerald` color scales to
+ * rgb(var(--x-rgb) / <alpha-value>) — that's what makes Tailwind's opacity
+ * modifiers (bg-cyan-400/10 etc.) still work. Those Tailwind names were
+ * used all over the app as a stand-in for accent/success/danger (their
+ * default hex happens to equal this theme's values by coincidence), which
+ * is exactly why those elements stayed frozen on the old theme after a
+ * switch — the classes were never actually reading a theme token before.
+ */
+
+/* JetBrains Mono — used by .stat-number and mono numerals, theme-independent */
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700&display=swap');
+
+/* ── DARK (default) — cyan hero accent, lime success ────────────────────── */
+:root,
+[data-theme="dark"] {
+  --bg-base: #0B0E14;
+  --bg-elevated: #151A23;
+  --bg-glass: rgba(255, 255, 255, 0.06);
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-glass: rgba(255, 255, 255, 0.14);
+
+  --accent: #22D3EE;
+  --accent-rgb: 34, 211, 238;
+  --accent-glow: rgba(34, 211, 238, 0.25);
+  --success: #A3E635;
+  --success-rgb: 163, 230, 53;
+  --danger: #F87171;
+  --danger-rgb: 248, 113, 113;
+  --special: #A78BFA;
+  --special-rgb: 167, 139, 250;
+  --warning: #FBBF24;
+  --warning-rgb: 251, 191, 36;
+
+  --text-primary: #F1F5F9;
+  --text-secondary: #94A3B8;
+  --text-muted: #64748B;
+
+  --chart-line: var(--accent);
+  --chart-fill-from: rgba(34, 211, 238, 0.30);
+  --chart-fill-to: rgba(34, 211, 238, 0);
+
+  --heat-0: rgba(255, 255, 255, 0.04);
+  --heat-1: rgba(163, 230, 53, 0.20);
+  --heat-2: rgba(163, 230, 53, 0.35);
+  --heat-3: rgba(163, 230, 53, 0.55);
+  --heat-4: rgba(163, 230, 53, 0.80);
+}
+
+/* ── LIGHT — soft white bases, darker hues for contrast on white ────────── */
+[data-theme="light"],
+[data-theme="frost"] {
+  --bg-base: #F8FAFC;
+  --bg-elevated: #FFFFFF;
+  --bg-glass: rgba(15, 23, 42, 0.04);
+  --border-subtle: rgba(15, 23, 42, 0.08);
+  --border-glass: rgba(15, 23, 42, 0.16);
+
+  --accent: #0284C7;
+  --accent-rgb: 2, 132, 199;
+  --accent-glow: rgba(2, 132, 199, 0.18);
+  --success: #65A30D;
+  --success-rgb: 101, 163, 13;
+  --danger: #DC2626;
+  --danger-rgb: 220, 38, 38;
+  --special: #7C3AED;
+  --special-rgb: 124, 58, 237;
+  --warning: #D97706;
+  --warning-rgb: 217, 119, 6;
+
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #94A3B8;
+
+  --chart-line: var(--accent);
+  --chart-fill-from: rgba(2, 132, 199, 0.22);
+  --chart-fill-to: rgba(2, 132, 199, 0);
+
+  --heat-0: rgba(15, 23, 42, 0.04);
+  --heat-1: rgba(101, 163, 13, 0.18);
+  --heat-2: rgba(101, 163, 13, 0.32);
+  --heat-3: rgba(101, 163, 13, 0.50);
+  --heat-4: rgba(101, 163, 13, 0.75);
+}
+
+/* ── SYNTHWAVE — deep purple bases, hot pink/magenta accent ─────────────── */
+[data-theme="synthwave"],
+[data-theme="cyberpunk"] {
+  --bg-base: #1E0B36;
+  --bg-elevated: #2D0F54;
+  --bg-glass: rgba(255, 255, 255, 0.06);
+  --border-subtle: rgba(255, 255, 255, 0.10);
+  --border-glass: rgba(236, 72, 153, 0.28);
+
+  --accent: #EC4899;
+  --accent-rgb: 236, 72, 153;
+  --accent-glow: rgba(236, 72, 153, 0.32);
+  --success: #A3E635;
+  --success-rgb: 163, 230, 53;
+  --danger: #FF6B81;
+  --danger-rgb: 255, 107, 129;
+  --special: #38BDF8;
+  --special-rgb: 56, 189, 248;
+  --warning: #FDE047;
+  --warning-rgb: 253, 224, 71;
+
+  --text-primary: #FFFFFF;
+  --text-secondary: rgba(255, 255, 255, 0.65);
+  --text-muted: rgba(255, 255, 255, 0.40);
+
+  --chart-line: var(--accent);
+  --chart-fill-from: rgba(236, 72, 153, 0.30);
+  --chart-fill-to: rgba(236, 72, 153, 0);
+
+  --heat-0: rgba(255, 255, 255, 0.05);
+  --heat-1: rgba(163, 230, 53, 0.20);
+  --heat-2: rgba(163, 230, 53, 0.38);
+  --heat-3: rgba(163, 230, 53, 0.58);
+  --heat-4: rgba(163, 230, 53, 0.85);
+}
+
+/* ── MIDNIGHT GOLD — warm near-black bases, rich gold accent ────────────── */
+[data-theme="midnight"] {
+  --bg-base: #16110B;
+  --bg-elevated: #201811;
+  --bg-glass: rgba(255, 220, 150, 0.05);
+  --border-subtle: rgba(255, 210, 140, 0.08);
+  --border-glass: rgba(240, 180, 41, 0.24);
+
+  --accent: #F0B429;
+  --accent-rgb: 240, 180, 41;
+  --accent-glow: rgba(240, 180, 41, 0.28);
+  --success: #A3E635;
+  --success-rgb: 163, 230, 53;
+  --danger: #F87171;
+  --danger-rgb: 248, 113, 113;
+  --special: #34D399;
+  --special-rgb: 52, 211, 153;
+  --warning: #F97316;
+  --warning-rgb: 249, 115, 22;
+
+  --text-primary: #FBF3E7;
+  --text-secondary: rgba(251, 243, 231, 0.65);
+  --text-muted: rgba(251, 243, 231, 0.40);
+
+  --chart-line: var(--accent);
+  --chart-fill-from: rgba(240, 180, 41, 0.28);
+  --chart-fill-to: rgba(240, 180, 41, 0);
+
+  --heat-0: rgba(255, 220, 150, 0.05);
+  --heat-1: rgba(163, 230, 53, 0.20);
+  --heat-2: rgba(163, 230, 53, 0.35);
+  --heat-3: rgba(163, 230, 53, 0.55);
+  --heat-4: rgba(163, 230, 53, 0.80);
+}
+
+/* ── MATRIX — near-black green-tinted bases, terminal-green accent ──────── */
+[data-theme="matrix"] {
+  --bg-base: #050805;
+  --bg-elevated: #0D140D;
+  --bg-glass: rgba(74, 222, 128, 0.05);
+  --border-subtle: rgba(74, 222, 128, 0.10);
+  --border-glass: rgba(74, 222, 128, 0.24);
+
+  --accent: #22C55E;
+  --accent-rgb: 34, 197, 94;
+  --accent-glow: rgba(34, 197, 94, 0.30);
+  --success: #84CC16;
+  --success-rgb: 132, 204, 22;
+  --danger: #F87171;
+  --danger-rgb: 248, 113, 113;
+  --special: #22D3EE;
+  --special-rgb: 34, 211, 238;
+  --warning: #EAB308;
+  --warning-rgb: 234, 179, 8;
+
+  --text-primary: #E7FFE9;
+  --text-secondary: rgba(180, 255, 190, 0.65);
+  --text-muted: rgba(150, 255, 160, 0.42);
+
+  --chart-line: var(--accent);
+  --chart-fill-from: rgba(34, 197, 94, 0.30);
+  --chart-fill-to: rgba(34, 197, 94, 0);
+
+  --heat-0: rgba(74, 222, 128, 0.05);
+  --heat-1: rgba(132, 204, 22, 0.22);
+  --heat-2: rgba(132, 204, 22, 0.38);
+  --heat-3: rgba(132, 204, 22, 0.58);
+  --heat-4: rgba(132, 204, 22, 0.85);
+}
+
+/* ── Background blobs ─────────────────────────────────────────────────────
+   Two fixed, heavily-blurred radial gradients pinned behind all content.
+   Colors come from --accent / --special, so every theme gets its own
+   blob tint automatically. */
+.theme-bg-blobs {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.theme-bg-blobs::before,
+.theme-bg-blobs::after {
+  content: '';
+  position: absolute;
+  width: 60vw;
+  height: 60vw;
+  border-radius: 50%;
+  filter: blur(120px);
+}
+
+.theme-bg-blobs::before {
+  top: -10%;
+  right: -10%;
+  background: var(--accent);
+  opacity: 0.07;
+}
+
+.theme-bg-blobs::after {
+  bottom: -10%;
+  left: -10%;
+  background: var(--special);
+  opacity: 0.06;
+}
+
+/* ── Glass button ─────────────────────────────────────────────────────── */
+.glass-btn {
+  /* display/align/gap/min-height kept from the prior system: several
+     buttons (e.g. InfoCard's CTA) rely on this being a flex container
+     for `justify-between` to work — dropping it breaks their layout. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  background: var(--bg-glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-glass);
+  border-radius: 14px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.glass-btn:hover {
+  background: var(--border-glass);
+  transform: translateY(-1px);
+}
+
+.glass-btn:active {
+  transform: scale(0.98);
+}
+
+.glass-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.glass-btn-accent {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border: 1px solid var(--accent);
+  box-shadow: 0 0 16px var(--accent-glow);
+}
+
+.glass-btn-accent:hover {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+/* ── Glass input — textareas & text fields ────────────────────────────── */
+.glass-input {
+  width: 100%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 0.6rem 0.75rem;
+  font-size: 13px;
+  color: var(--text-primary);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.glass-input::placeholder {
+  color: var(--text-muted);
+}
+
+.glass-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+/* ── Glass card ───────────────────────────────────────────────────────── */
+.glass-card {
+  background: var(--bg-glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-subtle);
+  border-radius: 20px;
+}
+
+/* ── Typography utilities ─────────────────────────────────────────────── */
+.stat-number {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-weight: 700;
+  font-size: 36px;
+}
+
+@media (max-width: 640px) {
+  .stat-number {
+    font-size: 30px;
+  }
+}
+
+.section-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+}

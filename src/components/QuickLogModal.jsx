@@ -114,7 +114,7 @@ export default function QuickLogModal({ isOpen, onClose }) {
       <button
         id="quicklog-save-button"
         onClick={handleSave}
-        className="w-1/2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold py-2.5 px-4 rounded-xl transition-all active:scale-[0.98] text-center flex items-center justify-center gap-2"
+        className="w-1/2 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl transition-all active:scale-[0.98] text-center flex items-center justify-center gap-2"
       >
         Log Today's Vibe ⚡
       </button>

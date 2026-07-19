@@ -12,14 +12,23 @@ import {
 } from 'lucide-react'
 import Toast, { useToast } from '../components/ui/Toast'
 
+/* ── Design-system palette (mirrors src/styles/theme.css) — CSS-var strings,
+   not hex, so they re-resolve live on theme switch with zero JS involved ── */
+const CYAN = 'var(--accent)'
+const LIME = 'var(--success)'
+const VIOLET = 'var(--special)'
+const CORAL = 'var(--danger)'
+
 // ─── Section wrapper ───────────────────────────────────────────────────────────
-const Section = ({ icon: Icon, color, title, children, badge }) => (
+const Section = ({ icon: Icon, accent, title, children, badge }) => (
   <div className="glass-card p-4">
-    <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-4">
-      <Icon size={16} className={color} />
-      <span className="flex-1">{title}</span>
+    <div className="flex items-center gap-2 mb-4">
+      <div style={{ padding: 6, borderRadius: 8, background: `color-mix(in srgb, ${accent} 10%, transparent)`, display: 'flex' }}>
+        <Icon size={14} style={{ color: accent }} />
+      </div>
+      <span className="section-label flex-1">{title}</span>
       {badge}
-    </h3>
+    </div>
     {children}
   </div>
 )
@@ -53,11 +62,11 @@ function HabitPill({ habit, today, onToggle }) {
         flex items-center gap-2 px-3 py-2.5 rounded-xl border text-left
         transition-all duration-200 w-full
         ${isSuccess
-          ? 'border-emerald-500/50 bg-emerald-500/12 shadow-[0_0_12px_rgba(16,185,129,0.08)]'
+          ? 'border-lime-400/50 bg-lime-400/10 shadow-[0_0_12px_rgb(var(--success-rgb)/0.10)]'
           : isFailed
-            ? 'border-red-500/30 bg-red-500/8'
+            ? 'border-red-400/30 bg-red-400/10'
             : isSkipped
-              ? 'border-yellow-500/30 bg-yellow-500/8'
+              ? 'border-amber-400/30 bg-amber-400/10'
               : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/8'
         }
       `}
@@ -66,14 +75,14 @@ function HabitPill({ habit, today, onToggle }) {
       <span className={`
         flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-base
         transition-colors
-        ${isSuccess ? 'bg-emerald-500/25' : 'bg-white/8'}
+        ${isSuccess ? 'bg-lime-400/20' : 'bg-white/8'}
       `}>
         {habit.icon}
       </span>
 
       {/* Name + category */}
       <div className="flex-1 min-w-0">
-        <p className={`text-xs font-semibold truncate ${isSuccess ? 'text-emerald-300' : 'text-white/80'}`}>
+        <p className={`text-xs font-semibold truncate ${isSuccess ? 'text-lime-300' : 'text-white/80'}`}>
           {habit.name}
         </p>
         <p className="text-[10px] text-white/30 capitalize">{habit.category}</p>
@@ -84,7 +93,7 @@ function HabitPill({ habit, today, onToggle }) {
         flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center
         transition-all duration-200
         ${isSuccess
-          ? 'border-emerald-400 bg-emerald-400'
+          ? 'border-lime-400 bg-lime-400'
           : isBad && status === 'done'
             ? 'border-red-400 bg-red-400/30'
             : 'border-white/20'
@@ -98,7 +107,7 @@ function HabitPill({ habit, today, onToggle }) {
 }
 
 // ─── Circular progress ring ───────────────────────────────────────────────────
-function ProgressRing({ pct, size = 48, stroke = 4, color = 'var(--primary)' }) {
+function ProgressRing({ pct, size = 48, stroke = 4, color = CYAN }) {
   const r  = (size - stroke) / 2
   const circ = 2 * Math.PI * r
   const dash = (pct / 100) * circ
@@ -106,7 +115,7 @@ function ProgressRing({ pct, size = 48, stroke = 4, color = 'var(--primary)' }) 
   return (
     <svg width={size} height={size} className="-rotate-90">
       <circle cx={size / 2} cy={size / 2} r={r} fill="none"
-        stroke="rgba(255,255,255,0.08)" strokeWidth={stroke} />
+        stroke="var(--border-subtle)" strokeWidth={stroke} />
       <motion.circle
         cx={size / 2} cy={size / 2} r={r} fill="none"
         stroke={color} strokeWidth={stroke}
@@ -345,7 +354,7 @@ export default function DailyLog() {
       {/* ── Header ── */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-display font-bold text-white">Daily Log</h1>
+          <h1 className="text-xl font-display font-bold" style={{ color: 'var(--text-primary)' }}>Daily Log</h1>
           <p className="text-xs text-white/40">{format(new Date(), 'EEEE, MMMM d, yyyy')}</p>
         </div>
         <AnimatePresence>
@@ -354,7 +363,7 @@ export default function DailyLog() {
               initial={{ scale: 0.7, opacity: 0 }}
               animate={{ scale: 1,   opacity: 1 }}
               exit={{ scale: 0.7, opacity: 0 }}
-              className="badge-green flex items-center gap-1"
+              className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-lime-400/10 text-lime-400 border border-lime-400/20"
             >
               <CheckCircle2 size={10} />
               Logged today
@@ -372,7 +381,7 @@ export default function DailyLog() {
             onClick={() => setHabitsExpanded(v => !v)}
             className="w-full flex items-center gap-2 p-4 hover:bg-white/5 transition-colors"
           >
-            <ListChecks size={16} className="text-emerald-400 flex-shrink-0" />
+            <ListChecks size={16} className="text-lime-400 flex-shrink-0" />
             <span className="text-sm font-semibold text-white flex-1 text-left">
               Today's Habits Checklist
             </span>
@@ -380,7 +389,7 @@ export default function DailyLog() {
             {/* Progress ring + count */}
             <div className="flex items-center gap-2 flex-shrink-0">
               <div className="relative flex items-center justify-center">
-                <ProgressRing pct={habitsPct} size={36} stroke={3} color="var(--accent)" />
+                <ProgressRing pct={habitsPct} size={36} stroke={3} color={LIME} />
                 <span className="absolute text-[9px] font-bold text-white/80">
                   {habitsPct}%
                 </span>
@@ -419,7 +428,7 @@ export default function DailyLog() {
                   {/* Good habits */}
                   {goodHabits.length > 0 && (
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-400/70 mb-2">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-lime-400/70 mb-2">
                         ✅ Good Habits
                       </p>
                       <div className="space-y-2">
@@ -475,8 +484,8 @@ export default function DailyLog() {
                         {streakers.map(h => (
                           <span key={h.id}
                             className="flex items-center gap-1 text-[10px] font-semibold px-2 py-1
-                                       rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-300">
-                            <Flame size={9} className="text-orange-400" />
+                                       rounded-full bg-lime-400/10 border border-lime-400/20 text-lime-300">
+                            <Flame size={9} className="text-lime-400" />
                             {h.icon} {h.streak}d streak
                           </span>
                         ))}
@@ -500,12 +509,12 @@ export default function DailyLog() {
             transition={{ duration: 0.25 }}
             className="overflow-hidden"
           >
-            <Section icon={Dumbbell} color="text-orange-400" title="Gym & Workout">
+            <Section icon={Dumbbell} accent={LIME} title="Gym & Workout">
               <div className="flex gap-2 mb-3">
                 {[
-                  { val: 'done',    label: '💪 Done',     color: 'border-emerald-500/50 bg-emerald-500/15 text-emerald-300' },
-                  { val: 'skipped', label: '❌ Skipped',  color: 'border-red-500/50 bg-red-500/15 text-red-300' },
-                  { val: 'rest',    label: '🛋️ Rest Day', color: 'border-yellow-500/50 bg-yellow-500/15 text-yellow-300' },
+                  { val: 'done',    label: '💪 Done',     color: 'border-lime-400/50 bg-lime-400/15 text-lime-300' },
+                  { val: 'skipped', label: '❌ Skipped',  color: 'border-red-400/50 bg-red-400/15 text-red-300' },
+                  { val: 'rest',    label: '🛋️ Rest Day', color: 'border-amber-400/50 bg-amber-400/15 text-amber-300' },
                 ].map(({ val, label, color }) => (
                   <button key={val} id={`log-gym-${val}`}
                     onClick={() => setForm(f => ({ ...f, gymStatus: val }))}
@@ -533,7 +542,7 @@ export default function DailyLog() {
                           onClick={() => setForm(f => ({ ...f, workoutType: t }))}
                           className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
                             form.workoutType === t
-                              ? 'border-cyber-500/50 bg-cyber-500/20 text-cyber-300'
+                              ? 'border-cyan-400/50 bg-cyan-400/15 text-cyan-300'
                               : 'border-white/10 bg-white/5 text-white/40'
                           }`}>
                           {t}
@@ -549,7 +558,7 @@ export default function DailyLog() {
       </AnimatePresence>
 
       {/* ── Morning Routine ── */}
-      <Section icon={Heart} color="text-pink-400" title="Morning Routine">
+      <Section icon={Heart} accent={CORAL} title="Morning Routine">
         <div className="space-y-2">
           {[
             { key: 'brushed',   label: 'Brushed Teeth',     icon: '🦷' },
@@ -559,12 +568,12 @@ export default function DailyLog() {
             <button key={key} id={`log-${key}`}
               onClick={() => setForm(f => ({ ...f, [key]: !f[key] }))}
               className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all duration-200 ${
-                form[key] ? 'border-emerald-500/40 bg-emerald-500/10' : 'border-white/10 bg-white/5'
+                form[key] ? 'border-lime-400/40 bg-lime-400/10' : 'border-white/10 bg-white/5'
               }`}>
               <span className="text-lg">{icon}</span>
               <span className="flex-1 text-sm font-medium text-white text-left">{label}</span>
               <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
-                form[key] ? 'border-emerald-400 bg-emerald-400' : 'border-white/20'
+                form[key] ? 'border-lime-400 bg-lime-400' : 'border-white/20'
               }`}>
                 {form[key] && <span className="text-white text-xs">✓</span>}
               </div>
@@ -583,7 +592,7 @@ export default function DailyLog() {
             transition={{ duration: 0.25 }}
             className="overflow-hidden"
           >
-            <Section icon={Clock} color="text-cyber-400" title="Sleep & Steps">
+            <Section icon={Clock} accent={CYAN} title="Sleep & Steps">
               <AnimatePresence initial={false}>
                 {sleepEnabled && (
                   <motion.div
@@ -597,13 +606,13 @@ export default function DailyLog() {
                       <label htmlFor="log-wake" className="text-xs text-white/40 mb-1 block">
                         Wake Time
                         {form.wakeTime && (
-                          <span className="ml-2 text-cyber-400 font-semibold">{form.wakeTime}</span>
+                          <span className="ml-2 text-cyan-400 font-semibold">{form.wakeTime}</span>
                         )}
                       </label>
                       <input id="log-wake" type="time"
                         value={form.wakeTime}
                         onChange={e => setForm(f => ({ ...f, wakeTime: e.target.value }))}
-                        className="input-cyber text-sm w-full"
+                        className="glass-input w-full"
                         style={{ colorScheme: 'dark' }}
                       />
                     </div>
@@ -611,13 +620,13 @@ export default function DailyLog() {
                       <label htmlFor="log-sleep" className="text-xs text-white/40 mb-1 block">
                         Sleep Time
                         {form.sleepTime && (
-                          <span className="ml-2 text-cyber-400 font-semibold">{form.sleepTime}</span>
+                          <span className="ml-2 text-cyan-400 font-semibold">{form.sleepTime}</span>
                         )}
                       </label>
                       <input id="log-sleep" type="time"
                         value={form.sleepTime}
                         onChange={e => setForm(f => ({ ...f, sleepTime: e.target.value }))}
-                        className="input-cyber text-sm w-full"
+                        className="glass-input w-full"
                         style={{ colorScheme: 'dark' }}
                       />
                     </div>
@@ -639,7 +648,7 @@ export default function DailyLog() {
                       {form.steps && parseInt(form.steps) > 0 && (
                         <span className={`ml-2 font-semibold ${
                           parseInt(form.steps) >= (settings?.stepGoal || 8000)
-                            ? 'text-emerald-400' : 'text-cyber-400'
+                            ? 'text-lime-400' : 'text-cyan-400'
                         }`}>
                           {parseInt(form.steps).toLocaleString()} / {(settings?.stepGoal || 8000).toLocaleString()}
                         </span>
@@ -648,7 +657,7 @@ export default function DailyLog() {
                     <input id="log-steps" type="number" placeholder="e.g. 8000"
                       value={form.steps}
                       onChange={e => setForm(f => ({ ...f, steps: e.target.value }))}
-                      className="input-cyber text-sm w-full"
+                      className="glass-input w-full"
                     />
                   </motion.div>
                 )}
@@ -659,7 +668,7 @@ export default function DailyLog() {
       </AnimatePresence>
 
       {/* ── Water Intake ── */}
-      <Section icon={Droplets} color="text-cyan-400" title="Water Intake">
+      <Section icon={Droplets} accent={CYAN} title="Water Intake">
         <div className="space-y-3">
           <div className="flex items-center gap-2 flex-wrap">
             {Array.from({ length: 10 }).map((_, i) => (
@@ -673,7 +682,7 @@ export default function DailyLog() {
                 }))}
                 className={`w-9 h-9 rounded-xl text-base transition-all duration-150 ${
                   i < form.waterGlasses
-                    ? 'bg-cyber-500/40 border border-cyber-500/60 shadow-[0_0_8px_rgba(6,182,212,0.3)]'
+                    ? 'bg-cyan-400/25 border border-cyan-400/50 shadow-[0_0_8px_var(--accent-glow)]'
                     : 'bg-white/5 border border-white/10 opacity-40'
                 }`}
               >
@@ -684,7 +693,7 @@ export default function DailyLog() {
           {/* Goal indicator */}
           <div className="flex items-center justify-between">
             <span className={`text-sm font-bold ${
-              form.waterGlasses >= 8 ? 'text-emerald-400' : 'text-cyber-400'
+              form.waterGlasses >= 8 ? 'text-lime-400' : 'text-cyan-400'
             }`}>
               {form.waterGlasses} / 8 glasses
             </span>
@@ -692,8 +701,8 @@ export default function DailyLog() {
               <motion.span
                 initial={{ scale: 0, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                className="text-[10px] font-bold text-emerald-400 flex items-center gap-1
-                           bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full"
+                className="text-[10px] font-bold text-lime-400 flex items-center gap-1
+                           bg-lime-400/10 border border-lime-400/20 px-2 py-0.5 rounded-full"
               >
                 <CheckCircle2 size={9} /> Goal met!
               </motion.span>
@@ -716,12 +725,12 @@ export default function DailyLog() {
       </div>
 
       {/* ── Notes ── */}
-      <Section icon={BookOpen} color="text-purple-400" title="Journal / Notes">
+      <Section icon={BookOpen} accent={VIOLET} title="Journal / Notes">
         <textarea id="log-notes" rows={4}
           placeholder="How was your day? Anything noteworthy..."
           value={form.notes}
           onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-          className="input-cyber resize-none text-sm w-full"
+          className="glass-input resize-none w-full"
           style={{ color: 'var(--text)' }}
         />
         {form.notes.trim().length > 0 && (
@@ -742,7 +751,7 @@ export default function DailyLog() {
           font-semibold text-sm transition-all duration-200
           ${isSubmitting
             ? 'bg-white/10 border border-white/10 text-white/40 cursor-not-allowed'
-            : 'btn-primary cursor-pointer'
+            : 'glass-btn glass-btn-accent cursor-pointer'
           }
         `}
       >

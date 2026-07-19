@@ -1,32 +1,54 @@
+/**
+ * Todo.jsx — Tasks page (design-system restyle).
+ *
+ * Logic preserved: ADD/UPDATE/DELETE_TODO dispatches, recalcPoints, victory
+ * sound, browser notifications, filters, priority sort.
+ * Priority colors: high = coral (--danger), medium = amber (--warning), low = lime (--success).
+ * Done state: muted + strikethrough.
+ */
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { format, isBefore, isToday } from 'date-fns'
 import { useApp } from '../context/AppContext'
 import { playVictorySound } from '../lib/sounds'
 import Modal from '../components/ui/Modal'
-import { Plus, Trash2, CheckCircle2, Clock, RefreshCw } from 'lucide-react'
+import { Plus, Trash2, Check, Clock, RefreshCw } from 'lucide-react'
 
-const PRIORITIES = [
-  { val: 'high', label: 'High ⚡', color: 'text-red-400 bg-gradient-to-r from-red-500/20 to-pink-500/20 border-red-500/30' },
-  { val: 'medium', label: 'Medium', color: 'text-amber-400 bg-gradient-to-r from-amber-500/20 to-orange-500/20 border-amber-500/30' },
-  { val: 'low', label: 'Low', color: 'text-slate-400 bg-gradient-to-r from-slate-500/20 to-blue-500/20 border-slate-500/20' },
-]
+/* CSS-var strings, not hex, so they re-resolve live on theme switch.
+   AMBER now maps to the design system's --warning token (medium priority =
+   caution, the exact semantic --warning exists for) instead of its own
+   hardcoded literal. */
+const CYAN = 'var(--accent)'
+const LIME = 'var(--success)'
+const CORAL = 'var(--danger)'
+const AMBER = 'var(--warning)'
+const MONO = "'JetBrains Mono', ui-monospace, monospace"
 
-const PRIORITY_BADGE = {
-  high: 'bg-gradient-to-r from-red-500/20 to-pink-500/20 text-red-400 border border-red-500/30 animate-pulse font-semibold',
-  medium: 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-400 border border-amber-500/30 font-semibold',
-  low: 'bg-gradient-to-r from-slate-500/20 to-blue-500/20 text-slate-400 border border-slate-500/20 font-semibold',
-}
-
-const PRIORITY_DOT = {
-  high: 'bg-red-500 animate-ping shadow-[0_0_8px_rgba(239,68,68,0.6)]',
-  medium: 'bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.4)]',
-  low: 'bg-transparent border border-slate-400/60',
-}
-
+const PRIORITY_COLOR = { high: CORAL, medium: AMBER, low: LIME }
 const PRIORITY_POINTS = { high: 20, medium: 10, low: 5 }
 
+const PRIORITIES = [
+  { val: 'high', label: 'High ⚡' },
+  { val: 'medium', label: 'Medium' },
+  { val: 'low', label: 'Low' },
+]
+
 const CATEGORIES = ['Personal', 'Work', 'Health', 'Finance', 'Other']
+
+/* Small tint pill used for category + priority badges */
+function Pill({ color, children, style = {} }) {
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 3,
+      fontSize: 10, fontWeight: 700, fontFamily: MONO,
+      padding: '2px 8px', borderRadius: 20, whiteSpace: 'nowrap',
+      background: `color-mix(in srgb, ${color} 12%, transparent)`, color, border: `1px solid color-mix(in srgb, ${color} 27%, transparent)`,
+      ...style,
+    }}>
+      {children}
+    </span>
+  )
+}
 
 function AddTaskModal({ isOpen, onClose }) {
   const { dispatch } = useApp()
@@ -53,7 +75,7 @@ function AddTaskModal({ isOpen, onClose }) {
         status: 'pending', createdAt: new Date().toISOString(),
       },
     })
-    
+
     // Schedule browser notification if permission granted
     if (dueDateTime && Notification.permission === 'granted') {
       const ms = new Date(dueDateTime).getTime() - Date.now()
@@ -73,7 +95,8 @@ function AddTaskModal({ isOpen, onClose }) {
       <button
         type="button"
         onClick={onClose}
-        className="w-1/2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium py-2.5 px-4 rounded-xl transition-all"
+        className="glass-btn w-1/2"
+        style={{ padding: '0.65rem 1rem', fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}
       >
         Cancel
       </button>
@@ -81,7 +104,8 @@ function AddTaskModal({ isOpen, onClose }) {
         id="todo-add-confirm"
         onClick={handleAdd}
         disabled={!form.title.trim()}
-        className="w-1/2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold py-2.5 px-4 rounded-xl transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+        className="glass-btn glass-btn-accent w-1/2"
+        style={{ padding: '0.65rem 1rem', fontSize: 13, fontWeight: 700 }}
       >
         Save Task
       </button>
@@ -91,65 +115,75 @@ function AddTaskModal({ isOpen, onClose }) {
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Add New Task" footer={footer}>
       <div>
-        <label className="text-xs text-white/40 block mb-1">Task Title *</label>
+        <label className="text-xs block mb-1" style={{ color: 'var(--text-muted)' }}>Task Title *</label>
         <input id="todo-title" type="text" placeholder="What needs to be done?"
           value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-          className="input-cyber" />
+          className="glass-input" />
       </div>
       <div>
-        <label className="text-xs text-white/40 block mb-1">Description</label>
+        <label className="text-xs block mb-1" style={{ color: 'var(--text-muted)' }}>Description</label>
         <textarea id="todo-desc" rows={2} placeholder="Optional details..."
           value={form.desc} onChange={e => setForm(f => ({ ...f, desc: e.target.value }))}
-          className="input-cyber resize-none text-sm" />
+          className="glass-input resize-none" />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="text-xs text-white/40 block mb-1">Due Date</label>
+          <label className="text-xs block mb-1" style={{ color: 'var(--text-muted)' }}>Due Date</label>
           <input id="todo-date" type="date" value={form.dueDate}
             onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))}
-            className="input-cyber text-sm" />
+            className="glass-input" />
         </div>
         <div>
-          <label className="text-xs text-white/40 block mb-1">Due Time</label>
+          <label className="text-xs block mb-1" style={{ color: 'var(--text-muted)' }}>Due Time</label>
           <input id="todo-time" type="time" value={form.dueTime}
             onChange={e => setForm(f => ({ ...f, dueTime: e.target.value }))}
-            className="input-cyber text-sm" />
+            className="glass-input" />
         </div>
       </div>
       <div>
-        <label className="text-xs text-white/40 block mb-1">Priority Level</label>
-        <select
-          id="todo-priority"
-          value={form.priority}
-          onChange={e => setForm(f => ({ ...f, priority: e.target.value }))}
-          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-cyber-400 focus:bg-card outline-none transition-all cursor-pointer text-sm font-semibold"
-        >
-          {PRIORITIES.map(p => (
-            <option key={p.val} value={p.val} className="bg-slate-900 text-white font-medium">
-              {p.label}
-            </option>
-          ))}
-        </select>
+        <label className="text-xs block mb-2" style={{ color: 'var(--text-muted)' }}>Priority Level</label>
+        <div className="flex gap-2">
+          {PRIORITIES.map(p => {
+            const color = PRIORITY_COLOR[p.val]
+            const active = form.priority === p.val
+            return (
+              <button key={p.val} id={`todo-priority-${p.val}`}
+                onClick={() => setForm(f => ({ ...f, priority: p.val }))}
+                className="flex-1 py-2 rounded-xl text-xs font-semibold transition-all"
+                style={active
+                  ? { border: `1px solid color-mix(in srgb, ${color} 40%, transparent)`, background: `color-mix(in srgb, ${color} 12%, transparent)`, color }
+                  : { border: '1px solid var(--border-subtle)', background: 'var(--bg-glass)', color: 'var(--text-muted)' }}>
+                {p.label}
+              </button>
+            )
+          })}
+        </div>
       </div>
       <div>
-        <label className="text-xs text-white/40 block mb-2">Category</label>
+        <label className="text-xs block mb-2" style={{ color: 'var(--text-muted)' }}>Category</label>
         <div className="flex flex-wrap gap-2">
           {CATEGORIES.map(c => (
             <button key={c} id={`todo-cat-${c.toLowerCase()}`}
               onClick={() => setForm(f => ({ ...f, category: c }))}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${form.category === c ? 'border-cyber-400/50 bg-cyber-500/20 text-cyber-300' : 'border-white/10 bg-white/5 text-white/40'}`}>
+              className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+              style={form.category === c
+                ? { border: '1px solid rgb(var(--accent-rgb)/0.5)', background: 'rgb(var(--accent-rgb)/0.12)', color: CYAN }
+                : { border: '1px solid var(--border-subtle)', background: 'var(--bg-glass)', color: 'var(--text-muted)' }}>
               {c}
             </button>
           ))}
         </div>
       </div>
       <div>
-        <label className="text-xs text-white/40 block mb-2">Recurring</label>
+        <label className="text-xs block mb-2" style={{ color: 'var(--text-muted)' }}>Recurring</label>
         <div className="flex gap-2">
           {[{ val: 'none', label: 'Once' }, { val: 'daily', label: '📅 Daily' }, { val: 'weekly', label: '📆 Weekly' }].map(r => (
             <button key={r.val} id={`todo-recurring-${r.val}`}
               onClick={() => setForm(f => ({ ...f, recurring: r.val }))}
-              className={`flex-1 py-2 rounded-xl text-xs font-semibold border transition-all ${form.recurring === r.val ? 'border-cyber-400/50 bg-cyber-500/20 text-cyber-300' : 'border-white/10 bg-white/5 text-white/40'}`}>
+              className="flex-1 py-2 rounded-xl text-xs font-semibold transition-all"
+              style={form.recurring === r.val
+                ? { border: '1px solid rgb(var(--accent-rgb)/0.5)', background: 'rgb(var(--accent-rgb)/0.12)', color: CYAN }
+                : { border: '1px solid var(--border-subtle)', background: 'var(--bg-glass)', color: 'var(--text-muted)' }}>
               {r.label}
             </button>
           ))}
@@ -164,9 +198,11 @@ function TaskCard({ task }) {
   const today = format(new Date(), 'yyyy-MM-dd')
   const isOverdue = task.dueDate && isBefore(new Date(task.dueDate), new Date()) && task.status !== 'done'
   const isDueToday = task.dueDate && isToday(new Date(task.dueDate))
+  const done = task.status === 'done'
+  const priColor = PRIORITY_COLOR[task.priority] || PRIORITY_COLOR.low
 
   const toggleDone = () => {
-    const newStatus = task.status === 'done' ? 'pending' : 'done'
+    const newStatus = done ? 'pending' : 'done'
     dispatch({
       type: 'UPDATE_TODO',
       payload: { id: task.id, status: newStatus, completedDate: newStatus === 'done' ? today : null },
@@ -183,48 +219,65 @@ function TaskCard({ task }) {
 
   return (
     <motion.div layout initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}
-      className={`glass-card p-4 ${task.status === 'done' ? 'opacity-60' : ''} ${isOverdue ? 'border-red-500/30' : ''}`}>
+      className="glass-card p-4"
+      style={{
+        ...(done ? { opacity: 0.55 } : {}),
+        ...(isOverdue ? { borderColor: 'rgb(var(--danger-rgb)/0.35)' } : {}),
+      }}>
       <div className="flex items-start gap-3">
+        {/* Check circle */}
         <button id={`todo-${task.id}-toggle`} onClick={toggleDone}
-          className={`w-6 h-6 rounded-full border-2 flex-shrink-0 mt-0.5 flex items-center justify-center transition-all ${
-            task.status === 'done' ? 'border-emerald-400 bg-emerald-400' : 'border-white/30 hover:border-emerald-400'
-          }`}>
-          {task.status === 'done' && <CheckCircle2 size={14} className="text-white" />}
+          className="flex-shrink-0 mt-0.5 flex items-center justify-center transition-all active:scale-90"
+          style={{
+            width: 24, height: 24, borderRadius: '50%',
+            border: done ? `1.5px solid ${LIME}` : '1.5px solid var(--border-glass)',
+            background: done ? 'rgb(var(--success-rgb)/0.15)' : 'transparent',
+            cursor: 'pointer',
+          }}>
+          {done && <Check size={13} style={{ color: LIME }} strokeWidth={3} />}
         </button>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${PRIORITY_DOT[task.priority] || PRIORITY_DOT.low}`} />
-            <p className={`text-sm font-semibold ${task.status === 'done' ? 'line-through text-white/40' : 'text-white'}`}>
+            {/* Priority dot */}
+            <div className="flex-shrink-0" style={{
+              width: 8, height: 8, borderRadius: '50%',
+              background: priColor,
+              boxShadow: task.priority === 'high' ? `0 0 8px color-mix(in srgb, ${priColor} 60%, transparent)` : 'none',
+            }} />
+            <p className="text-sm font-semibold" style={done
+              ? { textDecoration: 'line-through', color: 'var(--text-muted)', margin: 0 }
+              : { color: 'var(--text-primary)', margin: 0 }}>
               {task.title}
             </p>
             {task.recurring !== 'none' && (
-              <RefreshCw size={10} className="text-cyber-400/60 flex-shrink-0" />
+              <RefreshCw size={10} style={{ color: `color-mix(in srgb, ${CYAN} 60%, transparent)` }} className="flex-shrink-0" />
             )}
           </div>
-          {task.desc && <p className="text-xs text-white/40 mb-1 truncate">{task.desc}</p>}
-          <div className="flex items-center gap-3 flex-wrap">
+          {task.desc && <p className="text-xs mb-1 truncate" style={{ color: 'var(--text-muted)' }}>{task.desc}</p>}
+          <div className="flex items-center gap-2 flex-wrap">
             {task.dueDate && (
-              <span className={`flex items-center gap-1 text-xs ${isOverdue ? 'text-red-400' : isDueToday ? 'text-yellow-400' : 'text-white/40'}`}>
+              <span className="flex items-center gap-1 text-xs" style={{
+                color: isOverdue ? CORAL : isDueToday ? AMBER : 'var(--text-muted)',
+                fontFamily: MONO,
+              }}>
                 <Clock size={10} />
                 {isOverdue ? 'Overdue — ' : ''}{format(new Date(task.dueDate), 'MMM d, h:mm a')}
               </span>
             )}
-            <span className={`badge text-[10px] ${
-              task.category === 'Work' ? 'badge-cyan' : task.category === 'Health' ? 'badge-green' : 'badge-purple'
-            }`}>{task.category}</span>
-            {/* Priority badge — gradient + points indicator */}
-            <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full ${
-              PRIORITY_BADGE[task.priority] || PRIORITY_BADGE.low
-            }`}>
+            <Pill color={CYAN}>{task.category}</Pill>
+            <Pill color={priColor}>
               {task.priority === 'high' ? '🔥' : task.priority === 'medium' ? '⚡' : '·'}
               {task.priority}
-              <span className="opacity-60 font-normal">+{PRIORITY_POINTS[task.priority] || 5}pts</span>
-            </span>
+              <span style={{ opacity: 0.6, fontWeight: 400 }}>+{PRIORITY_POINTS[task.priority] || 5}pts</span>
+            </Pill>
           </div>
         </div>
 
-        <button onClick={deleteTask} className="text-white/20 hover:text-red-400 transition-colors flex-shrink-0 p-1">
+        <button onClick={deleteTask} className="transition-colors flex-shrink-0 p-1"
+          style={{ color: 'var(--text-muted)', opacity: 0.5, background: 'none', border: 'none', cursor: 'pointer' }}
+          onMouseEnter={e => { e.currentTarget.style.color = CORAL; e.currentTarget.style.opacity = 1 }}
+          onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.opacity = 0.5 }}>
           <Trash2 size={14} />
         </button>
       </div>
@@ -262,23 +315,25 @@ export default function Todo() {
     <div className="space-y-4 page-enter">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-display font-bold text-white">Tasks</h1>
-          <p className="text-xs text-white/40">{pendingCount} pending · {doneCount} done</p>
+          <h1 className="text-xl font-display font-bold" style={{ color: 'var(--text-primary)' }}>Tasks</h1>
+          <p className="text-xs" style={{ color: 'var(--text-muted)', fontFamily: MONO }}>{pendingCount} pending · {doneCount} done</p>
         </div>
         <div className="flex gap-2">
           <button id="todo-notif-btn" onClick={requestNotifPerms}
-            className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:border-white/20 transition-all" title="Enable notifications">
-            <Clock size={15} className="text-white/50" />
+            className="glass-btn" title="Enable notifications"
+            style={{ width: 36, height: 36, minHeight: 36, padding: 0 }}>
+            <Clock size={15} style={{ color: 'var(--text-secondary)' }} />
           </button>
           <button id="todo-add-btn" onClick={() => setAddOpen(true)}
-            className="w-9 h-9 rounded-xl bg-cyber-500/20 border border-cyber-500/30 flex items-center justify-center hover:bg-cyber-500/30 transition-all active:scale-90">
-            <Plus size={18} className="text-cyber-400" />
+            className="glass-btn glass-btn-accent"
+            style={{ width: 36, height: 36, minHeight: 36, padding: 0 }}>
+            <Plus size={18} style={{ color: CYAN }} />
           </button>
         </div>
       </div>
 
       {/* Filter tabs */}
-      <div className="flex gap-1 bg-white/5 rounded-xl p-1">
+      <div className="flex gap-1 rounded-xl p-1" style={{ background: 'var(--bg-glass)' }}>
         {[
           { val: 'all', label: 'All' },
           { val: 'today', label: '📅 Today' },
@@ -287,7 +342,10 @@ export default function Todo() {
         ].map(f => (
           <button key={f.val} id={`todo-filter-${f.val}`}
             onClick={() => setFilter(f.val)}
-            className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${filter === f.val ? 'bg-cyber-500/30 text-cyber-300 border border-cyber-500/30' : 'text-white/40'}`}>
+            className="flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all"
+            style={filter === f.val
+              ? { background: 'rgb(var(--accent-rgb)/0.15)', color: CYAN, border: '1px solid rgb(var(--accent-rgb)/0.35)' }
+              : { color: 'var(--text-muted)', border: '1px solid transparent', background: 'none' }}>
             {f.label}
           </button>
         ))}
@@ -299,7 +357,7 @@ export default function Todo() {
           <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
             className="glass-card p-10 text-center">
             <p className="text-4xl mb-2">✅</p>
-            <p className="text-white/60 text-sm">No tasks here</p>
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>No tasks here</p>
           </motion.div>
         ) : (
           filtered.map(t => <TaskCard key={t.id} task={t} />)

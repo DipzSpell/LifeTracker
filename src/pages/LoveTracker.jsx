@@ -31,7 +31,7 @@ function PinLock({ onUnlock }) {
   return (
     <div className="min-h-[calc(100vh-8rem)] flex flex-col items-center justify-center text-center">
       <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="mb-6">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-pink-500 to-rose-600 mx-auto mb-3
+        <div className="w-16 h-16 rounded-2xl bg-red-400/15 border border-red-400/30 mx-auto mb-3
                         flex items-center justify-center shadow-lg">
           <Lock size={28} className="text-white" />
         </div>
@@ -48,7 +48,7 @@ function PinLock({ onUnlock }) {
             transition={{ duration: 0.4 }}
             className={`w-4 h-4 rounded-full border-2 transition-all ${
               i < pin.length
-                ? (error ? 'bg-red-500 border-red-500' : 'bg-cyber-400 border-cyber-400')
+                ? (error ? 'bg-red-500 border-red-500' : 'bg-cyan-400 border-cyan-400')
                 : 'bg-transparent border-white/30'
             }`} />
         ))}
@@ -99,7 +99,7 @@ function AddEntryModal({ isOpen, onClose }) {
         id="love-add-entry-confirm"
         onClick={handleSave}
         disabled={!form.body.trim() && !form.title.trim()}
-        className="w-1/2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold py-2.5 px-4 rounded-xl transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+        className="glass-btn glass-btn-accent w-1/2" style={{ padding: '0.65rem 1rem', fontSize: 13, fontWeight: 700 }}
       >
         Save Entry
       </button>
@@ -111,19 +111,19 @@ function AddEntryModal({ isOpen, onClose }) {
       <div>
         <label className="text-xs text-white/40 block mb-1">Date</label>
         <input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
-          className="input-cyber text-sm" />
+          className="glass-input text-sm" />
       </div>
       <div>
         <label className="text-xs text-white/40 block mb-1">Title (optional)</label>
         <input type="text" placeholder="e.g. A wonderful evening"
           value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-          className="input-cyber text-sm" />
+          className="glass-input text-sm" />
       </div>
       <div>
         <label className="text-xs text-white/40 block mb-1">Journal</label>
         <textarea rows={5} placeholder="Write your thoughts..."
           value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))}
-          className="input-cyber resize-none text-sm" />
+          className="glass-input resize-none text-sm" />
       </div>
       <div>
         <label className="text-xs text-white/40 block mb-2">Relationship Mood</label>
@@ -161,7 +161,7 @@ function AddSpecialDateModal({ isOpen, onClose }) {
         id="love-add-date-confirm"
         onClick={handleSave}
         disabled={!form.label.trim() || !form.date}
-        className="w-1/2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold py-2.5 px-4 rounded-xl transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+        className="glass-btn glass-btn-accent w-1/2" style={{ padding: '0.65rem 1rem', fontSize: 13, fontWeight: 700 }}
       >
         Add Special Date
       </button>
@@ -175,7 +175,7 @@ function AddSpecialDateModal({ isOpen, onClose }) {
         <div className="flex flex-wrap gap-2">
           {EMOJIS.map(e => (
             <button key={e} onClick={() => setForm(f => ({ ...f, emoji: e }))}
-              className={`w-10 h-10 rounded-xl text-xl transition-all ${form.emoji === e ? 'bg-pink-500/30 border border-pink-400' : 'bg-white/5 border border-white/10'}`}>
+              className={`w-10 h-10 rounded-xl text-xl transition-all ${form.emoji === e ? 'bg-red-400/30 border border-red-400' : 'bg-white/5 border border-white/10'}`}>
               {e}
             </button>
           ))}
@@ -185,12 +185,12 @@ function AddSpecialDateModal({ isOpen, onClose }) {
         <label className="text-xs text-white/40 block mb-1">Date Name</label>
         <input type="text" placeholder="e.g. Anniversary"
           value={form.label} onChange={e => setForm(f => ({ ...f, label: e.target.value }))}
-          className="input-cyber text-sm" />
+          className="glass-input text-sm" />
       </div>
       <div>
         <label className="text-xs text-white/40 block mb-1">Date</label>
         <input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
-          className="input-cyber text-sm" />
+          className="glass-input text-sm" />
       </div>
     </Modal>
   )
@@ -222,13 +222,13 @@ export default function LoveTracker() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-display font-bold text-white flex items-center gap-2">
-            <Heart size={18} className="text-pink-400" fill="currentColor" />Love Tracker
+            <Heart size={18} className="text-red-400" fill="currentColor" />Love Tracker
           </h1>
           <p className="text-xs text-white/40">Your private space 🔐</p>
         </div>
         <button onClick={() => tab === 'journal' ? setAddEntry(true) : setAddDate(true)}
-          className="w-9 h-9 rounded-xl bg-pink-500/20 border border-pink-500/30 flex items-center justify-center hover:bg-pink-500/30 transition-all active:scale-90">
-          <Plus size={18} className="text-pink-400" />
+          className="w-9 h-9 rounded-xl bg-red-400/20 border border-red-400/30 flex items-center justify-center hover:bg-red-400/30 transition-all active:scale-90">
+          <Plus size={18} className="text-red-400" />
         </button>
       </div>
 
@@ -239,7 +239,7 @@ export default function LoveTracker() {
           { val: 'dates', label: '📅 Special Dates', icon: Calendar },
         ].map(t => (
           <button key={t.val} id={`love-tab-${t.val}`} onClick={() => setTab(t.val)}
-            className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${tab === t.val ? 'bg-pink-500/25 text-pink-300 border border-pink-500/30' : 'text-white/40'}`}>
+            className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${tab === t.val ? 'bg-red-400/25 text-pink-300 border border-red-400/30' : 'text-white/40'}`}>
             {t.label}
           </button>
         ))}
@@ -257,10 +257,10 @@ export default function LoveTracker() {
           ) : (
             loveTracker.entries.map(entry => (
               <motion.div key={entry.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                className="glass-card p-4 border-pink-500/20">
+                className="glass-card p-4 border-red-400/20">
                 <div className="flex items-start justify-between mb-2">
                   <div>
-                    <p className="text-xs text-pink-400/60">{format(new Date(entry.date), 'MMMM d, yyyy')}</p>
+                    <p className="text-xs text-red-400/60">{format(new Date(entry.date), 'MMMM d, yyyy')}</p>
                     {entry.title && <p className="text-sm font-bold text-white mt-0.5">{entry.title}</p>}
                   </div>
                   <div className="flex items-center gap-2">
@@ -295,14 +295,14 @@ export default function LoveTracker() {
               const days = daysUntil(d.date)
               return (
                 <motion.div key={d.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                  className="glass-card p-4 border-pink-500/20 flex items-center gap-4">
+                  className="glass-card p-4 border-red-400/20 flex items-center gap-4">
                   <span className="text-3xl">{d.emoji}</span>
                   <div className="flex-1">
                     <p className="text-sm font-bold text-white">{d.label}</p>
                     <p className="text-xs text-white/40">{format(new Date(d.date), 'MMM d')}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-lg font-bold text-pink-400">{days}d</p>
+                    <p className="text-lg font-bold text-red-400">{days}d</p>
                     <p className="text-[10px] text-white/30">away</p>
                   </div>
                   <button onClick={() => dispatch({ type: 'DELETE_SPECIAL_DATE', payload: d.id })}

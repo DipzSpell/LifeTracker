@@ -11,16 +11,26 @@ import { supabase } from '../lib/supabase'
 import { getLast30Days, getLast7Days } from '../lib/storage'
 import { BarChart2, TrendingUp, Activity, Award, Download, Sparkles } from 'lucide-react'
 
+/* ── Design-system palette (mirrors src/styles/theme.css) — CSS-var strings
+   so they re-resolve live on theme switch ──────────────────────────────── */
+const CYAN = 'var(--accent)'
+const LIME = 'var(--success)'
+const VIOLET = 'var(--special)'
+const CORAL = 'var(--danger)'
+const MUTED = 'var(--text-muted)'
+const MONO = "'JetBrains Mono', ui-monospace, monospace"
+
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null
   return (
-    <div className="bg-card/85 backdrop-blur-md border border-white/10 rounded-xl p-3 text-xs shadow-xl min-w-[120px]">
-      <p className="text-white/40 text-[10px] font-bold uppercase tracking-wider mb-2">{label}</p>
+    <div className="rounded-xl p-3 text-xs min-w-[120px]"
+      style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', boxShadow: '0 16px 40px rgba(0,0,0,0.45)' }}>
+      <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-muted)' }}>{label}</p>
       <div className="space-y-1.5">
         {payload.map((p, i) => (
           <div key={i} className="flex items-center justify-between gap-4">
-            <span className="text-white/60 font-medium">{p.name}:</span>
-            <span className="font-bold" style={{ color: p.color || p.stroke }}>
+            <span className="font-medium" style={{ color: 'var(--text-secondary)' }}>{p.name}:</span>
+            <span className="font-bold" style={{ color: p.color || p.stroke, fontFamily: MONO }}>
               {p.value.toLocaleString()}
             </span>
           </div>
@@ -100,28 +110,33 @@ function HabitHeatmap({ habitsData, logHabit }) {
     return new Date(y, m - 1, d)
   }
 
+  // cyan-400/lime-400/red-400 are remapped in tailwind.config.js to the
+  // active theme's accent/success/danger, so these classes stay theme-
+  // reactive. amber-400 is NOT remapped (it's claimed elsewhere for the
+  // "trading" module-brand accent) — skipped-state cells use an arbitrary
+  // rgb(var(--warning-rgb)/x) value instead so they follow --warning.
   const getCellColor = (date) => {
     if (selectedFilter === 'all') {
       if (!goodHabits.length) return 'bg-white/5'
       const done = goodHabits.filter(h => h.entries?.[date]?.status === 'done').length
       const pct = done / goodHabits.length
       if (pct === 0) return 'bg-white/5'
-      if (pct < 0.33) return 'bg-emerald-950/60 border border-emerald-500/20'
-      if (pct < 0.66) return 'bg-emerald-800/60 border border-emerald-500/30'
-      if (pct < 1) return 'bg-emerald-600/80 border border-emerald-500/40'
-      return 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]'
+      if (pct < 0.33) return 'bg-lime-400/25 border border-lime-400/20'
+      if (pct < 0.66) return 'bg-lime-400/45 border border-lime-400/30'
+      if (pct < 1) return 'bg-lime-400/70 border border-lime-400/40'
+      return 'bg-lime-400 shadow-[0_0_10px_rgb(var(--success-rgb)/0.35)]'
     } else {
       const habit = localHabits[selectedFilter]
       if (!habit) return 'bg-white/5'
       const status = habit.entries?.[date]?.status
       if (habit.type === 'good') {
-        if (status === 'done') return 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]'
-        if (status === 'skipped') return 'bg-yellow-500/80 border border-yellow-500/30'
-        if (status === 'failed') return 'bg-red-500/80 border border-red-500/30'
+        if (status === 'done') return 'bg-lime-400 shadow-[0_0_10px_rgb(var(--success-rgb)/0.35)]'
+        if (status === 'skipped') return 'bg-[rgb(var(--warning-rgb)/0.8)] border border-[rgb(var(--warning-rgb)/0.3)]'
+        if (status === 'failed') return 'bg-red-400/80 border border-red-400/30'
         return 'bg-white/5'
       } else {
-        if (status === 'clean') return 'bg-cyan-500 shadow-[0_0_10px_rgba(34,211,238,0.3)]'
-        if (status === 'done') return 'bg-red-500/80 border border-red-500/30'
+        if (status === 'clean') return 'bg-cyan-400 shadow-[0_0_10px_var(--accent-glow)]'
+        if (status === 'done') return 'bg-red-400/80 border border-red-400/30'
         return 'bg-white/5'
       }
     }
@@ -158,7 +173,8 @@ function HabitHeatmap({ habitsData, logHabit }) {
             id="heatmap-filter"
             value={selectedFilter}
             onChange={(e) => setSelectedFilter(e.target.value)}
-            className="bg-white/5 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs text-white/80 focus:border-cyber-400 focus:bg-card outline-none transition-all cursor-pointer font-semibold"
+            className="rounded-xl px-2.5 py-1.5 text-xs outline-none transition-all cursor-pointer font-semibold"
+            style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', borderRadius: 10 }}
           >
             <option value="all">All Good Habits</option>
             {habitList.map((h) => (
@@ -183,7 +199,7 @@ function HabitHeatmap({ habitsData, logHabit }) {
               {MONTH_NAMES[currentMonth]} {currentYear}
             </span>
             {fetching && (
-              <div className="w-3 h-3 rounded-full border border-t-transparent border-cyber-400 animate-spin" />
+              <div className="w-3 h-3 rounded-full border border-t-transparent border-cyan-400 animate-spin" />
             )}
           </div>
           <button
@@ -222,7 +238,7 @@ function HabitHeatmap({ habitsData, logHabit }) {
                 onClick={() => setSelectedDate(d)}
                 className={`w-full aspect-square rounded-lg transition-all duration-200 flex items-center justify-center text-[9px] font-bold ${cellColorClass} ${
                   isSelected
-                    ? 'ring-2 ring-cyber-400 ring-offset-2 ring-offset-navy-950 scale-105 z-10'
+                    ? 'ring-2 ring-cyan-400 ring-offset-2 ring-offset-[var(--bg-base)] scale-105 z-10'
                     : 'hover:scale-105'
                 }`}
               >
@@ -238,7 +254,7 @@ function HabitHeatmap({ habitsData, logHabit }) {
           <>
             <span>Less Completed</span>
             <div className="flex items-center gap-1">
-              {['bg-white/5', 'bg-emerald-950/60 border border-emerald-500/20', 'bg-emerald-800/60 border border-emerald-500/30', 'bg-emerald-600/80 border border-emerald-500/40', 'bg-emerald-500'].map((c, i) => (
+              {['bg-white/5', 'bg-lime-400/25 border border-lime-400/20', 'bg-lime-400/45 border border-lime-400/30', 'bg-lime-400/70 border border-lime-400/40', 'bg-lime-400'].map((c, i) => (
                 <div key={i} className={`w-2.5 h-2.5 rounded-sm ${c}`} />
               ))}
             </div>
@@ -250,13 +266,13 @@ function HabitHeatmap({ habitsData, logHabit }) {
               <span className="w-2.5 h-2.5 rounded-sm bg-white/5" /> Not Logged
             </span>
             <span className="flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500" /> Done
+              <span className="w-2.5 h-2.5 rounded-sm bg-lime-400" /> Done
             </span>
             <span className="flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded-sm bg-yellow-500/80 border border-yellow-500/30" /> Skipped
+              <span className="w-2.5 h-2.5 rounded-sm bg-[rgb(var(--warning-rgb)/0.8)] border border-[rgb(var(--warning-rgb)/0.3)]" /> Skipped
             </span>
             <span className="flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded-sm bg-red-500/80 border border-red-500/30" /> Failed
+              <span className="w-2.5 h-2.5 rounded-sm bg-red-400/80 border border-red-400/30" /> Failed
             </span>
           </div>
         ) : (
@@ -265,10 +281,10 @@ function HabitHeatmap({ habitsData, logHabit }) {
               <span className="w-2.5 h-2.5 rounded-sm bg-white/5" /> Not Logged
             </span>
             <span className="flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded-sm bg-cyan-500" /> Resisted
+              <span className="w-2.5 h-2.5 rounded-sm bg-cyan-400" /> Resisted
             </span>
             <span className="flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded-sm bg-red-500/80 border border-red-500/30" /> Did It
+              <span className="w-2.5 h-2.5 rounded-sm bg-red-400/80 border border-red-400/30" /> Did It
             </span>
           </div>
         )}
@@ -277,13 +293,13 @@ function HabitHeatmap({ habitsData, logHabit }) {
       <div className="glass-card p-4 border-white/5 mt-2 page-enter animate-none" key={selectedDate}>
         <div className="flex items-center justify-between border-b border-white/5 pb-2 mb-3">
           <div>
-            <h4 className="text-xs font-bold text-cyber-400">Selected Day Details</h4>
+            <h4 className="text-xs font-bold text-cyan-400">Selected Day Details</h4>
             <p className="text-xs text-white/60 font-semibold mt-0.5">
               {format(selectedDateObj, 'EEEE, MMM d, yyyy')}
             </p>
           </div>
           {selectedFilter === 'all' && goodHabits.length > 0 && (
-            <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">
+            <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-lime-400/10 text-lime-400 border border-lime-400/20 font-bold">
               {goodHabits.filter(h => h.entries?.[selectedDate]?.status === 'done').length} / {goodHabits.length} Done
             </span>
           )}
@@ -297,7 +313,7 @@ function HabitHeatmap({ habitsData, logHabit }) {
               <div className="flex flex-col gap-3">
                 <div className="flex items-center gap-3">
                   <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg ${
-                    isBad ? 'bg-red-500/15 text-red-400' : 'bg-cyber-500/15 text-cyber-400'
+                    isBad ? 'bg-red-400/15 text-red-400' : 'bg-cyan-400/15 text-cyan-400'
                   }`}>
                     {selectedHabit.icon}
                   </div>
@@ -306,10 +322,10 @@ function HabitHeatmap({ habitsData, logHabit }) {
                     <p className="text-[10px] capitalize text-white/40 font-semibold">{selectedHabit.category}</p>
                   </div>
                   <span className={`text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full ${
-                    status === 'done' ? (isBad ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20') :
-                    status === 'clean' ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20' :
-                    status === 'skipped' ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20' :
-                    status === 'failed' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
+                    status === 'done' ? (isBad ? 'bg-red-400/10 text-red-400 border border-red-400/20' : 'bg-lime-400/10 text-lime-400 border border-lime-400/20') :
+                    status === 'clean' ? 'bg-cyan-400/10 text-cyan-400 border border-cyan-400/20' :
+                    status === 'skipped' ? 'bg-[rgb(var(--warning-rgb)/0.1)] text-[rgb(var(--warning-rgb))] border border-[rgb(var(--warning-rgb)/0.2)]' :
+                    status === 'failed' ? 'bg-red-400/10 text-red-400 border border-red-400/20' :
                     'bg-white/5 text-white/30 border border-white/5'
                   }`}>
                     {status ? (status === 'clean' ? 'Resisted' : status === 'done' ? (isBad ? 'Did it' : 'Done') : status) : 'Not Logged'}
@@ -324,7 +340,7 @@ function HabitHeatmap({ habitsData, logHabit }) {
                         onClick={() => logHabit(selectedHabit.id, selectedDate, status === 'clean' ? null : 'clean')}
                         className={`flex-1 py-2 rounded-lg text-[10px] font-bold border transition-all active:scale-[0.98] ${
                           status === 'clean'
-                            ? 'border-emerald-500/50 bg-emerald-500/15 text-emerald-300 shadow-md'
+                            ? 'border-lime-400/50 bg-lime-400/15 text-lime-300 shadow-md'
                             : 'border-white/5 bg-white/5 text-white/40 hover:bg-white/10'
                         }`}
                       >
@@ -335,7 +351,7 @@ function HabitHeatmap({ habitsData, logHabit }) {
                         onClick={() => logHabit(selectedHabit.id, selectedDate, status === 'done' ? null : 'done')}
                         className={`flex-1 py-2 rounded-lg text-[10px] font-bold border transition-all active:scale-[0.98] ${
                           status === 'done'
-                            ? 'border-red-500/50 bg-red-500/15 text-red-300 shadow-md'
+                            ? 'border-red-400/50 bg-red-400/15 text-red-300 shadow-md'
                             : 'border-white/5 bg-white/5 text-white/40 hover:bg-white/10'
                         }`}
                       >
@@ -349,7 +365,7 @@ function HabitHeatmap({ habitsData, logHabit }) {
                         onClick={() => logHabit(selectedHabit.id, selectedDate, status === 'done' ? null : 'done')}
                         className={`flex-1 py-2 rounded-lg text-[10px] font-bold border transition-all active:scale-[0.98] ${
                           status === 'done'
-                            ? 'border-emerald-500/50 bg-emerald-500/15 text-emerald-300 shadow-md'
+                            ? 'border-lime-400/50 bg-lime-400/15 text-lime-300 shadow-md'
                             : 'border-white/5 bg-white/5 text-white/40 hover:bg-white/10'
                         }`}
                       >
@@ -360,7 +376,7 @@ function HabitHeatmap({ habitsData, logHabit }) {
                         onClick={() => logHabit(selectedHabit.id, selectedDate, status === 'skipped' ? null : 'skipped')}
                         className={`flex-1 py-2 rounded-lg text-[10px] font-bold border transition-all active:scale-[0.98] ${
                           status === 'skipped'
-                            ? 'border-yellow-500/50 bg-yellow-500/15 text-yellow-300 shadow-md'
+                            ? 'border-[rgb(var(--warning-rgb)/0.5)] bg-[rgb(var(--warning-rgb)/0.15)] text-[rgb(var(--warning-rgb))] shadow-md'
                             : 'border-white/5 bg-white/5 text-white/40 hover:bg-white/10'
                         }`}
                       >
@@ -371,7 +387,7 @@ function HabitHeatmap({ habitsData, logHabit }) {
                         onClick={() => logHabit(selectedHabit.id, selectedDate, status === 'failed' ? null : 'failed')}
                         className={`flex-1 py-2 rounded-lg text-[10px] font-bold border transition-all active:scale-[0.98] ${
                           status === 'failed'
-                            ? 'border-red-500/50 bg-red-500/15 text-red-300 shadow-md'
+                            ? 'border-red-400/50 bg-red-400/15 text-red-300 shadow-md'
                             : 'border-white/5 bg-white/5 text-white/40 hover:bg-white/10'
                         }`}
                       >
@@ -406,7 +422,7 @@ function HabitHeatmap({ habitsData, logHabit }) {
                             onClick={() => logHabit(h.id, selectedDate, status === 'clean' ? null : 'clean')}
                             className={`px-2.5 py-1 rounded-lg text-[9px] font-bold transition-all border ${
                               status === 'clean'
-                                ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                                ? 'bg-lime-400/15 text-lime-300 border-lime-400/30'
                                 : 'bg-transparent text-white/30 border-transparent hover:bg-white/5'
                             }`}
                           >
@@ -417,7 +433,7 @@ function HabitHeatmap({ habitsData, logHabit }) {
                             onClick={() => logHabit(h.id, selectedDate, status === 'done' ? null : 'done')}
                             className={`px-2.5 py-1 rounded-lg text-[9px] font-bold transition-all border ${
                               status === 'done'
-                                ? 'bg-red-500/15 text-red-300 border-red-500/30'
+                                ? 'bg-red-400/15 text-red-300 border-red-400/30'
                                 : 'bg-transparent text-white/30 border-transparent hover:bg-white/5'
                             }`}
                           >
@@ -431,7 +447,7 @@ function HabitHeatmap({ habitsData, logHabit }) {
                             onClick={() => logHabit(h.id, selectedDate, status === 'done' ? null : 'done')}
                             className={`px-2.5 py-1 rounded-lg text-[9px] font-bold transition-all border ${
                               status === 'done'
-                                ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                                ? 'bg-lime-400/15 text-lime-300 border-lime-400/30'
                                 : 'bg-transparent text-white/30 border-transparent hover:bg-white/5'
                             }`}
                           >
@@ -442,7 +458,7 @@ function HabitHeatmap({ habitsData, logHabit }) {
                             onClick={() => logHabit(h.id, selectedDate, status === 'skipped' ? null : 'skipped')}
                             className={`px-2.5 py-1 rounded-lg text-[9px] font-bold transition-all border ${
                               status === 'skipped'
-                                ? 'bg-yellow-500/15 text-yellow-300 border-yellow-500/30'
+                                ? 'bg-[rgb(var(--warning-rgb)/0.15)] text-[rgb(var(--warning-rgb))] border-[rgb(var(--warning-rgb)/0.3)]'
                                 : 'bg-transparent text-white/30 border-transparent hover:bg-white/5'
                             }`}
                           >
@@ -453,7 +469,7 @@ function HabitHeatmap({ habitsData, logHabit }) {
                             onClick={() => logHabit(h.id, selectedDate, status === 'failed' ? null : 'failed')}
                             className={`px-2.5 py-1 rounded-lg text-[9px] font-bold transition-all border ${
                               status === 'failed'
-                                ? 'bg-red-500/15 text-red-300 border-red-500/30'
+                                ? 'bg-red-400/15 text-red-300 border-red-400/30'
                                 : 'bg-transparent text-white/30 border-transparent hover:bg-white/5'
                             }`}
                           >
@@ -473,11 +489,14 @@ function HabitHeatmap({ habitsData, logHabit }) {
   )
 }
 
-const ChartCard = ({ icon: Icon, color, title, children }) => (
-  <div className="glass-card p-4 border border-white/5 rounded-2xl shadow-lg">
-    <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-4">
-      <Icon size={15} className={color} />{title}
-    </h3>
+const ChartCard = ({ icon: Icon, accent = CYAN, title, children }) => (
+  <div className="glass-card p-4">
+    <div className="flex items-center gap-2 mb-4">
+      <div style={{ padding: 6, borderRadius: 8, background: `${accent}1A`, display: 'flex' }}>
+        <Icon size={13} style={{ color: accent }} />
+      </div>
+      <span className="section-label">{title}</span>
+    </div>
     {children}
   </div>
 )
@@ -605,10 +624,10 @@ export default function Stats() {
   const badDone = badHabits.filter(h => h.entries?.[today]?.status === 'done').length
   const badResisted = badHabits.filter(h => h.entries?.[today]?.status === 'clean').length
   const habitPieData = [
-    { name: 'Good Done', value: goodDone, color: 'var(--accent)' },
-    { name: 'Good Missed', value: goodMissed, color: 'rgba(255,255,255,0.05)' },
-    { name: 'Bad Resisted', value: badResisted, color: 'var(--primary)' },
-    { name: 'Bad Done', value: badDone, color: 'rgba(239, 68, 68, 0.4)' },
+    { name: 'Good Done', value: goodDone, color: LIME },
+    { name: 'Good Missed', value: goodMissed, color: 'var(--border-subtle)' },
+    { name: 'Bad Resisted', value: badResisted, color: CYAN },
+    { name: 'Bad Done', value: badDone, color: CORAL },
   ].filter(d => d.value > 0)
 
   // Export CSV
@@ -633,17 +652,17 @@ export default function Stats() {
     a.click()
   }
 
-  const axisStyle = { fill: 'var(--text)', opacity: 0.4, fontSize: 10 }
-  const gridStyle = { stroke: 'var(--text)', opacity: 0.05 }
+  const axisStyle = { fill: MUTED, fontSize: 10, fontFamily: MONO }
+  const gridStyle = { stroke: 'var(--border-subtle)', opacity: 1 }
 
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 page-enter">
         <div className="relative w-12 h-12">
           <div className="absolute inset-0 rounded-full border-2 border-white/5" />
-          <div className="absolute inset-0 rounded-full border-2 border-t-primary border-r-transparent border-b-transparent border-l-transparent animate-spin" />
+          <div className="absolute inset-0 rounded-full border-2 border-t-cyan-400 border-r-transparent border-b-transparent border-l-transparent animate-spin" />
         </div>
-        <p className="text-xs text-white/40 font-semibold tracking-wide">Syncing data from database...</p>
+        <p className="text-xs font-semibold tracking-wide" style={{ color: 'var(--text-muted)' }}>Syncing data from database...</p>
       </div>
     )
   }
@@ -652,8 +671,8 @@ export default function Stats() {
     return (
       <div className="space-y-4 page-enter">
         <div>
-          <h1 className="text-xl font-display font-bold text-white">Analytics</h1>
-          <p className="text-xs text-white/40">Your progress at a glance</p>
+          <h1 className="text-xl font-display font-bold" style={{ color: 'var(--text-primary)' }}>Analytics</h1>
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Your progress at a glance</p>
         </div>
 
         <div className="glass-card p-8 flex flex-col items-center justify-center text-center gap-5 border border-white/5 rounded-2xl min-h-[45vh] shadow-xl">
@@ -668,7 +687,8 @@ export default function Stats() {
           </div>
           <button
             onClick={() => navigate('/dashboard')}
-            className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white text-xs font-bold px-5 py-3 rounded-xl transition-all duration-200 active:scale-95 shadow-lg shadow-emerald-500/10 mt-2"
+            className="glass-btn glass-btn-accent mt-2"
+            style={{ padding: '0.7rem 1.25rem', fontSize: 12, fontWeight: 700 }}
           >
             Go to Dashboard
           </button>
@@ -682,21 +702,25 @@ export default function Stats() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-display font-bold text-white">Analytics</h1>
-          <p className="text-xs text-white/40">Your progress at a glance</p>
+          <h1 className="text-xl font-display font-bold" style={{ color: 'var(--text-primary)' }}>Analytics</h1>
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Your progress at a glance</p>
         </div>
         <button id="analytics-export" onClick={exportCSV}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs font-medium text-white/60 hover:border-white/20 transition-all active:scale-95">
+          className="glass-btn"
+          style={{ padding: '0.5rem 0.85rem', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>
           <Download size={13} /> CSV
         </button>
       </div>
 
-      {/* Range toggle */}
-      <div className="flex bg-white/5 rounded-xl p-1">
+      {/* Range toggle — small glass pills, active = cyan tint */}
+      <div className="flex gap-1 rounded-xl p-1" style={{ background: 'var(--bg-glass)' }}>
         {[{ val: 'week', label: '7 Days' }, { val: 'month', label: '30 Days' }].map(r => (
           <button key={r.val} id={`analytics-range-${r.val}`}
             onClick={() => setRange(r.val)}
-            className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${range === r.val ? 'bg-cyber-500/30 text-cyber-300 border border-cyber-500/30' : 'text-white/40'}`}>
+            className="flex-1 py-2 rounded-lg text-sm font-semibold transition-all"
+            style={range === r.val
+              ? { background: 'rgb(var(--accent-rgb)/0.15)', color: CYAN, border: '1px solid rgb(var(--accent-rgb)/0.35)' }
+              : { color: 'var(--text-muted)', border: '1px solid transparent', background: 'none' }}>
             {r.label}
           </button>
         ))}
@@ -711,20 +735,22 @@ export default function Stats() {
         const lastWeekPts = lastWeekDays.reduce((s, d) => s + (pointsHistory[d] || 0), 0)
         const diff = thisWeekPts - lastWeekPts
         return (
-          <div className="glass-card p-4 border border-white/5 rounded-2xl shadow-lg">
-            <p className="text-xs text-white/40 font-medium mb-2">📊 This Week vs Last Week</p>
+          <div className="glass-card p-4">
+            <p className="section-label mb-2">📊 This Week vs Last Week</p>
             <div className="flex items-center justify-between">
               <div className="text-center">
-                <p className="text-xl font-bold text-cyber-400">{thisWeekPts}</p>
-                <p className="text-xs text-white/40 font-medium">This week</p>
+                <p className="text-xl font-bold" style={{ color: CYAN, fontFamily: MONO }}>{thisWeekPts}</p>
+                <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>This week</p>
               </div>
-              <div className={`text-center px-3 py-1.5 rounded-xl ${diff >= 0 ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400'}`}>
-                <p className="text-lg font-bold">{diff >= 0 ? '+' : ''}{diff}</p>
+              <div className="text-center px-3 py-1.5 rounded-xl" style={diff >= 0
+                ? { background: 'rgb(var(--success-rgb)/0.12)', color: LIME }
+                : { background: 'rgb(var(--danger-rgb)/0.12)', color: CORAL }}>
+                <p className="text-lg font-bold" style={{ fontFamily: MONO }}>{diff >= 0 ? '+' : ''}{diff}</p>
                 <p className="text-[10px] font-bold">vs last week</p>
               </div>
               <div className="text-center">
-                <p className="text-xl font-bold text-white/50">{lastWeekPts}</p>
-                <p className="text-xs text-white/40 font-medium">Last week</p>
+                <p className="text-xl font-bold" style={{ color: VIOLET, fontFamily: MONO }}>{lastWeekPts}</p>
+                <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Last week</p>
               </div>
             </div>
           </div>
@@ -732,96 +758,96 @@ export default function Stats() {
       })()}
 
       {/* Chart A: Energy & Productivity Core */}
-      <ChartCard icon={Activity} color="text-cyber-400" title="Energy & Productivity Core">
+      <ChartCard icon={Activity} accent={CYAN} title="Energy & Productivity Core">
         <div className="h-[200px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={energyData} margin={{ top: 10, right: 5, left: -15, bottom: 0 }}>
               <defs>
                 <linearGradient id="energyGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
+                  <stop offset="5%" stopColor={CYAN} stopOpacity={0.3} />
+                  <stop offset="95%" stopColor={CYAN} stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridStyle.stroke} opacity={gridStyle.opacity} />
               <XAxis dataKey="day" tick={axisStyle} axisLine={false} tickLine={false} />
               <YAxis yAxisId="left" domain={[0, 16]} tick={axisStyle} axisLine={false} tickLine={false} width={30} />
               <YAxis yAxisId="right" orientation="right" tick={axisStyle} axisLine={false} tickLine={false} width={40} />
-              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
-              <Bar yAxisId="left" dataKey="sleepHours" name="Sleep (hrs)" fill="var(--accent)" radius={[4, 4, 0, 0]} maxBarSize={20} />
-              <Area yAxisId="right" type="monotone" dataKey="steps" name="Steps" stroke="var(--primary)" fill="url(#energyGrad)" strokeWidth={2} />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--bg-glass)' }} />
+              <Bar yAxisId="left" dataKey="sleepHours" name="Sleep (hrs)" fill={VIOLET} radius={[4, 4, 0, 0]} maxBarSize={20} />
+              <Area yAxisId="right" type="monotone" dataKey="steps" name="Steps" stroke={CYAN} fill="url(#energyGrad)" strokeWidth={2} />
             </ComposedChart>
           </ResponsiveContainer>
         </div>
       </ChartCard>
 
       {/* Chart B: Vibe & Hydration Matrix */}
-      <ChartCard icon={Sparkles} color="text-purple-400" title="Vibe & Hydration Matrix">
+      <ChartCard icon={Sparkles} accent={VIOLET} title="Vibe & Hydration Matrix">
         <div className="h-[200px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={vibeData} margin={{ top: 10, right: 5, left: -15, bottom: 0 }}>
               <defs>
                 <linearGradient id="vibeGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
+                  <stop offset="5%" stopColor={CYAN} stopOpacity={0.3} />
+                  <stop offset="95%" stopColor={CYAN} stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridStyle.stroke} opacity={gridStyle.opacity} />
               <XAxis dataKey="day" tick={axisStyle} axisLine={false} tickLine={false} />
               <YAxis yAxisId="left" domain={[1, 10]} tick={axisStyle} axisLine={false} tickLine={false} width={30} />
               <YAxis yAxisId="right" orientation="right" domain={[0, 12]} tick={axisStyle} axisLine={false} tickLine={false} width={30} />
-              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
-              <Bar yAxisId="right" dataKey="water" name="Water (glasses)" fill="var(--accent)" radius={[4, 4, 0, 0]} maxBarSize={20} />
-              <Area yAxisId="left" type="monotone" dataKey="mood" name="Mood" stroke="var(--primary)" fill="url(#vibeGrad)" strokeWidth={2} />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--bg-glass)' }} />
+              <Bar yAxisId="right" dataKey="water" name="Water (glasses)" fill={VIOLET} radius={[4, 4, 0, 0]} maxBarSize={20} />
+              <Area yAxisId="left" type="monotone" dataKey="mood" name="Mood" stroke={CYAN} fill="url(#vibeGrad)" strokeWidth={2} />
             </ComposedChart>
           </ResponsiveContainer>
         </div>
       </ChartCard>
 
       {/* Gym Attendance */}
-      <ChartCard icon={BarChart2} color="text-orange-400" title="Gym Attendance">
+      <ChartCard icon={BarChart2} accent={LIME} title="Gym Attendance">
         <div className="h-[140px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={gymData} barCategoryGap="30%" margin={{ top: 10, right: 5, left: -25, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridStyle.stroke} opacity={gridStyle.opacity} />
               <XAxis dataKey="day" tick={axisStyle} axisLine={false} tickLine={false} />
               <YAxis tick={axisStyle} axisLine={false} tickLine={false} width={30} domain={[0, 1]} ticks={[0, 1]} />
-              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
-              <Bar dataKey="gym" name="Done" fill="var(--accent)" radius={[4, 4, 0, 0]} maxBarSize={20} />
-              <Bar dataKey="skipped" name="Skipped" fill="rgba(239, 68, 68, 0.6)" radius={[4, 4, 0, 0]} maxBarSize={20} />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--bg-glass)' }} />
+              <Bar dataKey="gym" name="Done" fill={LIME} radius={[4, 4, 0, 0]} maxBarSize={20} />
+              <Bar dataKey="skipped" name="Skipped" fill={CORAL} radius={[4, 4, 0, 0]} maxBarSize={20} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </ChartCard>
 
       {/* Points Earned */}
-      <ChartCard icon={TrendingUp} color="text-yellow-400" title="Points Earned">
+      <ChartCard icon={TrendingUp} accent={CYAN} title="Points Earned">
         <div className="h-[140px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={pointsData} margin={{ top: 10, right: 5, left: -25, bottom: 0 }}>
               <defs>
                 <linearGradient id="ptsGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
+                  <stop offset="5%" stopColor={CYAN} stopOpacity={0.3} />
+                  <stop offset="95%" stopColor={CYAN} stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridStyle.stroke} opacity={gridStyle.opacity} />
               <XAxis dataKey="day" tick={axisStyle} axisLine={false} tickLine={false} />
               <YAxis tick={axisStyle} axisLine={false} tickLine={false} width={30} />
-              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
-              <Area type="monotone" dataKey="pts" name="Points" stroke="var(--primary)" fill="url(#ptsGrad)" strokeWidth={2} />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--bg-glass)' }} />
+              <Area type="monotone" dataKey="pts" name="Points" stroke={CYAN} fill="url(#ptsGrad)" strokeWidth={2} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
       </ChartCard>
 
       {/* Habit Heatmap */}
-      <ChartCard icon={Award} color="text-emerald-400" title="30-Day Habit Heatmap">
+      <ChartCard icon={Award} accent={LIME} title="30-Day Habit Heatmap">
         <HabitHeatmap habitsData={habitsData} logHabit={logHabit} />
       </ChartCard>
 
       {/* Habit Ratio */}
       {habitPieData.length > 0 && (
-        <ChartCard icon={Award} color="text-cyber-400" title="Today's Habit Ratio">
+        <ChartCard icon={Award} accent={CYAN} title="Today's Habit Ratio">
           <div className="h-[180px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -831,7 +857,7 @@ export default function Stats() {
                     <Cell key={i} fill={entry.color} />
                   ))}
                 </Pie>
-                <Legend formatter={(v) => <span className="text-white/60 text-[10px] font-semibold">{v}</span>} />
+                <Legend formatter={(v) => <span className="text-[10px] font-semibold" style={{ color: 'var(--text-secondary)' }}>{v}</span>} />
                 <Tooltip content={<CustomTooltip />} />
               </PieChart>
             </ResponsiveContainer>

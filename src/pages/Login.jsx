@@ -6,6 +6,74 @@ import {
   useReducedMotion,
 } from "framer-motion";
 import { supabase } from "../lib/supabase";
+import Logo from "../components/Logo";
+
+/* ── New design-language font stack ──────────── */
+const FONT_STACK =
+  "'Aeonik', 'General Sans', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif";
+
+/* ── Feature pills shown above the auth card ── */
+const FEATURE_PILLS = [
+  { icon: "📝", label: "Log" },
+  { icon: "📔", label: "Journal" },
+  { icon: "💪", label: "Fitness" },
+  { icon: "📈", label: "Traders" },
+  { icon: "📊", label: "Stats" },
+  { icon: "✅", label: "Tasks" },
+  { icon: "🏠", label: "Home" },
+];
+
+/* ── Feature pill row ─────────────────────────── */
+function FeaturePills({ variants, reduced }) {
+  return (
+    <motion.div
+      variants={variants}
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        justifyContent: "center",
+        gap: "0.5rem",
+        marginBottom: "1.75rem",
+        maxWidth: 340,
+      }}
+    >
+      {FEATURE_PILLS.map((pill) => (
+        <motion.span
+          key={pill.label}
+          whileHover={
+            reduced
+              ? {}
+              : {
+                  scale: 1.06,
+                  borderColor: "rgba(20,184,166,0.55)",
+                  boxShadow: "0 0 0 1px rgba(20,184,166,0.25), 0 0 16px rgba(20,184,166,0.3)",
+                }
+          }
+          transition={{ duration: 0.2, ease: "easeOut" }}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "0.4rem 0.85rem",
+            borderRadius: 999,
+            background: "rgba(255,255,255,0.05)",
+            border: "1px solid rgba(255,255,255,0.09)",
+            fontSize: "0.72rem",
+            fontWeight: 500,
+            color: "rgba(228,228,231,0.85)",
+            letterSpacing: "-0.01em",
+            cursor: "default",
+          }}
+        >
+          <span aria-hidden="true" style={{ fontSize: "0.8rem", lineHeight: 1 }}>
+            {pill.icon}
+          </span>
+          {pill.label}
+        </motion.span>
+      ))}
+    </motion.div>
+  );
+}
 
 /* ─────────────────────────────────────────────
    BLOB DATA  (position, size, color, duration)
@@ -151,10 +219,10 @@ function useRipple() {
 }
 
 /* ── Google icon ─────────────────────────────── */
-function GoogleIcon({ size = 18, animated = false, reduced = false }) {
+function GoogleIcon({ size = 18, animated = false, reduced = false, className = "mr-2 flex items-center" }) {
   return (
     <motion.span
-      className="mr-2 flex items-center"
+      className={className}
       whileHover={animated && !reduced ? { rotate: [0, -12, 12, -6, 0], scale: 1.15 } : {}}
       transition={{ duration: 0.45, ease: "easeInOut" }}
     >
@@ -339,6 +407,7 @@ export default function Login() {
     <>
       {/* ── Ripple keyframe injection ── */}
       <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
         @keyframes lifetracker-ripple {
           to { transform: translate(-50%,-50%) scale(28); opacity: 0; }
         }
@@ -369,6 +438,7 @@ export default function Login() {
           overflow: "hidden",
           background: "#0B1121",
           color: "#f4f4f5",
+          fontFamily: FONT_STACK,
         }}
       >
         {/* ── Blob background ── */}
@@ -411,6 +481,24 @@ export default function Login() {
             alignItems: "center",
           }}
         >
+          {/* ── Teal spotlight glow behind hero ── */}
+          <div
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              top: -60,
+              left: "50%",
+              transform: "translateX(-50%)",
+              width: 460,
+              height: 320,
+              background:
+                "radial-gradient(ellipse 50% 50% at 50% 30%, rgba(20,184,166,0.28) 0%, rgba(6,182,212,0.12) 45%, transparent 75%)",
+              filter: "blur(10px)",
+              pointerEvents: "none",
+              zIndex: 0,
+            }}
+          />
+
           {/* ── Logo ── */}
           <motion.div variants={logoVariants} style={{ marginBottom: "1.25rem", position: "relative" }}>
             {/* Outer glow ring */}
@@ -459,26 +547,22 @@ export default function Login() {
                   "0 0 0 1px rgba(135,166,140,0.15), 0 8px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.07)",
               }}
             >
-              <img
-                src="/logo.png"
-                alt="LifeTracker Logo"
-                style={{ width: 34, height: 34, objectFit: "contain" }}
-                onError={(e) => { e.currentTarget.style.display = "none"; }}
-              />
+              <Logo size={34} />
             </div>
           </motion.div>
 
           {/* ── Titles ── */}
-          <div style={{ textAlign: "center", marginBottom: "2rem" }}>
+          <div style={{ textAlign: "center", marginBottom: "1.5rem", position: "relative", zIndex: 1 }}>
             <motion.h1
               variants={titleVariants}
               style={{
-                fontSize: "1.5rem",
-                fontWeight: 700,
-                letterSpacing: "-0.03em",
+                fontSize: "2.25rem",
+                fontWeight: 800,
+                letterSpacing: "-0.02em",
                 color: "#ffffff",
                 margin: 0,
-                lineHeight: 1.2,
+                lineHeight: 1.15,
+                fontFamily: FONT_STACK,
               }}
             >
               LifeTracker
@@ -487,8 +571,9 @@ export default function Login() {
               variants={taglineVariants}
               style={{
                 fontSize: "0.8rem",
-                color: "rgba(161,161,170,0.85)",
-                marginTop: "0.45rem",
+                fontWeight: 500,
+                color: "rgba(244,244,245,0.75)",
+                marginTop: "0.5rem",
                 lineHeight: 1.6,
               }}
             >
@@ -496,21 +581,44 @@ export default function Login() {
             </motion.p>
           </div>
 
-          {/* ── Glass card ── */}
-          <motion.div
-            variants={itemVariants}
-            style={{
-              width: "100%",
-              background: "rgba(255,255,255,0.04)",
-              border: "1px solid rgba(255,255,255,0.09)",
-              borderRadius: 20,
-              padding: "1.35rem",
-              backdropFilter: "blur(20px)",
-              WebkitBackdropFilter: "blur(20px)",
-              boxShadow:
-                "0 4px 6px rgba(0,0,0,0.3), 0 24px 64px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06)",
-            }}
-          >
+          {/* ── Feature pills ── */}
+          <FeaturePills variants={itemVariants} reduced={!!shouldReduceMotion} />
+
+          {/* ── Card + ambient bloom wrapper ── */}
+          <div style={{ position: "relative", width: "100%" }}>
+            {/* Ambient colored bloom beneath the card */}
+            <div
+              aria-hidden="true"
+              style={{
+                position: "absolute",
+                inset: "8% -6% -10%",
+                background:
+                  "radial-gradient(60% 70% at 50% 55%, rgba(20,184,166,0.22) 0%, rgba(6,182,212,0.1) 45%, transparent 75%)",
+                filter: "blur(30px)",
+                pointerEvents: "none",
+                zIndex: 0,
+              }}
+            />
+
+            {/* ── Glass card ── */}
+            <motion.div
+              initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, ease: "easeOut", delay: shouldReduceMotion ? 0 : 0.25 }}
+              style={{
+                width: "100%",
+                position: "relative",
+                zIndex: 1,
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.09)",
+                borderRadius: 24,
+                padding: "1.35rem",
+                backdropFilter: "blur(20px)",
+                WebkitBackdropFilter: "blur(20px)",
+                boxShadow:
+                  "0 8px 32px rgba(0,0,0,0.4), 0 1px 0 rgba(255,255,255,0.05) inset, 0 24px 64px rgba(0,0,0,0.45)",
+              }}
+            >
             {/* Error banner */}
             <AnimatePresence>
               {error && (
@@ -575,25 +683,41 @@ export default function Login() {
                         position: "relative",
                         overflow: "hidden",
                         width: "100%",
-                        height: 46,
+                        height: 48,
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        borderRadius: 14,
+                        borderRadius: 22,
                         fontWeight: 600,
                         fontSize: "0.875rem",
-                        background: "#ffffff",
-                        color: "#111827",
+                        fontFamily: FONT_STACK,
+                        background:
+                          "linear-gradient(135deg, #2DD4BF 0%, #14B8A6 45%, #0891B2 100%)",
+                        color: "#ffffff",
                         border: "none",
                         cursor: isLoading ? "not-allowed" : "pointer",
                         opacity: isLoading ? 0.5 : 1,
                         letterSpacing: "-0.01em",
-                        boxShadow: "0 1px 3px rgba(0,0,0,0.18), 0 4px 12px rgba(0,0,0,0.12)",
+                        boxShadow:
+                          "0 14px 36px rgba(20,184,166,0.4), 0 4px 14px rgba(6,182,212,0.32), inset 0 1px 0 rgba(255,255,255,0.3), inset 0 -10px 18px rgba(0,0,0,0.1)",
                       }}
                     >
+                      {/* Glossy sheen: top-left glare + soft top fade */}
+                      <span
+                        aria-hidden="true"
+                        style={{
+                          position: "absolute",
+                          inset: 0,
+                          borderRadius: 22,
+                          background:
+                            "radial-gradient(120% 140% at 12% -20%, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 45%), linear-gradient(180deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0) 60%)",
+                          pointerEvents: "none",
+                        }}
+                      />
                       {rippleGoogle.rippleEls}
                       <span
                         style={{
+                          position: "relative",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
@@ -601,12 +725,26 @@ export default function Login() {
                           transition: "opacity 0.15s",
                         }}
                       >
-                        <GoogleIcon size={17} animated reduced={!!shouldReduceMotion} />
+                        <span
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            width: 24,
+                            height: 24,
+                            borderRadius: "50%",
+                            background: "#ffffff",
+                            marginRight: 9,
+                            boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
+                          }}
+                        >
+                          <GoogleIcon size={14} animated reduced={!!shouldReduceMotion} className="flex items-center" />
+                        </span>
                         Continue with Google
                       </span>
                       {loadingProvider === "google" && (
                         <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <Loader2 size={16} className="animate-spin" style={{ color: "#111827" }} />
+                          <Loader2 size={16} className="animate-spin" style={{ color: "#ffffff" }} />
                         </span>
                       )}
                     </motion.button>
@@ -624,16 +762,19 @@ export default function Login() {
                         position: "relative",
                         overflow: "hidden",
                         width: "100%",
-                        height: 46,
+                        height: 48,
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        borderRadius: 14,
+                        borderRadius: 22,
                         fontWeight: 500,
                         fontSize: "0.875rem",
-                        background: "rgba(22,27,34,0.95)",
+                        fontFamily: FONT_STACK,
+                        background: "rgba(255,255,255,0.04)",
                         color: "#e5e7eb",
-                        border: "1px solid rgba(255,255,255,0.12)",
+                        border: "1px solid rgba(255,255,255,0.08)",
+                        backdropFilter: "blur(12px)",
+                        WebkitBackdropFilter: "blur(12px)",
                         cursor: isLoading ? "not-allowed" : "pointer",
                         opacity: isLoading ? 0.5 : 1,
                         letterSpacing: "-0.01em",
@@ -663,36 +804,37 @@ export default function Login() {
                     {/* Divider */}
                     <motion.div
                       variants={buttonVariants}
-                      style={{ display: "flex", alignItems: "center", gap: "0.65rem", margin: "0.1rem 0" }}
+                      style={{ display: "flex", alignItems: "center", gap: "0.65rem", margin: "0.35rem 0 0.1rem" }}
                     >
                       <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.08)" }} />
                       <span style={{ fontSize: "0.68rem", color: "rgba(161,161,170,0.6)", letterSpacing: "0.08em", textTransform: "uppercase" }}>or</span>
                       <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.08)" }} />
                     </motion.div>
 
-                    {/* Email */}
+                    {/* Email — tertiary text-link */}
                     <motion.button
                       id="login-email-open"
                       variants={buttonVariants}
                       onClick={(e) => { rippleEmail.addRipple(e); setEmailOpen(true); }}
                       disabled={isLoading}
-                      whileHover={shouldReduceMotion ? {} : { scale: 1.02 }}
+                      whileHover={shouldReduceMotion ? {} : { scale: 1.01 }}
                       whileTap={shouldReduceMotion ? {} : { scale: 0.98 }}
                       transition={{ type: "spring", stiffness: 400, damping: 28 }}
                       style={{
                         position: "relative",
                         overflow: "hidden",
                         width: "100%",
-                        height: 46,
+                        height: 40,
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        borderRadius: 14,
+                        borderRadius: 20,
                         fontWeight: 500,
-                        fontSize: "0.875rem",
-                        background: "rgba(135,166,140,0.12)",
-                        color: "#d1fae5",
-                        border: "1px solid rgba(135,166,140,0.28)",
+                        fontSize: "0.82rem",
+                        fontFamily: FONT_STACK,
+                        background: "transparent",
+                        color: "rgba(94,234,212,0.9)",
+                        border: "none",
                         cursor: isLoading ? "not-allowed" : "pointer",
                         opacity: isLoading ? 0.5 : 1,
                         letterSpacing: "-0.01em",
@@ -700,7 +842,7 @@ export default function Login() {
                     >
                       {rippleEmail.rippleEls}
                       <span style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <Mail size={16} style={{ marginRight: 8, color: "rgba(135,166,140,0.8)" }} />
+                        <Mail size={15} style={{ marginRight: 7 }} />
                         Continue with Email
                       </span>
                     </motion.button>
@@ -859,13 +1001,29 @@ export default function Login() {
                 </motion.form>
               )}
             </AnimatePresence>
-          </motion.div>
+            </motion.div>
+          </div>
 
           {/* ── Footer ── */}
           <motion.p
             variants={itemVariants}
             style={{
-              marginTop: "1.75rem",
+              marginTop: "1.5rem",
+              textAlign: "center",
+              fontSize: "0.68rem",
+              fontWeight: 500,
+              color: "rgba(244,244,245,0.6)",
+              lineHeight: 1.6,
+              maxWidth: 300,
+            }}
+          >
+            Your data is end-to-end isolated per account. Protected by Supabase Row Level Security 🔒
+          </motion.p>
+
+          <motion.p
+            variants={itemVariants}
+            style={{
+              marginTop: "0.6rem",
               textAlign: "center",
               fontSize: "0.65rem",
               color: "rgba(113,113,122,0.7)",

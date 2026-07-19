@@ -1,5 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap');
 @import './theme.css';
+@import './styles/theme.css';
 
 @tailwind base;
 @tailwind components;
@@ -7,11 +8,22 @@
 
 @layer base {
   :root, [data-theme="dark"] {
-    --background: #0f172a; /* slate-900 */
-    --card: #1e293b; /* slate-800 */
-    --text: #f8fafc; /* slate-50 */
-    --primary: #06b6d4; /* cyan-500 */
-    --accent: #10b981; /* emerald-500 */
+    /* --background/--card/--text/--primary alias the design-system tokens
+       (single source of truth — src/styles/theme.css) so Tailwind's
+       bg-background / bg-card / text-text classes, plus anything still
+       reading --primary (scrollbar hover, .aura-card border), stay in sync
+       with every theme automatically. Neither --accent nor --primary is
+       redefined with its own literal here anymore — --primary used to be a
+       hardcoded hex per theme block that quietly disagreed with
+       styles/theme.css's --accent (e.g. synthwave's --primary was yellow
+       while --accent was pink) — same "some panels keep the old theme's
+       color" bug as the old --accent collision, just a second variable.
+       styles/theme.css is now the only place a hex literal for the accent
+       hue is ever written. */
+    --background: var(--bg-base);
+    --card: var(--bg-elevated);
+    --text: var(--text-primary);
+    --primary: var(--accent);
 
     --color-white: 255 255 255;
     --color-navy-50: 240 244 255;
@@ -41,11 +53,10 @@
   }
 
   [data-theme="light"], [data-theme="frost"] {
-    --background: #f8fafc; /* slate-50 */
-    --card: #ffffff; /* white */
-    --text: #334155; /* slate-700 */
-    --primary: #3b82f6; /* blue-500 */
-    --accent: #64748b; /* slate-500 */
+    --background: var(--bg-base);
+    --card: var(--bg-elevated);
+    --text: var(--text-primary);
+    --primary: var(--accent);
 
     --color-white: 15 23 42; /* slate-900 */
     --color-navy-50: 241 245 249;
@@ -75,11 +86,10 @@
   }
 
   [data-theme="synthwave"], [data-theme="cyberpunk"] {
-    --background: #1e0b36; /* deep purple background */
-    --card: #2d0f54; /* deep purple card */
-    --text: #ffffff; /* white */
-    --primary: #facc15; /* toxic bright yellow */
-    --accent: #ec4899; /* laser pink */
+    --background: var(--bg-base);
+    --card: var(--bg-elevated);
+    --text: var(--text-primary);
+    --primary: var(--accent);
 
     --color-white: 255 255 255;
     --color-navy-50: 253 250 255;
@@ -109,11 +119,10 @@
   }
 
   [data-theme="midnight"] {
-    --background: #0b0f19; /* deep royal blue-black */
-    --card: #161e31; /* elegant card */
-    --text: #ffffff; /* white */
-    --primary: #f59e0b; /* elegant gold */
-    --accent: #fbbf24; /* lighter gold */
+    --background: var(--bg-base);
+    --card: var(--bg-elevated);
+    --text: var(--text-primary);
+    --primary: var(--accent);
 
     --color-white: 255 255 255;
     --color-navy-50: 240 244 255;
@@ -143,11 +152,10 @@
   }
 
   [data-theme="matrix"] {
-    --background: #000000; /* pitch black */
-    --card: #121212; /* charcoal black */
-    --text: #22c55e; /* neon green */
-    --primary: #22c55e; /* neon terminal green */
-    --accent: #4ade80; /* lighter green */
+    --background: var(--bg-base);
+    --card: var(--bg-elevated);
+    --text: var(--text-primary);
+    --primary: var(--accent);
 
     --color-white: 34 197 94; /* neon green text mapping */
     --color-navy-50: 20 20 20;
@@ -174,26 +182,6 @@
     --color-cyber-900: 20 83 45;
 
     --shadow-glass: 0 4px 30px rgba(34,197,94,0.15);
-  }
-
-  /* ── Privacy Screen Blur (shoulder-surf protection) ───────────────────────
-     Applied by AppContext when tab loses focus + settings.privacyBlurEnabled
-     is true. Renders a full-screen frosted overlay over the entire app.        */
-  body.privacy-blurred::after {
-    content: '';
-    position: fixed;
-    inset: 0;
-    z-index: 9999;
-    backdrop-filter: blur(24px) brightness(0.4) saturate(0.3);
-    -webkit-backdrop-filter: blur(24px) brightness(0.4) saturate(0.3);
-    background: rgba(0, 0, 0, 0.55);
-    pointer-events: none;
-    animation: privacyFadeIn 0.15s ease;
-  }
-
-  @keyframes privacyFadeIn {
-    from { opacity: 0; }
-    to   { opacity: 1; }
   }
 
   * {
@@ -268,18 +256,52 @@
     -webkit-appearance: none;
     margin: 0;
   }
+
+  /* Native <select> dropdown — the popup option list ignores the parent
+     theme (translucent/dark card backgrounds) and defaults to the OS's
+     white-background native rendering. Force dark option styling
+     globally so every current and future <select> in the app is
+     readable, instead of fixing it per-component. Chromium/Edge/Brave
+     respect option background+color; Firefox/Safari support is partial. */
+  select {
+    background-color: #1A2138;
+    color: #FFFFFF;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  select option {
+    background-color: #1A2138;
+    color: #FFFFFF;
+    padding: 10px;
+  }
+
+  select option:checked,
+  select option:hover {
+    background-color: #2A3352;
+  }
+
+  /* ── Mobile touch targets ─────────────────────────────────────────────────
+     iOS Safari auto-zooms the viewport when focusing an input with a
+     computed font-size below 16px — force 16px on every text-like control
+     below the `sm` breakpoint regardless of the (usually smaller) Tailwind
+     text-size utility applied to it. Also guarantee a 48px minimum tap
+     height; min-height always wins over a smaller `height`, so this is
+     safe even where a component sets an explicit fixed height inline. */
+  @media (max-width: 640px) {
+    input, select, textarea {
+      font-size: 16px !important;
+    }
+
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+    select,
+    textarea {
+      min-height: 48px;
+    }
+  }
 }
 
 @layer components {
-  /* Glass Card */
-  .glass-card {
-    @apply bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl;
-    box-shadow: var(--shadow-glass);
-  }
-
-  .glass-card-hover {
-    @apply glass-card transition-all duration-300 hover:bg-white/[0.08] hover:border-white/20;
-  }
+  /* .glass-card now lives in src/styles/theme.css (single source of truth). */
 
   /* Cyber glow effects */
   .glow-cyan {
@@ -399,7 +421,8 @@
 
   .progress-fill {
     @apply h-full rounded-full transition-all duration-700 ease-out;
-    background: linear-gradient(90deg, #22d3ee, #10b981);
+    /* Design-system hero gradient: cyan → lime */
+    background: linear-gradient(90deg, #22D3EE, #A3E635);
   }
 
   /* Mood emoji scale */
@@ -418,12 +441,6 @@
   }
 
 
-
-  /* Quick action button (legacy) */
-  .quick-action {
-    @apply flex flex-col items-center gap-1.5 p-3 rounded-2xl glass-card cursor-pointer
-           transition-all duration-200 hover:scale-105 active:scale-95 hover:border-cyber-400/30;
-  }
 
   /* ── New Design System ────────────────────────────────────────────────── */
 
@@ -506,10 +523,6 @@
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
-  }
-
-  .pb-safe {
-    padding-bottom: env(safe-area-inset-bottom);
   }
 
   .pt-safe {

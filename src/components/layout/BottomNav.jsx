@@ -1,100 +1,47 @@
-import { useState, useEffect, useRef } from 'react'
+/**
+ * BottomNav.jsx — Mobile bottom navigation bar (< lg breakpoint only)
+ *
+ * Always visible, fixed to the bottom of the viewport — no auto-hide.
+ * 5 primary destinations + a "More" button that opens MoreSheet for the
+ * rest of the app's pages (Daily Log, Fitness, Habits, Tasks, Profile).
+ */
+import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Home, BookOpen, BarChart2, CheckSquare, User, Dumbbell, BookMarked, LineChart } from 'lucide-react'
-import { useApp } from '../../context/AppContext'
+import { Home, BookMarked, LineChart, Watch, BarChart2, Menu } from 'lucide-react'
+import MoreSheet from './MoreSheet'
 
-const NAV_ITEMS = [
-  { path: '/',                icon: Home,        label: 'Home'    },
-  { path: '/log',             icon: BookOpen,    label: 'Log'     },
-  { path: '/journal',         icon: BookMarked,  label: 'Journal' },
-  { path: '/trading-journal', icon: LineChart,   label: 'Trades'  },
-  { path: '/fitness',         icon: Dumbbell,    label: 'Fitness' },
-  { path: '/stats',           icon: BarChart2,   label: 'Stats'   },
-  { path: '/todo',            icon: CheckSquare, label: 'Tasks'   },
-  { path: '/profile',         icon: User,        label: 'Me'      },
+const PRIMARY_ITEMS = [
+  { path: '/dashboard',       icon: Home,       label: 'Dashboard' },
+  { path: '/journal',         icon: BookMarked, label: 'Journal'   },
+  { path: '/trading-journal', icon: LineChart,  label: 'Trades'    },
+  { path: '/health-sync',     icon: Watch,       label: 'Health'    },
+  { path: '/stats',           icon: BarChart2,  label: 'Stats'     },
 ]
 
-export default function BottomNav() {
-  const { settings } = useApp()
-  const fitnessTrackerEnabled = settings?.fitnessTrackerEnabled !== false
-  const visibleNavItems = NAV_ITEMS.filter(item => {
-    if (item.path === '/fitness' && !fitnessTrackerEnabled) return false
-    return true
-  })
+const SECONDARY_PATHS = ['/log', '/fitness', '/habits', '/todo', '/profile']
 
+export default function BottomNav() {
   const location = useLocation()
   const navigate = useNavigate()
-  const [isVisible, setIsVisible] = useState(true)
-  const timerRef = useRef(null)
+  const [moreOpen, setMoreOpen] = useState(false)
 
-  const resetTimer = () => {
-    setIsVisible(true)
-    if (timerRef.current) {
-      clearTimeout(timerRef.current)
-    }
-    timerRef.current = setTimeout(() => {
-      setIsVisible(false)
-    }, 10000) // 10 seconds of inactivity
-  }
+  const isActive = (path) =>
+    path === '/dashboard'
+      ? location.pathname === '/dashboard' || location.pathname === '/'
+      : location.pathname === path
 
-  useEffect(() => {
-    // Initialize auto-hide timer
-    resetTimer()
-
-    const handleActivity = () => {
-      resetTimer()
-    }
-
-    const handleMouseMove = (e) => {
-      // If cursor is close to the bottom (within 80px), keep it visible and pause timer
-      if (e.clientY > window.innerHeight - 80) {
-        setIsVisible(true)
-        if (timerRef.current) {
-          clearTimeout(timerRef.current)
-        }
-      } else {
-        resetTimer()
-      }
-    }
-
-    window.addEventListener('mousemove', handleMouseMove)
-    window.addEventListener('mousedown', handleActivity)
-    window.addEventListener('touchstart', handleActivity)
-    window.addEventListener('keydown', handleActivity)
-    window.addEventListener('scroll', handleActivity)
-
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current)
-      window.removeEventListener('mousemove', handleMouseMove)
-      window.removeEventListener('mousedown', handleActivity)
-      window.removeEventListener('touchstart', handleActivity)
-      window.removeEventListener('keydown', handleActivity)
-      window.removeEventListener('scroll', handleActivity)
-    }
-  }, [])
+  const moreActive = SECONDARY_PATHS.includes(location.pathname)
 
   return (
     <>
-      {/* Invisible hover trigger zone at the very bottom of the screen */}
-      <div
-        onMouseEnter={() => setIsVisible(true)}
-        className="fixed bottom-0 left-0 right-0 h-4 z-40 bg-transparent"
-        style={{ pointerEvents: isVisible ? 'none' : 'auto' }}
-      />
-
-      <motion.nav
-        initial={{ y: 0 }}
-        animate={{ y: isVisible ? 0 : '100%' }}
-        transition={{ type: 'spring', stiffness: 260, damping: 26 }}
-        style={{ pointerEvents: isVisible ? 'auto' : 'none', willChange: 'transform' }}
-        className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-background/90 backdrop-blur-xl pb-safe transition-colors duration-300 transform-gpu"
+      <nav
+        className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/10
+                   bg-background/95 backdrop-blur-xl pb-safe transition-colors duration-300"
       >
-        <div className="flex items-center justify-start sm:justify-around px-1 pt-2 pb-2 max-w-lg mx-auto overflow-x-auto no-scrollbar">
-          {visibleNavItems.map(({ path, icon: Icon, label }) => {
-            const active = path === '/'
-              ? (location.pathname === '/' || location.pathname === '/dashboard')
-              : location.pathname === path
+        <div className="flex items-stretch justify-around h-16 max-w-lg mx-auto px-1">
+          {PRIMARY_ITEMS.map(({ path, icon: Icon, label }) => {
+            const active = isActive(path)
             return (
               <button
                 key={path}
@@ -102,33 +49,49 @@ export default function BottomNav() {
                 onClick={() => navigate(path)}
                 aria-label={label}
                 aria-current={active ? 'page' : undefined}
-                className="relative flex flex-shrink-0 flex-col items-center justify-center gap-0.5 min-h-[48px] min-w-[44px] px-0.5 rounded-xl transition-all duration-200 active:scale-90 touch-manipulation"
+                className="relative flex flex-col items-center justify-center gap-1 flex-1 min-w-0
+                           min-h-[44px] active:scale-90 transition-transform duration-150 touch-manipulation"
               >
+                <Icon size={21} className={active ? 'text-cyan-400' : 'text-white/40'} />
+                <span className={`text-[10px] font-medium leading-none truncate max-w-full px-0.5 ${active ? 'text-cyan-400' : 'text-white/35'}`}>
+                  {label}
+                </span>
                 {active && (
                   <motion.div
-                    layoutId="nav-indicator"
-                    className="absolute inset-0 bg-cyber-500/15 rounded-xl border border-cyber-500/30 transform-gpu"
+                    layoutId="bottomnav-active-dot"
+                    className="absolute top-0.5 w-1 h-1 rounded-full bg-cyan-400 shadow-[0_0_6px_rgb(var(--accent-rgb)/0.8)]"
                     transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                   />
                 )}
-                <Icon
-                  size={20}
-                  className={`relative transition-colors duration-200 ${
-                    active ? 'text-cyber-400' : 'text-white/40'
-                  }`}
-                />
-                <span
-                  className={`relative text-[10px] font-medium transition-colors duration-200 ${
-                    active ? 'text-cyber-400' : 'text-white/30'
-                  }`}
-                >
-                  {label}
-                </span>
               </button>
             )
           })}
+
+          {/* More — opens the secondary-pages bottom sheet */}
+          <button
+            id="nav-more"
+            onClick={() => setMoreOpen(true)}
+            aria-label="More"
+            aria-current={moreActive ? 'page' : undefined}
+            className="relative flex flex-col items-center justify-center gap-1 flex-1 min-w-0
+                       min-h-[44px] active:scale-90 transition-transform duration-150 touch-manipulation"
+          >
+            <Menu size={21} className={moreActive ? 'text-cyan-400' : 'text-white/40'} />
+            <span className={`text-[10px] font-medium leading-none ${moreActive ? 'text-cyan-400' : 'text-white/35'}`}>
+              More
+            </span>
+            {moreActive && (
+              <motion.div
+                layoutId="bottomnav-active-dot"
+                className="absolute top-0.5 w-1 h-1 rounded-full bg-cyan-400 shadow-[0_0_6px_rgb(var(--accent-rgb)/0.8)]"
+                transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+              />
+            )}
+          </button>
         </div>
-      </motion.nav>
+      </nav>
+
+      <MoreSheet isOpen={moreOpen} onClose={() => setMoreOpen(false)} />
     </>
   )
 }
