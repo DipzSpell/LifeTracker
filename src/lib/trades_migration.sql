@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════════════
--- LifeTracker — trades (Trading Journal) Migration
+-- LifeNotebook — trades (Trading Journal) Migration
 -- Run in: Supabase Dashboard → SQL Editor → New Query
 -- Safe to re-run — all statements use IF NOT EXISTS / OR REPLACE guards.
 -- ═══════════════════════════════════════════════════════════════════════════

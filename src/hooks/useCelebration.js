@@ -17,7 +17,7 @@ const DEFAULTS = {
   ticks: 200,
   gravity: 0.9,
   scalar: 1.1,
-  shapes: ['circle', 'square'],
+  shapes: ['circle', 'square', 'triangle', 'star', 'heart', 'spiral'],
   colors: [
     '#06b6d4', // cyber-500
     '#10b981', // emerald-500
@@ -25,7 +25,7 @@ const DEFAULTS = {
     '#a855f7', // purple-500
     '#ec4899', // pink-500
     '#facc15', // yellow-400
-    '#ffffff',
+    '#ffffff', // white
   ],
   disableForReducedMotion: true,
 }

@@ -1,8 +1,8 @@
-# 🌌 LifeTracker — Your Personal OS
+# 🌌 LifeNotebook — Your Personal OS
 
 A modern, dark-themed Personal Life OS designed to help users track daily habits, manage tasks, and log sleep cycles with advanced gamification (Points System) and strict multi-user data isolation.
 
-🔗 **Live Deployment:** [https://lifenotebook.vercel.app/](https://lifenotebook.vercel.app/)
+🔗 **Live Deployment:** [https://lnbook.vercel.app/](https://lnbook.vercel.app/)
 
 ---
 

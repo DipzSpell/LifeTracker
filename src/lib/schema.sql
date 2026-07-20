@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════
--- LifeTracker — Supabase SQL Setup
+-- LifeNotebook — Supabase SQL Setup
 -- Run this entire script in: Supabase Dashboard → SQL Editor → New Query
 -- ═══════════════════════════════════════════════════════════════════
 

@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { useApp } from '../context/AppContext'
 import { BADGES, checkBadges } from '../lib/points'
 import Toast, { useToast } from '../components/ui/Toast'
+import Logo from '../components/Logo'
 import { todayKey } from '../lib/storage'
 import {
   Shield, Bell, Moon, Target,
@@ -1243,11 +1244,8 @@ export default function Profile() {
                   {id === 'about' && (
                     <div className="space-y-3">
                       <div className="text-center py-2">
-                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-cyan-400 to-lime-400
-                                        mx-auto mb-3 flex items-center justify-center shadow-lg glow-cyan">
-                          <Zap size={22} className="text-white" fill="currentColor" />
-                        </div>
-                        <p className="text-sm font-bold text-white">LifeTracker</p>
+                        <Logo size={48} className="rounded-2xl mx-auto mb-3 shadow-lg" />
+                        <p className="text-sm font-bold text-white">LifeNotebook</p>
                         <p className="text-xs text-white/40">Version 1.0.0</p>
                         <p className="text-xs text-white/30 mt-1">Your Personal OS 🚀</p>
                       </div>

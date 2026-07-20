@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════
--- LifeTracker — Health Sync migration
+-- LifeNotebook — Health Sync migration
 -- Run in: Supabase Dashboard → SQL Editor → New Query
 --
 -- Stores individual health readings synced from Google Fit or a

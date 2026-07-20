@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════════════
--- LifeTracker — journal_entries Migration
+-- LifeNotebook — journal_entries Migration
 -- Run this in: Supabase Dashboard → SQL Editor → New Query
 -- Safe to re-run — uses IF NOT EXISTS and DROP IF EXISTS guards throughout.
 -- ═══════════════════════════════════════════════════════════════════════════

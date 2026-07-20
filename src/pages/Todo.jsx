@@ -245,7 +245,7 @@ function TaskCard({ task }) {
               background: priColor,
               boxShadow: task.priority === 'high' ? `0 0 8px color-mix(in srgb, ${priColor} 60%, transparent)` : 'none',
             }} />
-            <p className="text-sm font-semibold" style={done
+            <p className="text-sm font-semibold min-w-0 break-words" style={done
               ? { textDecoration: 'line-through', color: 'var(--text-muted)', margin: 0 }
               : { color: 'var(--text-primary)', margin: 0 }}>
               {task.title}
