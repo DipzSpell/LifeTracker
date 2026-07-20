@@ -26,6 +26,10 @@ import { AuthProvider, useAuth } from './context/AuthContext'
 import { AppProvider } from './context/AppContext'
 import { ThemeProvider } from './context/ThemeContext'
 import Login from './pages/Login'
+import FeatureAbout from './pages/public/FeatureAbout'
+import Terms from './pages/public/Terms'
+import Privacy from './pages/public/Privacy'
+import ChooseUsername from './components/ChooseUsername'
 import Dashboard from './pages/Dashboard'
 import DailyLog from './pages/DailyLog'
 import Fitness from './pages/Fitness'
@@ -66,13 +70,18 @@ function GlobalLoader() {
 // Guards all authenticated pages. Renders nothing (global loader) while
 // loading=true so we never redirect prematurely.
 function ProtectedRoute({ children }) {
-  const { user, loading } = useAuth()
+  const { user, loading, needsUsername } = useAuth()
 
   // ✅ While loading: show spinner. NEVER navigate to /login here.
   if (loading) return <GlobalLoader />
 
   // ✅ Only redirect when we're CERTAIN there is no user.
   if (!user) return <Navigate to="/login" replace />
+
+  // ✅ OAuth sign-ins never collect a userid — make them choose one before
+  //    the app (and its data layer) mounts. One-time; never reappears once
+  //    a public.profiles row exists for this user.
+  if (needsUsername) return <ChooseUsername />
 
   // ✅ User confirmed — mount the app data layer and render.
   return <AppProvider>{children}</AppProvider>
@@ -95,6 +104,11 @@ function AppRoutes() {
         path="/login"
         element={user ? <Navigate to="/dashboard" replace /> : <Login />}
       />
+
+      {/* Public, no-auth-required pages linked from the login screen */}
+      <Route path="/about/:slug" element={<FeatureAbout />} />
+      <Route path="/terms" element={<Terms />} />
+      <Route path="/privacy" element={<Privacy />} />
 
       {/* All authenticated routes go through ProtectedRoute */}
       <Route

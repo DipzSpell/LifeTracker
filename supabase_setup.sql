@@ -1,4 +1,4 @@
--- LifeTracker — Supabase Database Setup
+-- LifeNotebook — Supabase Database Setup
 -- Run this in: Supabase Dashboard → SQL Editor → New Query
 
 -- 1. Create the user_states table

@@ -61,7 +61,7 @@ export default function Sidebar() {
           style={{ border: '1px solid var(--border-subtle)', boxShadow: '0 0 12px var(--accent-glow)' }}
         />
         <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
-          LifeTracker
+          LifeNotebook
         </span>
       </div>
 

@@ -55,6 +55,8 @@ const normalizeUser = (sbUser) => {
 export function AuthProvider({ children }) {
   const [user, setUser]       = useState(null)
   const [loading, setLoading] = useState(true)   // MUST start as true — never flip to false early
+  const [profile, setProfile] = useState(null)         // row from public.profiles, or null
+  const [profileLoading, setProfileLoading] = useState(false)
 
   useEffect(() => {
     /**
@@ -126,6 +128,32 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe()
   }, [])
 
+  /**
+   * Fetch/refresh the profiles row whenever `user` changes. Deliberately a
+   * separate effect from the auth-state one above — it must never gate the
+   * `loading` flag, or it would reintroduce the OAuth-redirect race
+   * condition documented at the top of this file (ProtectedRoute already
+   * shows a spinner while `loading` is true; this just runs alongside it).
+   */
+  useEffect(() => {
+    if (!user) { setProfile(null); return }
+    let cancelled = false
+    setProfileLoading(true)
+    supabase.from('profiles').select('*').eq('user_id', user.uid).maybeSingle()
+      .then(({ data }) => { if (!cancelled) setProfile(data ?? null) })
+      .finally(() => { if (!cancelled) setProfileLoading(false) })
+    return () => { cancelled = true }
+    // Deliberately keyed on user?.uid, not `user` — normalizeUser() returns
+    // a new object on every auth event (incl. TOKEN_REFRESHED), which would
+    // otherwise re-fetch the profile on a timer for no reason.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.uid])
+
+  // True only once we're SURE there's a signed-in user with no profiles row
+  // yet (e.g. a Google/GitHub sign-in that never went through the signup
+  // form) — gates the one-time "choose your userid" screen in App.jsx.
+  const needsUsername = !!user && !profileLoading && profile === null
+
   const signInWithGoogle = async () => {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -148,22 +176,68 @@ export function AuthProvider({ children }) {
     return data
   }
 
-  // ── Email / Password Login ────────────────────────────────────────────────────
-  const login = async (email, password) => {
+  // ── Password login — identifier is an email, username, or phone number ─────────
+  // A bare email is used directly; anything else is resolved to its real
+  // email server-side first (public.resolve_login_email RPC), since
+  // Supabase's own signInWithPassword only accepts an email or phone.
+  const login = async (identifier, password) => {
+    let email = identifier
+    if (!identifier.includes('@')) {
+      const { data: resolved, error: rpcError } = await supabase.rpc('resolve_login_email', { identifier })
+      if (rpcError || !resolved) throw new Error('Invalid email/username/mobile number or password.')
+      email = resolved
+    }
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) throw error
+    if (error) throw new Error('Invalid email/username/mobile number or password.')
     return normalizeUser(data.user)
   }
 
-  // ── Email / Password Sign Up ──────────────────────────────────────────────────
-  const signup = async (email, password, displayName) => {
+  // ── New-user sign up — email is always the real Supabase Auth identifier;
+  //    username/name/phone ride along as user_metadata and get copied into
+  //    public.profiles by the handle_new_user() DB trigger. ─────────────────────
+  const signUpWithDetails = async ({ name, username, email, phone, password }) => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { display_name: displayName } },
+      options: {
+        data: { display_name: name, username, phone: phone || null },
+        emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
+      },
     })
+    if (error) {
+      if (/profiles_username_lower_idx|duplicate key/i.test(error.message)) {
+        throw new Error('That username was just taken — please choose another.')
+      }
+      throw error
+    }
+    // data.session is null when "Confirm email" is required — the caller
+    // uses this to decide between "you're in" vs "check your inbox".
+    return { user: normalizeUser(data.user), sessionEstablished: !!data.session }
+  }
+
+  // ── Live username-availability check (signup form + ChooseUsername gate) ───────
+  const checkUsernameAvailable = async (username) => {
+    const { data, error } = await supabase.rpc('is_username_available', { check_username: username })
     if (error) throw error
-    return normalizeUser(data.user)
+    return data
+  }
+
+  // ── One-time claim for OAuth users who signed up without a username ────────────
+  const claimUsername = async (username) => {
+    if (!user) throw new Error('Not signed in.')
+    const { error } = await supabase.from('profiles').upsert({
+      user_id: user.uid,
+      username,
+      name: user.displayName,
+    })
+    if (error) {
+      if (/profiles_username_lower_idx|duplicate key/i.test(error.message)) {
+        throw new Error('That username is already taken.')
+      }
+      throw error
+    }
+    const { data } = await supabase.from('profiles').select('*').eq('user_id', user.uid).maybeSingle()
+    setProfile(data ?? null)
   }
 
   // ── Sign Out ──────────────────────────────────────────────────────────────────
@@ -193,7 +267,11 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, login, signup, signInWithGoogle, signInWithGithub, logout, updateProfile }}
+      value={{
+        user, loading, profile, needsUsername,
+        login, signUpWithDetails, checkUsernameAvailable, claimUsername,
+        signInWithGoogle, signInWithGithub, logout, updateProfile,
+      }}
     >
       {children}
     </AuthContext.Provider>

@@ -1,27 +1,82 @@
-import { useState, useEffect, useCallback } from "react";
-import { Mail, Loader2, AlertCircle, ArrowRight, X } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { Loader2, AlertCircle, ArrowRight, X, Mail, Check } from "lucide-react";
 import {
   motion,
   AnimatePresence,
   useReducedMotion,
+  useMotionValue,
+  useSpring,
 } from "framer-motion";
-import { supabase } from "../lib/supabase";
+import { useAuth } from "../context/AuthContext";
 import Logo from "../components/Logo";
+import PublicPageBackground, { FONT_STACK } from "../components/PublicPageBackground";
+import { FEATURE_INFO } from "../lib/featureInfo";
 
-/* ── New design-language font stack ──────────── */
-const FONT_STACK =
-  "'Aeonik', 'General Sans', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif";
+/* ── Magnetic pill — pulls its content toward the cursor within its own
+   bounds on hover, springs back to center on leave. Clicking navigates to
+   that feature's /about page. ── */
+function MagneticPill({ pill, reduced }) {
+  const ref = useRef(null);
+  const navigate = useNavigate();
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  const springX = useSpring(x, { stiffness: 200, damping: 18, mass: 0.15 });
+  const springY = useSpring(y, { stiffness: 200, damping: 18, mass: 0.15 });
 
-/* ── Feature pills shown above the auth card ── */
-const FEATURE_PILLS = [
-  { icon: "📝", label: "Log" },
-  { icon: "📔", label: "Journal" },
-  { icon: "💪", label: "Fitness" },
-  { icon: "📈", label: "Traders" },
-  { icon: "📊", label: "Stats" },
-  { icon: "✅", label: "Tasks" },
-  { icon: "🏠", label: "Home" },
-];
+  const handleMouseMove = (e) => {
+    if (reduced || !ref.current) return;
+    const rect = ref.current.getBoundingClientRect();
+    x.set((e.clientX - (rect.left + rect.width / 2)) * 0.4);
+    y.set((e.clientY - (rect.top + rect.height / 2)) * 0.4);
+  };
+  const handleMouseLeave = () => {
+    x.set(0);
+    y.set(0);
+  };
+
+  return (
+    <motion.button
+      ref={ref}
+      type="button"
+      onClick={() => navigate(`/about/${pill.slug}`)}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      whileHover={
+        reduced
+          ? {}
+          : {
+              scale: 1.06,
+              borderColor: "rgba(20,184,166,0.55)",
+              boxShadow: "0 0 0 1px rgba(20,184,166,0.25), 0 0 16px rgba(20,184,166,0.3)",
+            }
+      }
+      whileTap={reduced ? {} : { scale: 0.96 }}
+      style={{
+        x: springX,
+        y: springY,
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        padding: "0.4rem 0.85rem",
+        borderRadius: 999,
+        background: "rgba(255,255,255,0.05)",
+        border: "1px solid rgba(255,255,255,0.09)",
+        fontSize: "0.72rem",
+        fontWeight: 500,
+        color: "rgba(228,228,231,0.85)",
+        letterSpacing: "-0.01em",
+        cursor: "pointer",
+        fontFamily: FONT_STACK,
+      }}
+    >
+      <span aria-hidden="true" style={{ fontSize: "0.8rem", lineHeight: 1 }}>
+        {pill.icon}
+      </span>
+      {pill.label}
+    </motion.button>
+  );
+}
 
 /* ── Feature pill row ─────────────────────────── */
 function FeaturePills({ variants, reduced }) {
@@ -37,148 +92,10 @@ function FeaturePills({ variants, reduced }) {
         maxWidth: 340,
       }}
     >
-      {FEATURE_PILLS.map((pill) => (
-        <motion.span
-          key={pill.label}
-          whileHover={
-            reduced
-              ? {}
-              : {
-                  scale: 1.06,
-                  borderColor: "rgba(20,184,166,0.55)",
-                  boxShadow: "0 0 0 1px rgba(20,184,166,0.25), 0 0 16px rgba(20,184,166,0.3)",
-                }
-          }
-          transition={{ duration: 0.2, ease: "easeOut" }}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            padding: "0.4rem 0.85rem",
-            borderRadius: 999,
-            background: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(255,255,255,0.09)",
-            fontSize: "0.72rem",
-            fontWeight: 500,
-            color: "rgba(228,228,231,0.85)",
-            letterSpacing: "-0.01em",
-            cursor: "default",
-          }}
-        >
-          <span aria-hidden="true" style={{ fontSize: "0.8rem", lineHeight: 1 }}>
-            {pill.icon}
-          </span>
-          {pill.label}
-        </motion.span>
+      {FEATURE_INFO.map((pill) => (
+        <MagneticPill key={pill.slug} pill={pill} reduced={reduced} />
       ))}
     </motion.div>
-  );
-}
-
-/* ─────────────────────────────────────────────
-   BLOB DATA  (position, size, color, duration)
-───────────────────────────────────────────── */
-const BLOBS = [
-  {
-    id: 0,
-    color: "rgba(135,166,140,0.28)", // sage
-    x: "12%",
-    y: "8%",
-    w: 520,
-    h: 420,
-    dur: 22,
-    delay: 0,
-    rx: "60% 40% 55% 45% / 50% 60% 40% 50%",
-    rx2: "45% 55% 40% 60% / 60% 40% 55% 45%",
-  },
-  {
-    id: 1,
-    color: "rgba(125,184,216,0.22)", // sky
-    x: "55%",
-    y: "5%",
-    w: 460,
-    h: 380,
-    dur: 28,
-    delay: -7,
-    rx: "50% 50% 40% 60% / 45% 55% 50% 50%",
-    rx2: "60% 40% 50% 50% / 55% 45% 60% 40%",
-  },
-  {
-    id: 2,
-    color: "rgba(232,124,110,0.18)", // coral
-    x: "70%",
-    y: "55%",
-    w: 400,
-    h: 340,
-    dur: 32,
-    delay: -14,
-    rx: "55% 45% 60% 40% / 40% 60% 50% 50%",
-    rx2: "40% 60% 45% 55% / 50% 50% 45% 55%",
-  },
-  {
-    id: 3,
-    color: "rgba(212,168,71,0.16)", // amber
-    x: "5%",
-    y: "60%",
-    w: 480,
-    h: 360,
-    dur: 26,
-    delay: -20,
-    rx: "45% 55% 50% 50% / 55% 45% 55% 45%",
-    rx2: "55% 45% 60% 40% / 45% 55% 40% 60%",
-  },
-  {
-    id: 4,
-    color: "rgba(135,166,140,0.12)", // sage faint
-    x: "35%",
-    y: "70%",
-    w: 350,
-    h: 300,
-    dur: 36,
-    delay: -5,
-    rx: "60% 40% 45% 55% / 50% 50% 60% 40%",
-    rx2: "50% 50% 55% 45% / 60% 40% 50% 50%",
-  },
-];
-
-/* ── Animated blob ───────────────────────────── */
-function Blob({ blob, reduced }) {
-  return (
-    <motion.div
-      aria-hidden="true"
-      style={{
-        position: "absolute",
-        left: blob.x,
-        top: blob.y,
-        width: blob.w,
-        height: blob.h,
-        background: blob.color,
-        borderRadius: blob.rx,
-        filter: "blur(60px)",
-        willChange: "transform, border-radius",
-        pointerEvents: "none",
-      }}
-      animate={
-        reduced
-          ? {}
-          : {
-              x: [0, 40, -30, 20, -10, 0],
-              y: [0, -25, 35, -15, 20, 0],
-              borderRadius: [blob.rx, blob.rx2, blob.rx, blob.rx2, blob.rx],
-              scale: [1, 1.06, 0.97, 1.04, 1],
-            }
-      }
-      transition={
-        reduced
-          ? {}
-          : {
-              duration: blob.dur,
-              delay: blob.delay,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }
-      }
-    />
   );
 }
 
@@ -251,15 +168,120 @@ function GithubIcon({ size = 18, color = "currentColor", animated = false, reduc
   );
 }
 
+/* ── Shared form field ────────────────────────── */
+function FormField({ label, id, type = "text", value, onChange, placeholder, autoFocus, required = true, rightSlot, helperText, helperColor }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <label htmlFor={id} style={{ fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700, color: "rgba(161,161,170,0.7)" }}>
+        {label}
+      </label>
+      <div style={{ position: "relative" }}>
+        <input
+          id={id}
+          type={type}
+          autoFocus={autoFocus}
+          required={required}
+          value={value}
+          onChange={onChange}
+          placeholder={placeholder}
+          className="lifetracker-auth-input"
+          style={{
+            width: "100%",
+            height: 42,
+            borderRadius: 12,
+            padding: rightSlot ? "0 34px 0 14px" : "0 14px",
+            fontSize: "0.8rem",
+            color: "#f4f4f5",
+            background: "rgba(0,0,0,0.35)",
+            border: "1px solid rgba(255,255,255,0.1)",
+            outline: "none",
+            boxSizing: "border-box",
+            transition: "border-color 0.2s",
+          }}
+          onFocus={(e) => (e.target.style.borderColor = "rgba(135,166,140,0.5)")}
+          onBlur={(e) => (e.target.style.borderColor = "rgba(255,255,255,0.1)")}
+        />
+        {rightSlot && (
+          <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", display: "flex", alignItems: "center" }}>
+            {rightSlot}
+          </span>
+        )}
+      </div>
+      {helperText && (
+        <p style={{ fontSize: "0.68rem", color: helperColor || "rgba(161,161,170,0.6)", margin: 0 }}>{helperText}</p>
+      )}
+    </div>
+  );
+}
+
+/* ── Shared submit button ─────────────────────── */
+function SubmitButton({ id, children, disabled, loading, onRipple, rippleEls }) {
+  return (
+    <motion.button
+      id={id}
+      type="submit"
+      disabled={disabled}
+      onClick={onRipple}
+      whileHover={disabled ? {} : { scale: 1.02 }}
+      whileTap={disabled ? {} : { scale: 0.98 }}
+      transition={{ type: "spring", stiffness: 400, damping: 28 }}
+      style={{
+        position: "relative",
+        overflow: "hidden",
+        width: "100%",
+        height: 42,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        borderRadius: 12,
+        fontWeight: 600,
+        fontSize: "0.82rem",
+        background: "rgba(135,166,140,0.9)",
+        color: "#0B1121",
+        border: "none",
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.5 : 1,
+        letterSpacing: "-0.01em",
+      }}
+    >
+      {rippleEls}
+      <span style={{ display: "flex", alignItems: "center", opacity: loading ? 0 : 1, transition: "opacity 0.15s" }}>
+        {children}
+      </span>
+      {loading && (
+        <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Loader2 size={15} className="animate-spin" style={{ color: "#0B1121" }} />
+        </span>
+      )}
+    </motion.button>
+  );
+}
+
+const USERNAME_RE = /^[a-zA-Z0-9_.]{3,20}$/;
+
 /* ─────────────────────────────────────────────
    MAIN COMPONENT
 ───────────────────────────────────────────── */
 export default function Login() {
-  const [loadingProvider, setLoadingProvider] = useState(null);
+  const { login, signUpWithDetails, checkUsernameAvailable, signInWithGoogle, signInWithGithub } = useAuth();
+
+  const [loadingProvider, setLoadingProvider] = useState(null); // null|'google'|'github'|'signin'|'signup'
   const [error, setError] = useState(null);
-  const [emailOpen, setEmailOpen] = useState(false);
-  const [email, setEmail] = useState("");
-  const [magicLinkSent, setMagicLinkSent] = useState(false);
+  const [mode, setMode] = useState("signin"); // 'signin' | 'signup'
+  const [confirmEmailSent, setConfirmEmailSent] = useState(false);
+
+  // Sign-in fields
+  const [identifier, setIdentifier] = useState("");
+  const [password, setPassword] = useState("");
+
+  // Sign-up fields
+  const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
+  const [usernameStatus, setUsernameStatus] = useState("idle"); // idle|checking|available|taken|invalid
+  const [suEmail, setSuEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [suPassword, setSuPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   const shouldReduceMotion = useReducedMotion();
 
@@ -290,35 +312,74 @@ export default function Login() {
     } catch { /* non-critical */ }
   }, []);
 
+  /* Debounced live username-availability check for the signup form */
+  useEffect(() => {
+    if (mode !== "signup" || !username) { setUsernameStatus("idle"); return; }
+    if (!USERNAME_RE.test(username)) { setUsernameStatus("invalid"); return; }
+    setUsernameStatus("checking");
+    const t = setTimeout(async () => {
+      try {
+        const ok = await checkUsernameAvailable(username);
+        setUsernameStatus(ok ? "available" : "taken");
+      } catch {
+        setUsernameStatus("idle");
+      }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [username, mode, checkUsernameAvailable]);
+
   const handleOAuth = async (provider) => {
     setError(null);
     setLoadingProvider(provider);
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: { redirectTo: window.location.origin },
-      });
-      if (error) throw error;
+      if (provider === "google") await signInWithGoogle();
+      else await signInWithGithub();
     } catch (err) {
       setError(err.message || `Couldn't sign in with ${provider}.`);
       setLoadingProvider(null);
     }
   };
 
-  const handleEmailSubmit = async (e) => {
+  const handleSignIn = async (e) => {
     e.preventDefault();
-    if (!email.trim()) return;
+    if (!identifier.trim() || !password) return;
     setError(null);
-    setLoadingProvider("email");
+    setLoadingProvider("signin");
     try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: { emailRedirectTo: window.location.origin },
-      });
-      if (error) throw error;
-      setMagicLinkSent(true);
+      await login(identifier.trim(), password);
+      // App.jsx routes away once `user` is set — nothing else to do here.
     } catch (err) {
-      setError(err.message || "Couldn't send the sign-in link.");
+      setError(err.message || "Couldn't sign in.");
+    } finally {
+      setLoadingProvider(null);
+    }
+  };
+
+  const passwordsMismatch = confirmPassword.length > 0 && suPassword !== confirmPassword;
+  const signupDisabled =
+    !name.trim() ||
+    usernameStatus !== "available" ||
+    !suEmail.trim() ||
+    suPassword.length < 6 ||
+    suPassword !== confirmPassword;
+
+  const handleSignUp = async (e) => {
+    e.preventDefault();
+    if (signupDisabled) return;
+    setError(null);
+    setLoadingProvider("signup");
+    try {
+      const { sessionEstablished } = await signUpWithDetails({
+        name: name.trim(),
+        username,
+        email: suEmail.trim(),
+        phone: phone.trim() || null,
+        password: suPassword,
+      });
+      if (!sessionEstablished) setConfirmEmailSent(true);
+      // else: App.jsx routes away once `user` is set.
+    } catch (err) {
+      setError(err.message || "Couldn't create your account.");
     } finally {
       setLoadingProvider(null);
     }
@@ -329,8 +390,8 @@ export default function Login() {
   /* ── Ripple instances per button ── */
   const rippleGoogle = useRipple();
   const rippleGithub = useRipple();
-  const rippleEmail  = useRipple();
-  const rippleMagic  = useRipple();
+  const rippleSignIn = useRipple();
+  const rippleSignUp = useRipple();
 
   /* ── Easing constant ── */
   const ease = shouldReduceMotion ? "linear" : [0.16, 1, 0.3, 1];
@@ -403,6 +464,26 @@ export default function Login() {
     },
   };
 
+  const usernameStatusIcon = {
+    checking: <Loader2 size={14} className="animate-spin" style={{ color: "rgba(161,161,170,0.7)" }} />,
+    available: <Check size={14} style={{ color: "#4ade80" }} />,
+    taken: <X size={14} style={{ color: "#f87171" }} />,
+    invalid: <X size={14} style={{ color: "#f87171" }} />,
+  }[usernameStatus] || null;
+
+  const usernameHelper = {
+    idle: "3-20 characters: letters, numbers, dot or underscore.",
+    checking: "Checking availability...",
+    available: "Available!",
+    taken: "That userid is already taken.",
+    invalid: "3-20 characters: letters, numbers, dot or underscore.",
+  }[usernameStatus];
+
+  const usernameHelperColor =
+    usernameStatus === "available" ? "#4ade80" :
+    usernameStatus === "taken" || usernameStatus === "invalid" ? "#f87171" :
+    "rgba(161,161,170,0.6)";
+
   return (
     <>
       {/* ── Ripple keyframe injection ── */}
@@ -423,49 +504,13 @@ export default function Login() {
           @keyframes lifetracker-glow-pulse  { 0%,100% { opacity:0.55; transform:scale(1); } }
           @keyframes lifetracker-glow-pulse2 { 0%,100% { opacity:0.25; transform:scale(1); } }
         }
+        @media (max-width: 380px) {
+          .lifetracker-auth-card { padding: 1rem !important; }
+          .lifetracker-auth-input { height: 40px !important; font-size: 0.78rem !important; }
+        }
       `}</style>
 
-      <div
-        style={{
-          minHeight: "100svh",
-          width: "100%",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "1rem",
-          position: "relative",
-          overflow: "hidden",
-          background: "#0B1121",
-          color: "#f4f4f5",
-          fontFamily: FONT_STACK,
-        }}
-      >
-        {/* ── Blob background ── */}
-        <div
-          aria-hidden="true"
-          style={{
-            position: "absolute",
-            inset: 0,
-            overflow: "hidden",
-            pointerEvents: "none",
-          }}
-        >
-          {BLOBS.map((b) => (
-            <Blob key={b.id} blob={b} reduced={!!shouldReduceMotion} />
-          ))}
-
-          {/* Vignette overlay so blobs don't fight the card */}
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              background:
-                "radial-gradient(ellipse 70% 60% at 50% 50%, transparent 0%, rgba(11,17,33,0.72) 100%)",
-            }}
-          />
-        </div>
-
+      <PublicPageBackground reduced={!!shouldReduceMotion}>
         {/* ── Main card ── */}
         <motion.div
           variants={containerVariants}
@@ -475,10 +520,11 @@ export default function Login() {
             position: "relative",
             zIndex: 10,
             width: "100%",
-            maxWidth: 380,
+            maxWidth: mode === "signup" ? 420 : 380,
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
+            transition: "max-width 0.3s ease",
           }}
         >
           {/* ── Teal spotlight glow behind hero ── */}
@@ -565,7 +611,7 @@ export default function Login() {
                 fontFamily: FONT_STACK,
               }}
             >
-              LifeTracker
+              LifeNotebook
             </motion.h1>
             <motion.p
               variants={taglineVariants}
@@ -602,6 +648,8 @@ export default function Login() {
 
             {/* ── Glass card ── */}
             <motion.div
+              layout
+              className="lifetracker-auth-card"
               initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 24 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, ease: "easeOut", delay: shouldReduceMotion ? 0 : 0.25 }}
@@ -615,6 +663,10 @@ export default function Login() {
                 padding: "1.35rem",
                 backdropFilter: "blur(20px)",
                 WebkitBackdropFilter: "blur(20px)",
+                maxHeight: "calc(100svh - 2rem)",
+                overflowY: "auto",
+                WebkitOverflowScrolling: "touch",
+                boxSizing: "border-box",
                 boxShadow:
                   "0 8px 32px rgba(0,0,0,0.4), 0 1px 0 rgba(255,255,255,0.05) inset, 0 24px 64px rgba(0,0,0,0.45)",
               }}
@@ -655,352 +707,367 @@ export default function Login() {
               )}
             </AnimatePresence>
 
-            <AnimatePresence mode="wait">
-              {!emailOpen ? (
-                /* ── Social buttons ── */
+            {confirmEmailSent ? (
+              /* ── Confirmation email sent ── */
+              <motion.div
+                key="confirm-email-success"
+                initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.28, ease }}
+                style={{ textAlign: "center", padding: "1.75rem 0.5rem", display: "flex", flexDirection: "column", alignItems: "center" }}
+              >
                 <motion.div
-                  key="social-flows"
-                  initial={{ opacity: 1 }}
-                  exit={{ opacity: 0, y: shouldReduceMotion ? 0 : -6 }}
-                  transition={{ duration: 0.15 }}
+                  initial={{ scale: 0.5, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: "spring", stiffness: 380, damping: 22, delay: 0.1 }}
+                  style={{
+                    width: 52,
+                    height: 52,
+                    borderRadius: "50%",
+                    background: "rgba(52,211,153,0.12)",
+                    border: "1px solid rgba(52,211,153,0.28)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "#34d399",
+                    marginBottom: "1rem",
+                  }}
                 >
-                  <motion.div
-                    variants={buttonContainerVariants}
-                    initial="hidden"
-                    animate="visible"
-                    style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}
-                  >
-                    {/* Google */}
-                    <motion.button
-                      id="login-google"
-                      variants={buttonVariants}
-                      onClick={(e) => { rippleGoogle.addRipple(e); handleOAuth("google"); }}
-                      disabled={isLoading}
-                      whileHover={shouldReduceMotion ? {} : { scale: 1.02 }}
-                      whileTap={shouldReduceMotion ? {} : { scale: 0.98 }}
-                      transition={{ type: "spring", stiffness: 400, damping: 28 }}
-                      style={{
-                        position: "relative",
-                        overflow: "hidden",
-                        width: "100%",
-                        height: 48,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        borderRadius: 22,
-                        fontWeight: 600,
-                        fontSize: "0.875rem",
-                        fontFamily: FONT_STACK,
-                        background:
-                          "linear-gradient(135deg, #2DD4BF 0%, #14B8A6 45%, #0891B2 100%)",
-                        color: "#ffffff",
-                        border: "none",
-                        cursor: isLoading ? "not-allowed" : "pointer",
-                        opacity: isLoading ? 0.5 : 1,
-                        letterSpacing: "-0.01em",
-                        boxShadow:
-                          "0 14px 36px rgba(20,184,166,0.4), 0 4px 14px rgba(6,182,212,0.32), inset 0 1px 0 rgba(255,255,255,0.3), inset 0 -10px 18px rgba(0,0,0,0.1)",
-                      }}
-                    >
-                      {/* Glossy sheen: top-left glare + soft top fade */}
-                      <span
-                        aria-hidden="true"
-                        style={{
-                          position: "absolute",
-                          inset: 0,
-                          borderRadius: 22,
-                          background:
-                            "radial-gradient(120% 140% at 12% -20%, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 45%), linear-gradient(180deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0) 60%)",
-                          pointerEvents: "none",
-                        }}
-                      />
-                      {rippleGoogle.rippleEls}
-                      <span
-                        style={{
-                          position: "relative",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          opacity: loadingProvider === "google" ? 0 : 1,
-                          transition: "opacity 0.15s",
-                        }}
-                      >
-                        <span
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            width: 24,
-                            height: 24,
-                            borderRadius: "50%",
-                            background: "#ffffff",
-                            marginRight: 9,
-                            boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
-                          }}
-                        >
-                          <GoogleIcon size={14} animated reduced={!!shouldReduceMotion} className="flex items-center" />
-                        </span>
-                        Continue with Google
-                      </span>
-                      {loadingProvider === "google" && (
-                        <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <Loader2 size={16} className="animate-spin" style={{ color: "#ffffff" }} />
-                        </span>
-                      )}
-                    </motion.button>
-
-                    {/* GitHub */}
-                    <motion.button
-                      id="login-github"
-                      variants={buttonVariants}
-                      onClick={(e) => { rippleGithub.addRipple(e); handleOAuth("github"); }}
-                      disabled={isLoading}
-                      whileHover={shouldReduceMotion ? {} : { scale: 1.02 }}
-                      whileTap={shouldReduceMotion ? {} : { scale: 0.98 }}
-                      transition={{ type: "spring", stiffness: 400, damping: 28 }}
-                      style={{
-                        position: "relative",
-                        overflow: "hidden",
-                        width: "100%",
-                        height: 48,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        borderRadius: 22,
-                        fontWeight: 500,
-                        fontSize: "0.875rem",
-                        fontFamily: FONT_STACK,
-                        background: "rgba(255,255,255,0.04)",
-                        color: "#e5e7eb",
-                        border: "1px solid rgba(255,255,255,0.08)",
-                        backdropFilter: "blur(12px)",
-                        WebkitBackdropFilter: "blur(12px)",
-                        cursor: isLoading ? "not-allowed" : "pointer",
-                        opacity: isLoading ? 0.5 : 1,
-                        letterSpacing: "-0.01em",
-                        boxShadow: "0 1px 3px rgba(0,0,0,0.25)",
-                      }}
-                    >
-                      {rippleGithub.rippleEls}
-                      <span
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          opacity: loadingProvider === "github" ? 0 : 1,
-                          transition: "opacity 0.15s",
-                        }}
-                      >
-                        <GithubIcon size={17} color="currentColor" animated reduced={!!shouldReduceMotion} />
-                        Continue with GitHub
-                      </span>
-                      {loadingProvider === "github" && (
-                        <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <Loader2 size={16} className="animate-spin" style={{ color: "#d1d5db" }} />
-                        </span>
-                      )}
-                    </motion.button>
-
-                    {/* Divider */}
-                    <motion.div
-                      variants={buttonVariants}
-                      style={{ display: "flex", alignItems: "center", gap: "0.65rem", margin: "0.35rem 0 0.1rem" }}
-                    >
-                      <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.08)" }} />
-                      <span style={{ fontSize: "0.68rem", color: "rgba(161,161,170,0.6)", letterSpacing: "0.08em", textTransform: "uppercase" }}>or</span>
-                      <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.08)" }} />
-                    </motion.div>
-
-                    {/* Email — tertiary text-link */}
-                    <motion.button
-                      id="login-email-open"
-                      variants={buttonVariants}
-                      onClick={(e) => { rippleEmail.addRipple(e); setEmailOpen(true); }}
-                      disabled={isLoading}
-                      whileHover={shouldReduceMotion ? {} : { scale: 1.01 }}
-                      whileTap={shouldReduceMotion ? {} : { scale: 0.98 }}
-                      transition={{ type: "spring", stiffness: 400, damping: 28 }}
-                      style={{
-                        position: "relative",
-                        overflow: "hidden",
-                        width: "100%",
-                        height: 40,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        borderRadius: 20,
-                        fontWeight: 500,
-                        fontSize: "0.82rem",
-                        fontFamily: FONT_STACK,
-                        background: "transparent",
-                        color: "rgba(94,234,212,0.9)",
-                        border: "none",
-                        cursor: isLoading ? "not-allowed" : "pointer",
-                        opacity: isLoading ? 0.5 : 1,
-                        letterSpacing: "-0.01em",
-                      }}
-                    >
-                      {rippleEmail.rippleEls}
-                      <span style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <Mail size={15} style={{ marginRight: 7 }} />
-                        Continue with Email
-                      </span>
-                    </motion.button>
-                  </motion.div>
+                  <Mail size={22} />
                 </motion.div>
-              ) : magicLinkSent ? (
-                /* ── Magic link sent ── */
-                <motion.div
-                  key="magic-success"
-                  initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.28, ease }}
-                  style={{ textAlign: "center", padding: "1.75rem 0.5rem", display: "flex", flexDirection: "column", alignItems: "center" }}
+                <h3 style={{ fontSize: "0.9rem", fontWeight: 600, color: "#fff", margin: "0 0 0.4rem" }}>Check your inbox</h3>
+                <p style={{ fontSize: "0.74rem", color: "rgba(161,161,170,0.85)", lineHeight: 1.65, maxWidth: 280, margin: 0 }}>
+                  We sent a confirmation link to{" "}
+                  <span style={{ color: "#e5e7eb", fontWeight: 500 }}>{suEmail}</span>.
+                  Click it to activate your account, then come back and sign in.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => { setConfirmEmailSent(false); setMode("signin"); }}
+                  style={{
+                    marginTop: "1.5rem",
+                    fontSize: "0.72rem",
+                    color: "rgba(161,161,170,0.6)",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    textDecoration: "underline",
+                    textUnderlineOffset: 3,
+                  }}
                 >
-                  <motion.div
-                    initial={{ scale: 0.5, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ type: "spring", stiffness: 380, damping: 22, delay: 0.1 }}
+                  Back to sign in
+                </button>
+              </motion.div>
+            ) : (
+              <>
+                {/* ── Social buttons (always visible) ── */}
+                <motion.div
+                  variants={buttonContainerVariants}
+                  initial="hidden"
+                  animate="visible"
+                  style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}
+                >
+                  {/* Google */}
+                  <motion.button
+                    id="login-google"
+                    variants={buttonVariants}
+                    onClick={(e) => { rippleGoogle.addRipple(e); handleOAuth("google"); }}
+                    disabled={isLoading}
+                    whileHover={shouldReduceMotion ? {} : { scale: 1.02 }}
+                    whileTap={shouldReduceMotion ? {} : { scale: 0.98 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 28 }}
                     style={{
-                      width: 52,
-                      height: 52,
-                      borderRadius: "50%",
-                      background: "rgba(52,211,153,0.12)",
-                      border: "1px solid rgba(52,211,153,0.28)",
+                      position: "relative",
+                      overflow: "hidden",
+                      width: "100%",
+                      height: 48,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      color: "#34d399",
-                      marginBottom: "1rem",
-                    }}
-                  >
-                    <Mail size={22} />
-                  </motion.div>
-                  <h3 style={{ fontSize: "0.9rem", fontWeight: 600, color: "#fff", margin: "0 0 0.4rem" }}>Check your inbox</h3>
-                  <p style={{ fontSize: "0.74rem", color: "rgba(161,161,170,0.85)", lineHeight: 1.65, maxWidth: 280, margin: 0 }}>
-                    We sent a secure magic link to{" "}
-                    <span style={{ color: "#e5e7eb", fontWeight: 500 }}>{email}</span>.
-                    Click it to log in instantly.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => { setEmailOpen(false); setMagicLinkSent(false); }}
-                    style={{
-                      marginTop: "1.5rem",
-                      fontSize: "0.72rem",
-                      color: "rgba(161,161,170,0.6)",
-                      background: "none",
+                      borderRadius: 22,
+                      fontWeight: 600,
+                      fontSize: "0.875rem",
+                      fontFamily: FONT_STACK,
+                      background:
+                        "linear-gradient(135deg, #2DD4BF 0%, #14B8A6 45%, #0891B2 100%)",
+                      color: "#ffffff",
                       border: "none",
-                      cursor: "pointer",
-                      textDecoration: "underline",
-                      textUnderlineOffset: 3,
+                      cursor: isLoading ? "not-allowed" : "pointer",
+                      opacity: isLoading ? 0.5 : 1,
+                      letterSpacing: "-0.01em",
+                      boxShadow:
+                        "0 14px 36px rgba(20,184,166,0.4), 0 4px 14px rgba(6,182,212,0.32), inset 0 1px 0 rgba(255,255,255,0.3), inset 0 -10px 18px rgba(0,0,0,0.1)",
                     }}
                   >
-                    Back to sign in
-                  </button>
-                </motion.div>
-              ) : (
-                /* ── Email form ── */
-                <motion.form
-                  key="email-form"
-                  onSubmit={handleEmailSubmit}
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ type: "spring", stiffness: 450, damping: 36 }}
-                  style={{ overflow: "hidden", display: "flex", flexDirection: "column", gap: "1rem" }}
-                >
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    <label style={{ fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700, color: "rgba(161,161,170,0.7)" }}>
-                      Email Address
-                    </label>
-                    <input
-                      type="email"
-                      autoFocus
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="you@example.com"
+                    {/* Glossy sheen: top-left glare + soft top fade */}
+                    <span
+                      aria-hidden="true"
                       style={{
-                        width: "100%",
-                        height: 42,
-                        borderRadius: 12,
-                        padding: "0 14px",
-                        fontSize: "0.8rem",
-                        color: "#f4f4f5",
-                        background: "rgba(0,0,0,0.35)",
-                        border: "1px solid rgba(255,255,255,0.1)",
-                        outline: "none",
-                        boxSizing: "border-box",
-                        transition: "border-color 0.2s",
+                        position: "absolute",
+                        inset: 0,
+                        borderRadius: 22,
+                        background:
+                          "radial-gradient(120% 140% at 12% -20%, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 45%), linear-gradient(180deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0) 60%)",
+                        pointerEvents: "none",
                       }}
-                      onFocus={(e) => (e.target.style.borderColor = "rgba(135,166,140,0.5)")}
-                      onBlur={(e) => (e.target.style.borderColor = "rgba(255,255,255,0.1)")}
                     />
-                  </div>
-
-                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                    <motion.button
-                      type="submit"
-                      disabled={isLoading}
-                      onClick={(e) => rippleMagic.addRipple(e)}
-                      whileHover={shouldReduceMotion ? {} : { scale: 1.02 }}
-                      whileTap={shouldReduceMotion ? {} : { scale: 0.98 }}
-                      transition={{ type: "spring", stiffness: 400, damping: 28 }}
+                    {rippleGoogle.rippleEls}
+                    <span
                       style={{
                         position: "relative",
-                        overflow: "hidden",
-                        width: "100%",
-                        height: 42,
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        borderRadius: 12,
-                        fontWeight: 600,
-                        fontSize: "0.82rem",
-                        background: "rgba(135,166,140,0.9)",
-                        color: "#0B1121",
-                        border: "none",
-                        cursor: isLoading ? "not-allowed" : "pointer",
-                        opacity: isLoading ? 0.5 : 1,
-                        letterSpacing: "-0.01em",
+                        opacity: loadingProvider === "google" ? 0 : 1,
+                        transition: "opacity 0.15s",
                       }}
                     >
-                      {rippleMagic.rippleEls}
-                      <span style={{ display: "flex", alignItems: "center", opacity: loadingProvider === "email" ? 0 : 1, transition: "opacity 0.15s" }}>
-                        Send Magic Link
-                        <ArrowRight size={14} style={{ marginLeft: 6 }} />
+                      <span
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          width: 24,
+                          height: 24,
+                          borderRadius: "50%",
+                          background: "#ffffff",
+                          marginRight: 9,
+                          boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
+                        }}
+                      >
+                        <GoogleIcon size={14} animated reduced={!!shouldReduceMotion} className="flex items-center" />
                       </span>
-                      {loadingProvider === "email" && (
-                        <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <Loader2 size={15} className="animate-spin" style={{ color: "#0B1121" }} />
-                        </span>
-                      )}
-                    </motion.button>
+                      Continue with Google
+                    </span>
+                    {loadingProvider === "google" && (
+                      <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <Loader2 size={16} className="animate-spin" style={{ color: "#ffffff" }} />
+                      </span>
+                    )}
+                  </motion.button>
 
-                    <button
-                      type="button"
-                      onClick={() => setEmailOpen(false)}
+                  {/* GitHub */}
+                  <motion.button
+                    id="login-github"
+                    variants={buttonVariants}
+                    onClick={(e) => { rippleGithub.addRipple(e); handleOAuth("github"); }}
+                    disabled={isLoading}
+                    whileHover={shouldReduceMotion ? {} : { scale: 1.02 }}
+                    whileTap={shouldReduceMotion ? {} : { scale: 0.98 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 28 }}
+                    style={{
+                      position: "relative",
+                      overflow: "hidden",
+                      width: "100%",
+                      height: 48,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      borderRadius: 22,
+                      fontWeight: 500,
+                      fontSize: "0.875rem",
+                      fontFamily: FONT_STACK,
+                      background: "rgba(255,255,255,0.04)",
+                      color: "#e5e7eb",
+                      border: "1px solid rgba(255,255,255,0.08)",
+                      backdropFilter: "blur(12px)",
+                      WebkitBackdropFilter: "blur(12px)",
+                      cursor: isLoading ? "not-allowed" : "pointer",
+                      opacity: isLoading ? 0.5 : 1,
+                      letterSpacing: "-0.01em",
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.25)",
+                    }}
+                  >
+                    {rippleGithub.rippleEls}
+                    <span
                       style={{
-                        fontSize: "0.72rem",
-                        color: "rgba(161,161,170,0.55)",
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        textAlign: "center",
-                        padding: "0.2rem 0",
-                        transition: "color 0.2s",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        opacity: loadingProvider === "github" ? 0 : 1,
+                        transition: "opacity 0.15s",
                       }}
-                      onMouseEnter={(e) => (e.target.style.color = "rgba(228,228,231,0.85)")}
-                      onMouseLeave={(e) => (e.target.style.color = "rgba(161,161,170,0.55)")}
                     >
-                      Back to other options
-                    </button>
-                  </div>
-                </motion.form>
-              )}
-            </AnimatePresence>
+                      <GithubIcon size={17} color="currentColor" animated reduced={!!shouldReduceMotion} />
+                      Continue with GitHub
+                    </span>
+                    {loadingProvider === "github" && (
+                      <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <Loader2 size={16} className="animate-spin" style={{ color: "#d1d5db" }} />
+                      </span>
+                    )}
+                  </motion.button>
+
+                  {/* Divider */}
+                  <motion.div
+                    variants={buttonVariants}
+                    style={{ display: "flex", alignItems: "center", gap: "0.65rem", margin: "0.35rem 0 0.1rem" }}
+                  >
+                    <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.08)" }} />
+                    <span style={{ fontSize: "0.68rem", color: "rgba(161,161,170,0.6)", letterSpacing: "0.08em", textTransform: "uppercase" }}>or</span>
+                    <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.08)" }} />
+                  </motion.div>
+
+                  {/* Sign In / Create Account tab switcher */}
+                  <motion.div
+                    variants={buttonVariants}
+                    style={{
+                      display: "flex",
+                      padding: 3,
+                      borderRadius: 14,
+                      background: "rgba(0,0,0,0.3)",
+                      border: "1px solid rgba(255,255,255,0.08)",
+                      gap: 3,
+                    }}
+                  >
+                    {[
+                      { key: "signin", label: "Sign In" },
+                      { key: "signup", label: "Create Account" },
+                    ].map((tab) => (
+                      <button
+                        key={tab.key}
+                        id={`login-tab-${tab.key}`}
+                        type="button"
+                        onClick={() => { setError(null); setMode(tab.key); }}
+                        style={{
+                          flex: 1,
+                          padding: "0.5rem 0.5rem",
+                          borderRadius: 11,
+                          fontSize: "0.78rem",
+                          fontWeight: 600,
+                          border: "none",
+                          cursor: "pointer",
+                          letterSpacing: "-0.01em",
+                          transition: "background 0.2s, color 0.2s",
+                          background: mode === tab.key
+                            ? "linear-gradient(135deg, #2DD4BF 0%, #14B8A6 100%)"
+                            : "transparent",
+                          color: mode === tab.key ? "#0B1121" : "rgba(228,228,231,0.7)",
+                        }}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </motion.div>
+                </motion.div>
+
+                {/* ── Active form ── */}
+                <AnimatePresence mode="wait">
+                  {mode === "signin" ? (
+                    <motion.form
+                      key="signin-form"
+                      onSubmit={handleSignIn}
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ type: "spring", stiffness: 450, damping: 36 }}
+                      style={{ overflow: "hidden", display: "flex", flexDirection: "column", gap: "1rem", marginTop: "1rem" }}
+                    >
+                      <FormField
+                        id="login-identifier"
+                        label="Email, Username or Mobile Number"
+                        value={identifier}
+                        onChange={(e) => setIdentifier(e.target.value)}
+                        placeholder="you@example.com"
+                        autoFocus
+                      />
+                      <FormField
+                        id="login-password"
+                        label="Password"
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="••••••••"
+                      />
+                      <SubmitButton
+                        id="login-signin-submit"
+                        disabled={isLoading || !identifier.trim() || !password}
+                        loading={loadingProvider === "signin"}
+                        onRipple={rippleSignIn.addRipple}
+                        rippleEls={rippleSignIn.rippleEls}
+                      >
+                        Sign In
+                        <ArrowRight size={14} style={{ marginLeft: 6 }} />
+                      </SubmitButton>
+                    </motion.form>
+                  ) : (
+                    <motion.form
+                      key="signup-form"
+                      onSubmit={handleSignUp}
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ type: "spring", stiffness: 450, damping: 36 }}
+                      style={{ overflow: "hidden", display: "flex", flexDirection: "column", gap: "0.85rem", marginTop: "1rem" }}
+                    >
+                      <FormField
+                        id="signup-name"
+                        label="Name"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="Your name"
+                        autoFocus
+                      />
+                      <FormField
+                        id="signup-username"
+                        label="Userid"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value.trim())}
+                        placeholder="yourname"
+                        rightSlot={usernameStatusIcon}
+                        helperText={usernameHelper}
+                        helperColor={usernameHelperColor}
+                      />
+                      <FormField
+                        id="signup-email"
+                        label="Email"
+                        type="email"
+                        value={suEmail}
+                        onChange={(e) => setSuEmail(e.target.value)}
+                        placeholder="you@example.com"
+                      />
+                      <FormField
+                        id="signup-phone"
+                        label="Mobile Number (optional)"
+                        type="tel"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        placeholder="+91 98765 43210"
+                        required={false}
+                      />
+                      <FormField
+                        id="signup-password"
+                        label="Password"
+                        type="password"
+                        value={suPassword}
+                        onChange={(e) => setSuPassword(e.target.value)}
+                        placeholder="At least 6 characters"
+                      />
+                      <FormField
+                        id="signup-confirm-password"
+                        label="Confirm Password"
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="••••••••"
+                        helperText={passwordsMismatch ? "Passwords don't match." : undefined}
+                        helperColor="#f87171"
+                      />
+                      <SubmitButton
+                        id="signup-submit"
+                        disabled={isLoading || signupDisabled}
+                        loading={loadingProvider === "signup"}
+                        onRipple={rippleSignUp.addRipple}
+                        rippleEls={rippleSignUp.rippleEls}
+                      >
+                        Create Account
+                        <ArrowRight size={14} style={{ marginLeft: 6 }} />
+                      </SubmitButton>
+                    </motion.form>
+                  )}
+                </AnimatePresence>
+              </>
+            )}
             </motion.div>
           </div>
 
@@ -1031,26 +1098,26 @@ export default function Login() {
             }}
           >
             By continuing, you agree to our{" "}
-            <a
-              href="#"
+            <Link
+              to="/terms"
               style={{ textDecoration: "underline", textUnderlineOffset: 3, color: "inherit", transition: "color 0.2s" }}
               onMouseEnter={(e) => (e.target.style.color = "rgba(161,161,170,0.9)")}
               onMouseLeave={(e) => (e.target.style.color = "rgba(113,113,122,0.7)")}
             >
               Terms
-            </a>{" "}
+            </Link>{" "}
             and{" "}
-            <a
-              href="#"
+            <Link
+              to="/privacy"
               style={{ textDecoration: "underline", textUnderlineOffset: 3, color: "inherit", transition: "color 0.2s" }}
               onMouseEnter={(e) => (e.target.style.color = "rgba(161,161,170,0.9)")}
               onMouseLeave={(e) => (e.target.style.color = "rgba(113,113,122,0.7)")}
             >
               Privacy Policy
-            </a>.
+            </Link>.
           </motion.p>
         </motion.div>
-      </div>
+      </PublicPageBackground>
     </>
   );
 }

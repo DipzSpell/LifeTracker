@@ -10,8 +10,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
-        name: 'ApexLife Personal OS',
-        short_name: 'ApexLife',
+        name: 'LifeNotebook',
+        short_name: 'LNbook',
         description: 'Track your habits, fitness, mood, tasks and grow every day.',
         theme_color: '#0B1121',
         background_color: '#0B1121',
