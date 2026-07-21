@@ -321,8 +321,12 @@ export default function Login() {
       try {
         const ok = await checkUsernameAvailable(username);
         setUsernameStatus(ok ? "available" : "taken");
-      } catch {
-        setUsernameStatus("idle");
+      } catch (err) {
+        // Surface the failure — silently going idle left the submit button
+        // disabled with no explanation (e.g. when profiles_migration.sql
+        // hasn't been run in Supabase yet).
+        console.error("[Login] username availability check failed:", err);
+        setUsernameStatus("error");
       }
     }, 400);
     return () => clearTimeout(t);
@@ -469,6 +473,7 @@ export default function Login() {
     available: <Check size={14} style={{ color: "#4ade80" }} />,
     taken: <X size={14} style={{ color: "#f87171" }} />,
     invalid: <X size={14} style={{ color: "#f87171" }} />,
+    error: <X size={14} style={{ color: "#f87171" }} />,
   }[usernameStatus] || null;
 
   const usernameHelper = {
@@ -477,11 +482,12 @@ export default function Login() {
     available: "Available!",
     taken: "That userid is already taken.",
     invalid: "3-20 characters: letters, numbers, dot or underscore.",
+    error: "Could not check availability — database setup missing (run profiles_migration.sql).",
   }[usernameStatus];
 
   const usernameHelperColor =
     usernameStatus === "available" ? "#4ade80" :
-    usernameStatus === "taken" || usernameStatus === "invalid" ? "#f87171" :
+    usernameStatus === "taken" || usernameStatus === "invalid" || usernameStatus === "error" ? "#f87171" :
     "rgba(161,161,170,0.6)";
 
   return (

@@ -112,6 +112,36 @@ function Blob({ blob, reduced }) {
   );
 }
 
+/** Just the fixed blob + vignette layer, no wrapper — for pages (like the
+ *  landing page) that manage their own layout but want the same continuous
+ *  backdrop behind every section. position:fixed, so it never scrolls and
+ *  never ends at a section boundary. */
+export function BlobLayer({ reduced }) {
+  return (
+    <div
+      aria-hidden="true"
+      style={{
+        position: "fixed",
+        inset: 0,
+        overflow: "hidden",
+        pointerEvents: "none",
+      }}
+    >
+      {BLOBS.map((b) => (
+        <Blob key={b.id} blob={b} reduced={!!reduced} />
+      ))}
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          background:
+            "radial-gradient(ellipse 70% 60% at 50% 50%, transparent 0%, rgba(11,17,33,0.72) 100%)",
+        }}
+      />
+    </div>
+  );
+}
+
 /** Full-viewport blob background + vignette. Render page content as children. */
 export default function PublicPageBackground({ children, reduced, align = "center" }) {
   return (
@@ -131,27 +161,7 @@ export default function PublicPageBackground({ children, reduced, align = "cente
         fontFamily: FONT_STACK,
       }}
     >
-      <div
-        aria-hidden="true"
-        style={{
-          position: "fixed",
-          inset: 0,
-          overflow: "hidden",
-          pointerEvents: "none",
-        }}
-      >
-        {BLOBS.map((b) => (
-          <Blob key={b.id} blob={b} reduced={!!reduced} />
-        ))}
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            background:
-              "radial-gradient(ellipse 70% 60% at 50% 50%, transparent 0%, rgba(11,17,33,0.72) 100%)",
-          }}
-        />
-      </div>
+      <BlobLayer reduced={reduced} />
       {children}
     </div>
   );
