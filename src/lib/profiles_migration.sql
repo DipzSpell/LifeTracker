@@ -23,6 +23,27 @@ $$;
 
 
 -- ─────────────────────────────────────────────────────────────────────────────
+-- STEP 0.5: Archive any pre-existing profiles table with a mismatched schema
+--   (e.g. one created earlier via the dashboard Table Editor without a
+--   user_id column). `create table if not exists` below would silently
+--   skip it and leave the app broken, so rename it aside instead —
+--   nothing is dropped, zero data-loss risk.
+-- ─────────────────────────────────────────────────────────────────────────────
+do $$
+begin
+  if exists (
+       select 1 from information_schema.tables
+       where table_schema = 'public' and table_name = 'profiles')
+     and not exists (
+       select 1 from information_schema.columns
+       where table_schema = 'public' and table_name = 'profiles'
+         and column_name = 'user_id') then
+    execute 'alter table public.profiles rename to profiles_old_backup';
+  end if;
+end $$;
+
+
+-- ─────────────────────────────────────────────────────────────────────────────
 -- STEP 1: Create profiles table
 --
 -- Column notes:

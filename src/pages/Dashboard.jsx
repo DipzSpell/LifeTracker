@@ -31,6 +31,8 @@ import { generateDailyInsight } from '../components/AIMorningBrief'
 import ProgressRing from '../components/bevel/ProgressRing'
 import { Dot } from '../components/bevel/BevelUI'
 import MonthlyHeatmap from '../components/MonthlyHeatmap'
+import NotificationBell from '../components/layout/NotificationBell'
+import AnimatedNumber from '../components/ui/AnimatedNumber'
 
 const MONO = "'JetBrains Mono', ui-monospace, monospace"
 
@@ -474,7 +476,7 @@ export default function Dashboard() {
   const T = useThemeColors()
   const {
     todos, habits, dailyLogs, fitnessLogs, pointsHistory,
-    todayPoints, getHabitStreak, settings,
+    todayPoints, totalPoints, getHabitStreak, settings,
     profile, completeProfileOnboarding,
   } = useApp()
   const [quickLogOpen, setQuickLogOpen] = useState(false)
@@ -578,18 +580,108 @@ export default function Dashboard() {
   , [habits, pointsHistory])
 
   const greeting = new Date().getHours() < 12 ? 'Morning' : new Date().getHours() < 17 ? 'Afternoon' : 'Evening'
-  const firstName = profile?.displayName?.split(' ')[0] || user?.displayName?.split(' ')[0] || 'there'
+  const fullName = profile?.displayName || user?.displayName || 'there'
+  const avatarUrl = user?.photoURL ?? null
+  const avatarLetter = fullName[0]?.toUpperCase() ?? '?'
+  // Long names shrink instead of truncating — ellipsis only kicks in past
+  // ~28 characters, where even a small font would otherwise wrap awkwardly.
+  const nameFontSize = fullName.length > 28 ? 17 : fullName.length > 18 ? 19 : 22
 
   return (
     <div className="relative">
       <Toast toasts={toasts} removeToast={removeToast} />
 
       <div className="relative space-y-4" style={{ zIndex: 1 }}>
-        {/* ── Greeting ───────────────────────────────────────────────── */}
+        {/* ── Consolidated header ──────────────────────────────────────
+            Mobile: avatar + date + points + bell, then the greeting —
+            the ONE header block for this page (TopBar is hidden on
+            /dashboard specifically to avoid showing this info twice;
+            see PageLayout.jsx). Desktop keeps just the greeting text,
+            since Sidebar already shows the avatar and points there. */}
         <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="px-1">
-          <span className="section-label">{format(new Date(), 'EEEE, MMMM d')}</span>
-          <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', margin: '2px 0 0' }}>
-            Good {greeting}, {firstName} ✦
+          <div className="flex items-center justify-between mb-3 lg:hidden">
+            <div className="flex items-center gap-2.5 min-w-0">
+              {avatarUrl ? (
+                <img src={avatarUrl} alt={fullName} className="w-8 h-8 rounded-full object-cover flex-shrink-0" style={{ border: '1px solid var(--border-subtle)' }} />
+              ) : (
+                <div
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+                  style={{ background: 'color-mix(in srgb, var(--accent) 15%, transparent)', border: `1px solid ${T.accent}55`, color: T.accent }}
+                >
+                  {avatarLetter}
+                </div>
+              )}
+              <span className="text-xs font-medium truncate" style={{ color: 'var(--text-muted)' }}>
+                {format(new Date(), 'EEE, MMM d')}
+              </span>
+            </div>
+            <div className="flex items-center gap-2.5 flex-shrink-0">
+              <div
+                className="flex items-center gap-1.5 rounded-full px-3 py-1.5"
+                style={{ background: `${T.success}1A`, border: `1px solid ${T.success}40` }}
+              >
+                <Flame size={13} className="streak-fire" style={{ color: T.success }} />
+                <span style={{ color: T.success }}>
+                  <AnimatedNumber value={totalPoints} duration={800} className="text-xs font-bold tabular-nums" />
+                </span>
+              </div>
+              <NotificationBell id="dashboard-notifications" />
+            </div>
+          </div>
+
+          <span className="section-label hidden lg:inline">{format(new Date(), 'EEEE, MMMM d')}</span>
+          <h1
+            style={{
+              fontSize: nameFontSize, fontWeight: 800, color: 'var(--text-primary)', margin: '2px 0 0',
+              display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', columnGap: '0.35ch',
+            }}
+          >
+            <span style={{ flexShrink: 0 }}>Good {greeting},</span>
+            <span
+              style={{
+                position: 'relative',
+                display: 'inline-block',
+                minWidth: 0,
+                maxWidth: '100%',
+              }}
+            >
+              <span
+                style={{
+                  background: 'linear-gradient(135deg, var(--accent), var(--success))',
+                  WebkitBackgroundClip: 'text',
+                  backgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  color: 'transparent',
+                  display: 'inline-block',
+                  maxWidth: '100%',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  // Extra bottom room so descenders (g/y/p) stay inside the
+                  // gradient's paint box instead of rendering transparent —
+                  // same fix as the landing-page hero heading.
+                  paddingBottom: '0.14em',
+                  marginBottom: '-0.14em',
+                }}
+              >
+                {fullName}
+              </span>
+              {/* Static accent underline — no animation, per spec */}
+              <span
+                aria-hidden="true"
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  right: 0,
+                  bottom: 2,
+                  height: 2,
+                  borderRadius: 999,
+                  background: 'linear-gradient(135deg, var(--accent), var(--success))',
+                  boxShadow: '0 0 8px var(--accent-glow)',
+                }}
+              />
+            </span>
+            <span style={{ flexShrink: 0 }}>✦</span>
           </h1>
         </motion.div>
 
@@ -606,7 +698,7 @@ export default function Dashboard() {
           <StatTile icon={CheckCircle2} label="Habits" value={`${doneToday}/${goodHabits.length}`} pct={habitPct} color={T.success} trackColor={T.borderSubtle} />
           <StatTile icon={Footprints} label="Steps" value={todaySteps.toLocaleString()} pct={stepPct} color={T.accent} trackColor={T.borderSubtle} />
           <StatTile icon={Smile} label="Mood" value={todayLog.mood ? `${todayLog.mood}/10` : '--'} pct={moodPct} color={T.special} trackColor={T.borderSubtle} />
-          <StatTile icon={Award} label="Points" value={`+${todayPoints}`} pct={pointsPct} color={T.accent} trackColor={T.borderSubtle} />
+          <StatTile icon={Award} label="Today's Points" value={`+${todayPoints}`} pct={pointsPct} color={T.accent} trackColor={T.borderSubtle} />
         </div>
 
         {/* ── Quick actions — row on desktop, 2x2 grid on mobile ─────── */}

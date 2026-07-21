@@ -26,6 +26,7 @@ import { AuthProvider, useAuth } from './context/AuthContext'
 import { AppProvider } from './context/AppContext'
 import { ThemeProvider } from './context/ThemeContext'
 import Login from './pages/Login'
+import LandingPage from './pages/LandingPage'
 import FeatureAbout from './pages/public/FeatureAbout'
 import Terms from './pages/public/Terms'
 import Privacy from './pages/public/Privacy'
@@ -99,6 +100,12 @@ function AppRoutes() {
 
   return (
     <Routes>
+      {/* Public marketing landing page — signed-in visitors skip straight to the app */}
+      <Route
+        path="/"
+        element={user ? <Navigate to="/dashboard" replace /> : <LandingPage />}
+      />
+
       {/* Login route — only render Login once loading is done */}
       <Route
         path="/login"
@@ -117,7 +124,6 @@ function AppRoutes() {
           <ProtectedRoute>
             <PageLayout>
               <Routes>
-                <Route path="/"        element={<Navigate to="/dashboard" replace />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/log"     element={<DailyLog />} />
                 <Route path="/fitness" element={<Fitness />} />

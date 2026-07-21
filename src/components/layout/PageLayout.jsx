@@ -12,6 +12,10 @@ import Sidebar from './Sidebar'
 
 export default function PageLayout({ children }) {
   const location = useLocation()
+  // Dashboard renders its own consolidated mobile header (avatar, date,
+  // points, bell, greeting all in one block) — showing TopBar as well
+  // there duplicated the greeting/points. Every other page still gets it.
+  const isDashboard = location.pathname === '/dashboard'
 
   return (
     <div className="min-h-dvh bg-background flex flex-col text-text transition-colors duration-300">
@@ -21,10 +25,12 @@ export default function PageLayout({ children }) {
       {/* Desktop: fixed sidebar */}
       <Sidebar />
 
-      {/* Mobile-only: sticky TopBar */}
-      <div className="lg:hidden">
-        <TopBar />
-      </div>
+      {/* Mobile-only: sticky TopBar (not on Dashboard — see above) */}
+      {!isDashboard && (
+        <div className="lg:hidden">
+          <TopBar />
+        </div>
+      )}
 
       {/* Main content
           - Mobile:  full width, standard padding

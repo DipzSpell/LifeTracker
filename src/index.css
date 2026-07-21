@@ -553,4 +553,58 @@
     animation: aura-flow 8s ease infinite;
     overflow: hidden;
   }
+
+}
+
+/* ── Landing page: smartwatch marquee rows (DataFlowSection) ─────────────
+   Deliberately OUTSIDE any @layer: custom classes inside @layer utilities
+   are treated as on-demand utilities and only emitted when Tailwind's
+   content scanner happens to spot the class string — plain top-level CSS
+   is always emitted, so the marquee can never silently lose its rules. */
+@keyframes marquee-left {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+@keyframes marquee-right {
+  from { transform: translateX(-50%); }
+  to   { transform: translateX(0); }
+}
+.marquee-track {
+  display: flex;
+  width: max-content;
+  will-change: transform;
+}
+.marquee-left  { animation: marquee-left 25s linear infinite; }
+.marquee-right { animation: marquee-right 25s linear infinite; }
+.marquee-row:hover .marquee-track { animation-play-state: paused; }
+
+/* Flowing dash effect for the converging SVG rays — the dash pattern
+   marches along the path to read as "data flowing downward". */
+@keyframes flow-dash {
+  to { stroke-dashoffset: -24; }
+}
+.flow-line {
+  animation: flow-dash 1.1s linear infinite;
+}
+
+/* NOTE: the marquee and flow-line animations deliberately do NOT honor
+   prefers-reduced-motion. Windows reports it whenever "Animation effects"
+   is switched off in Accessibility settings (very common on performance
+   setups — including the site owner's own machine), which silently froze
+   this section for those visitors. These are slow, low-contrast, purely
+   decorative movements, so per the owner's call they always run. */
+
+/* ── Spline hero scene (SplineEmbed) ─────────────────────────────────────
+   The template's cubes are a stock saturated blue (hue ≈ 215°); shift them
+   toward the theme accent #22D3EE (hue ≈ 187°) so the 3D scene reads as
+   part of our palette. filter is purely visual — pointer/drag events are
+   unaffected. The transparent background is belt-and-braces on top of the
+   runtime's setBackgroundColor("rgba(0,0,0,0)") call. */
+.spline-embed canvas {
+  /* -10deg lands the bright rim-glow (the perceptually dominant color of
+     the scene) on the accent cyan; anything past ≈-14deg tips it into
+     mint green because CSS hue-rotate over-rotates the already-cyan
+     highlights long before the deep-blue faces move. */
+  filter: hue-rotate(-10deg) saturate(1.1) brightness(1.03);
+  background: transparent !important;
 }

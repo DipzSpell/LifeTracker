@@ -14,7 +14,7 @@ import Logo from './Logo'
 export default function ChooseUsername() {
   const { user, claimUsername, checkUsernameAvailable } = useAuth()
   const [username, setUsername] = useState('')
-  const [status, setStatus] = useState('idle') // idle | checking | available | taken | invalid
+  const [status, setStatus] = useState('idle') // idle | checking | available | taken | invalid | error
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
 
@@ -26,8 +26,12 @@ export default function ChooseUsername() {
       try {
         const ok = await checkUsernameAvailable(username)
         setStatus(ok ? 'available' : 'taken')
-      } catch {
-        setStatus('idle')
+      } catch (err) {
+        // Silently swallowing this (old behavior) left users stuck with a
+        // permanently disabled Continue and no clue why — most commonly
+        // because profiles_migration.sql was never run in Supabase.
+        console.error('[ChooseUsername] availability check failed:', err)
+        setStatus('error')
       }
     }, 400)
     return () => clearTimeout(t)
@@ -74,11 +78,11 @@ export default function ChooseUsername() {
               <span className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
                 {status === 'checking' && <Loader2 size={14} className="animate-spin" style={{ color: 'var(--text-muted)' }} />}
                 {status === 'available' && <Check size={14} style={{ color: 'var(--success)' }} />}
-                {(status === 'taken' || status === 'invalid') && <X size={14} style={{ color: 'var(--danger)' }} />}
+                {(status === 'taken' || status === 'invalid' || status === 'error') && <X size={14} style={{ color: 'var(--danger)' }} />}
               </span>
             </div>
             <p className="text-xs mt-1.5" style={{
-              color: status === 'taken' || status === 'invalid' ? 'var(--danger)'
+              color: status === 'taken' || status === 'invalid' || status === 'error' ? 'var(--danger)'
                 : status === 'available' ? 'var(--success)' : 'var(--text-muted)',
             }}>
               {status === 'idle' && '3-20 characters: letters, numbers, dot or underscore.'}
@@ -86,6 +90,7 @@ export default function ChooseUsername() {
               {status === 'available' && 'Available!'}
               {status === 'taken' && 'That userid is already taken.'}
               {status === 'invalid' && '3-20 characters: letters, numbers, dot or underscore.'}
+              {status === 'error' && 'Could not check availability — the database setup (profiles_migration.sql) may not have been run yet.'}
             </p>
           </div>
 
